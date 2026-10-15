@@ -1,0 +1,308 @@
+/*
+ * BlueMap Live – Phase 2 end-to-end test-server (NOT part of the BlueMap build).
+ *
+ * Serves the original, built BlueMap webapp (common/webapp/dist) together with
+ *  - a small test-map whose single hires-tile is generated with BlueMap's own ArrayTileModel + PRBMWriter
+ *  - maps/world/live/players.json generated with BlueMap's own PlayerMotionTracker + LivePlayersJson
+ *    (the same classes FabricPlayer / LivePlayersDataSupplier use on the real server)
+ *
+ * The player-state is driven by the test-script through /control requests, each /control request is one
+ * "server sample" (like FabricPlayer.update() on the server-thread).
+ *
+ * Usage: see docs/bluemap-live/e2e/README.md
+ */
+
+import com.flowpowered.math.vector.Vector3d;
+import com.google.gson.stream.JsonWriter;
+import com.sun.net.httpserver.HttpExchange;
+import com.sun.net.httpserver.HttpServer;
+import de.bluecolored.bluemap.common.live.LivePlayerState;
+import de.bluecolored.bluemap.common.live.LivePlayersJson;
+import de.bluecolored.bluemap.common.live.MovementState;
+import de.bluecolored.bluemap.common.live.PlayerMotionTracker;
+import de.bluecolored.bluemap.core.map.hires.ArrayTileModel;
+import de.bluecolored.bluemap.core.map.hires.PRBMWriter;
+
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.StringWriter;
+import java.net.InetSocketAddress;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
+
+public class LiveE2EServer {
+
+    private static final String MAP_WORLD = "minecraft:overworld";
+
+    private static final class SimPlayer {
+        final String uuid;
+        final String name;
+        final PlayerMotionTracker tracker = new PlayerMotionTracker();
+        String world = MAP_WORLD;
+        LivePlayerState state;
+
+        SimPlayer(String uuid, String name) {
+            this.uuid = uuid;
+            this.name = name;
+        }
+    }
+
+    private final Path webroot;
+    private final byte[] tile;
+    private final Map<String, SimPlayer> online = new LinkedHashMap<>();
+    private final Deque<String> history = new ArrayDeque<>();
+    private boolean serveStaleOnce = false;
+    private int staleServed = 0;
+    private boolean endpointDown = false;
+
+    public LiveE2EServer(Path webroot) throws IOException {
+        this.webroot = webroot;
+        this.tile = createTile();
+    }
+
+    public static void main(String[] args) throws Exception {
+        Path webroot = Path.of(args[0]);
+        int port = args.length > 1 ? Integer.parseInt(args[1]) : 8100;
+
+        LiveE2EServer server = new LiveE2EServer(webroot);
+        HttpServer http = HttpServer.create(new InetSocketAddress("127.0.0.1", port), 0);
+        http.createContext("/", server::handle);
+        http.start();
+        System.out.println("LiveE2EServer running on http://127.0.0.1:" + port + "/");
+    }
+
+    private synchronized void handle(HttpExchange ex) throws IOException {
+        try {
+            String path = ex.getRequestURI().getPath();
+            switch (path) {
+                case "/settings.json" -> send(ex, 200, "application/json", rootSettings().getBytes(StandardCharsets.UTF_8));
+                case "/maps/world/settings.json" -> send(ex, 200, "application/json", mapSettings().getBytes(StandardCharsets.UTF_8));
+                case "/maps/world/textures.json" -> send(ex, 200, "application/json", textures().getBytes(StandardCharsets.UTF_8));
+                case "/maps/world/tiles/0/x0/z0.prbm" -> send(ex, 200, "application/octet-stream", tile);
+                case "/maps/world/live/players.json" -> handlePlayers(ex);
+                case "/maps/world/live/markers.json" -> send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+                case "/control" -> handleControl(ex);
+                default -> serveStatic(ex, path);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            send(ex, 500, "text/plain", e.toString().getBytes(StandardCharsets.UTF_8));
+        }
+    }
+
+    // --- live data ---
+
+    private void handlePlayers(HttpExchange ex) throws IOException {
+        if (endpointDown) {
+            send(ex, 503, "text/plain", "down".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+
+        String body;
+        if (serveStaleOnce && history.size() >= 2) {
+            // the response of the second to last sample (older serverTime and older positions),
+            // like it could come from a cache or a slow proxy: must be ignored by the client
+            Iterator<String> it = history.descendingIterator();
+            it.next();
+            body = it.next();
+            serveStaleOnce = false;
+            staleServed++;
+        } else {
+            body = currentJson();
+        }
+        send(ex, 200, "application/json", body.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private String currentJson() throws IOException {
+        List<LivePlayersJson.Entry> entries = new ArrayList<>();
+        for (SimPlayer p : online.values()) {
+            entries.add(new LivePlayersJson.Entry(p.uuid, p.name, !p.world.equals(MAP_WORLD), p.world, p.state));
+        }
+        StringWriter out = new StringWriter();
+        try (JsonWriter json = new JsonWriter(out)) {
+            LivePlayersJson.write(json, System.currentTimeMillis(), 250, true, entries);
+        }
+        return out.toString();
+    }
+
+    /**
+     * One server-sample: /control?uuid=..&name=..&x=..&y=..&z=..&pitch=..&yaw=..&bodyYaw=..&world=..&respawn=1
+     * Other commands: /control?leave=uuid, /control?stale=1, /control?down=1|0, /control?status=1
+     */
+    private void handleControl(HttpExchange ex) throws IOException {
+        Map<String, String> q = query(ex);
+
+        if (q.containsKey("stale")) {
+            serveStaleOnce = true;
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (q.containsKey("status")) {
+            send(ex, 200, "application/json", ("{\"staleServed\":" + staleServed + "}").getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (q.containsKey("down")) {
+            endpointDown = q.get("down").equals("1");
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+
+        if (q.containsKey("leave")) {
+            online.remove(q.get("leave"));
+        } else {
+            String uuid = q.get("uuid");
+            SimPlayer p = online.computeIfAbsent(uuid, u -> new SimPlayer(u, q.getOrDefault("name", "Player")));
+            if (q.containsKey("world")) p.world = q.get("world");
+            if ("1".equals(q.get("respawn"))) p.tracker.markDiscontinuity();
+
+            Vector3d position = new Vector3d(d(q, "x"), d(q, "y"), d(q, "z"));
+            long now = System.currentTimeMillis();
+            PlayerMotionTracker.Result motion = p.tracker.sample(p.world, position, now);
+            p.state = new LivePlayerState(
+                    position,
+                    new Vector3d(d(q, "pitch"), d(q, "yaw"), 0),
+                    q.containsKey("bodyYaw") ? d(q, "bodyYaw") : d(q, "yaw"),
+                    motion.velocity(),
+                    motion.generation(),
+                    now,
+                    new MovementState(false, false, true, false, false, false)
+            );
+        }
+
+        String json = currentJson();
+        history.addLast(json);
+        while (history.size() > 8) history.removeFirst();
+        send(ex, 200, "application/json", json.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static double d(Map<String, String> q, String key) {
+        return Double.parseDouble(q.getOrDefault(key, "0"));
+    }
+
+    private static Map<String, String> query(HttpExchange ex) {
+        Map<String, String> map = new HashMap<>();
+        String raw = ex.getRequestURI().getRawQuery();
+        if (raw == null) return map;
+        for (String part : raw.split("&")) {
+            int i = part.indexOf('=');
+            if (i < 0) map.put(URLDecoder.decode(part, StandardCharsets.UTF_8), "");
+            else map.put(URLDecoder.decode(part.substring(0, i), StandardCharsets.UTF_8), URLDecoder.decode(part.substring(i + 1), StandardCharsets.UTF_8));
+        }
+        return map;
+    }
+
+    // --- test-map ---
+
+    private static String rootSettings() {
+        return """
+            {"version":"live-e2e","useCookies":false,"defaultToFlatView":false,"resolutionDefault":1.0,
+             "minZoomDistance":5,"maxZoomDistance":100000,"hiresSliderMax":500,"hiresSliderDefault":100,"hiresSliderMin":0,
+             "lowresSliderMax":7000,"lowresSliderDefault":2000,"lowresSliderMin":500,
+             "mapDataRoot":"maps","liveDataRoot":"maps","maps":["world"],"scripts":[],"styles":[]}
+            """;
+    }
+
+    private static String mapSettings() {
+        return """
+            {"name":"Live E2E","sorting":0,"startPos":[18,18],"skyColor":[0.5,0.8,1.0,1.0],"voidColor":[0,0,0,1],
+             "ambientLight":0.1,"skyLight":1.0,
+             "hires":{"tileSize":[32,32],"scale":[1,1],"translate":[2,2]},
+             "lowres":{"tileSize":[500,500],"lodFactor":5,"lodCount":3},
+             "perspectiveView":true,"flatView":true,"freeFlightView":true}
+            """;
+    }
+
+    private static String textures() throws IOException {
+        // one 16x16 checkered texture
+        BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        for (int x = 0; x < 16; x++) for (int y = 0; y < 16; y++) {
+            boolean dark = ((x / 4) + (y / 4)) % 2 == 0;
+            img.setRGB(x, y, dark ? 0xFF5E8C3A : 0xFF79A84B);
+        }
+        ByteArrayOutputStream png = new ByteArrayOutputStream();
+        ImageIO.write(img, "png", png);
+        String data = "data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray());
+        return "[{\"resourcePath\":\"test:block/grass\",\"color\":[0.4,0.6,0.3,1],\"halfTransparent\":false,\"texture\":\"" + data + "\"}]";
+    }
+
+    /** A 32x32 ground plane at y=64 with a 4x6x4 pillar (local 14..18), written with BlueMaps own PRBMWriter */
+    private static byte[] createTile() throws IOException {
+        ArrayTileModel model = new ArrayTileModel(64);
+        // ground (top face, facing up)
+        quad(model, 0, 64, 0,  0, 64, 32,  32, 64, 32,  32, 64, 0);
+        // pillar: 4 sides + top
+        float x0 = 14, x1 = 18, z0 = 14, z1 = 18, y0 = 64, y1 = 70;
+        quad(model, x0, y0, z1,  x1, y0, z1,  x1, y1, z1,  x0, y1, z1); // south (+z)
+        quad(model, x1, y0, z0,  x0, y0, z0,  x0, y1, z0,  x1, y1, z0); // north (-z)
+        quad(model, x1, y0, z1,  x1, y0, z0,  x1, y1, z0,  x1, y1, z1); // east (+x)
+        quad(model, x0, y0, z0,  x0, y0, z1,  x0, y1, z1,  x0, y1, z0); // west (-x)
+        quad(model, x0, y1, z1,  x1, y1, z1,  x1, y1, z0,  x0, y1, z0); // top
+        model.sort();
+
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try (PRBMWriter writer = new PRBMWriter(out)) {
+            writer.write(model);
+        }
+        return out.toByteArray();
+    }
+
+    /** adds a quad (two faces, both windings so culling-direction does not matter for this test) */
+    private static void quad(ArrayTileModel m,
+                             float ax, float ay, float az, float bx, float by, float bz,
+                             float cx, float cy, float cz, float dx, float dy, float dz) {
+        for (int winding = 0; winding < 2; winding++) {
+            int f = m.add(2);
+            m.setPositions(f, ax, ay, az, bx, by, bz, cx, cy, cz);
+            m.setPositions(f + 1, ax, ay, az, cx, cy, cz, dx, dy, dz);
+            for (int i = f; i < f + 2; i++) {
+                m.setUvs(i, 0, 0, 1, 0, 1, 1);
+                m.setAOs(i, 1, 1, 1);
+                m.setColor(i, 1, 1, 1);
+                m.setSunlight(i, 15);
+                m.setBlocklight(i, 0);
+                m.setMaterialIndex(i, 0);
+                if (winding == 1) m.invertOrientation(i);
+            }
+        }
+    }
+
+    // --- static files ---
+
+    private void serveStatic(HttpExchange ex, String path) throws IOException {
+        if (path.equals("/")) path = "/index.html";
+        Path file = webroot.resolve(path.substring(1)).normalize();
+        if (!file.startsWith(webroot) || !Files.isRegularFile(file)) {
+            send(ex, 404, "text/plain", "not found".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        send(ex, 200, contentType(file.toString()), Files.readAllBytes(file));
+    }
+
+    private static String contentType(String name) {
+        if (name.endsWith(".html")) return "text/html; charset=utf-8";
+        if (name.endsWith(".js")) return "application/javascript";
+        if (name.endsWith(".css")) return "text/css";
+        if (name.endsWith(".json")) return "application/json";
+        if (name.endsWith(".png")) return "image/png";
+        if (name.endsWith(".svg")) return "image/svg+xml";
+        if (name.endsWith(".woff2")) return "font/woff2";
+        if (name.endsWith(".woff")) return "font/woff";
+        return "application/octet-stream";
+    }
+
+    private static void send(HttpExchange ex, int status, String type, byte[] body) throws IOException {
+        ex.getResponseHeaders().set("Content-Type", type);
+        ex.getResponseHeaders().set("Cache-Control", "no-cache");
+        ex.sendResponseHeaders(status, body.length);
+        try (OutputStream out = ex.getResponseBody()) {
+            out.write(body);
+        }
+    }
+
+}
