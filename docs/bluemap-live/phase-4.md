@@ -5,7 +5,7 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `phase-4-plan.md`
 > **Kurzfassung:** Implementiert ist Phase 1 des Auftrags: Haupt- und Nebenhand werden übertragen, die Items mit den Modellen, Texturen und Anzeige-Transformationen des Resource-Packs an den Händen dargestellt, und die Vanilla-Armposen für Halten, Blocken, Bogen, Armbrust, Dreizack, Fernrohr, Horn und Pinsel animiert. Für Essen und Trinken gibt es eine gekennzeichnete Näherung. Die Art des Armschwungs (Angriff/Abbauen/Benutzen) kommt aus Server-Ereignissen.
 > - **Getestet** (automatisiert): 53 Java-Tests lokal, 60 Node-Tests, Browser-E2E mit Items 15/15 (3/3 Läufe) sowie die bisherigen Suites 22/22 und 18/18; ohne Spieler ist die Darstellung pixelgleich zum Original.
 > - **CI:** `spotlessCheck test` und `release` sind auf `fbd62486` grün (Push- und PR-Lauf). Der erste Lauf auf `dc9a9b05` scheiterte an zwei Kompilierfehlern in `FabricPlayer`, die behoben sind (§6).
-> - **Nicht** geprüft: Minecraft und echte Vanilla-Ressourcen.
+> - **Minecraft:** Rückmeldung des Nutzers (Einzelspieler, CI-Artefakt von `b4e64b4c`): Items werden mit den echten Vanilla-Ressourcen angezeigt und animiert. Die Einzelprüfungen I1–I16 sind noch offen.
 > - **Phase 2 (Truhen):** nur Analyse, siehe §8.
 
 ---

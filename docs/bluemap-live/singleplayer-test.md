@@ -173,7 +173,9 @@ Vorbereitung: Die Welt mit dem neuen JAR öffnen, die Seite einmal öffnen und d
 | E24 | Respawn oder `/tp` während des Gehens | Kein Nachschwingen über die Karte, Animation startet neu |
 | E25 | Kopf drehen/heben während einer Animation; Kartennavigation, „Spieler folgen“ | Kopf folgt weiter dem Blick; Navigation und Folgen unverändert |
 
-**Gehaltene Items und Item-Animationen (Phase 4, `phase-4.md`, alle offen)**
+**Gehaltene Items und Item-Animationen (Phase 4, `phase-4.md`)**
+
+Rückmeldung aus Minecraft 1.21.1, Einzelspieler, CI-Artefakt von `b4e64b4c`: Items werden angezeigt und animiert (Screenshot mit Schwert in der rechten Hand). Die Einzelprüfungen unten sind noch nicht einzeln bestätigt, insbesondere die genaue Ausrichtung im Vergleich zur F5-Ansicht (I1–I4).
 
 Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `players.json` (§4) muss beim Spieler `"equipment"` stehen.
 
