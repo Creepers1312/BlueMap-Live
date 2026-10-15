@@ -14,6 +14,7 @@ import {
     MIN_UPDATE_INTERVAL,
     parsePlayer,
     parsePlayersResponse,
+    parseSkin,
     resolveUpdateInterval,
     SUPPORTED_PROTOCOL,
 } from "../src/js/markers/LivePlayerData.js";
@@ -218,4 +219,22 @@ test("interpolation duration follows the sample times", () => {
     assert.equal(interpolationDuration(b, a, 400), 400, "non-increasing times fall back to the interval");
     assert.equal(interpolationDuration(a, parsePlayer({...v1Player(), time: 1001}), 400), 50, "lower bound");
     assert.equal(interpolationDuration(a, parsePlayer({...v1Player(), time: 11000}), 250), 250, "never longer than the update-interval");
+});
+
+test("skin-info is parsed and validated", () => {
+    assert.deepEqual(parseSkin({model: "slim", version: "0123abcd"}), {model: "slim", version: "0123abcd"});
+    assert.deepEqual(parseSkin({model: "classic", version: "ab"}), {model: "classic", version: "ab"});
+    assert.deepEqual(parseSkin({model: "giant", version: "ab"}), {model: "classic", version: "ab"}, "unknown model -> classic");
+    assert.deepEqual(parseSkin({version: "ab"}), {model: "classic", version: "ab"});
+    assert.equal(parseSkin(null), null);
+    assert.equal(parseSkin({model: "slim"}), null, "no version -> no skin");
+    assert.equal(parseSkin({model: "slim", version: "../evil"}), null, "version is used in the url and must be hex");
+    assert.equal(parseSkin({model: "slim", version: 5}), null);
+
+    const p = parsePlayer({...v1Player(), skin: {model: "slim", version: "05"}});
+    assert.deepEqual(p.skin, {model: "slim", version: "05"});
+    assert.equal(parsePlayer(v1Player()).skin, null, "missing skin field");
+
+    const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), skin: {model: "slim", version: "05"}}]});
+    assert.equal(legacy.players[0].skin, null, "unsupported protocol -> only the original fields");
 });
