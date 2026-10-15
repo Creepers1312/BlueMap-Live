@@ -3,14 +3,14 @@
   "id": "bluemap",
   "version": "${version}",
 
-  "name": "BlueMap",
-  "description": "A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)",
+  "name": "BlueMap Live",
+  "description": "BlueMap Live: an unofficial fork of BlueMap with live 3d player-models. A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)",
   "authors": [
     "Blue (TBlueF, Lukas Rieger)"
   ],
   "contact": {
-    "homepage": "https://github.com/BlueMap-Minecraft",
-    "sources": "https://github.com/BlueMap-Minecraft/BlueMap"
+    "homepage": "https://github.com/Creepers1312/BlueMap-Live",
+    "sources": "https://github.com/Creepers1312/BlueMap-Live"
   },
   "license": "MIT",
   "icon": "assets/bluemap/icon.png",

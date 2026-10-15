@@ -200,3 +200,21 @@ Die Armposen sind aus Vanillas 1.21.1 `PlayerEntityRenderer.getArmPose`, `BipedE
 2. **Laufzeit-Ausblendung im Webclient:** Die Dreiecke des gebackenen Deckels an der Blockposition werden in der geladenen Kachelgeometrie ausgeblendet, solange die Truhe offen ist. Das ist ein Eingriff in die vom Original geladene Kachelgeometrie und widerspricht der Vorgabe, den Renderer nicht zu verändern.
 
 **Vorgehen:** Truhen und interaktive Blöcke werden zusammen mit den Live-Block-Updates umgesetzt, erst nachdem Phase 1 in Minecraft bestätigt ist.
+
+## 9. Kopfmarker und angezeigter Mod-Name (Vorbereitung der ersten Version)
+
+**Kopfmarker:**
+- Ist das 3D-Modell sichtbar und die Kamera näher als 50 Blöcke, wird das Kopfbild des Markers ausgeblendet (`model-data="near"`, 0,3 s Übergang). Ab dieser Entfernung ist das Modell etwa so groß wie das 32-px-Kopfbild.
+- Der Name bleibt an seiner Stelle.
+- Aus der Ferne und ohne Modell (kein Skin, über 1000 Blöcke) bleibt alles wie im Original.
+- Getestet im Browser-E2E (`items-e2e.mjs`): nah ausgeblendet, nach Herauszoomen über die Seitenadresse wieder sichtbar, Name unverändert. Die Regression ohne Spieler bleibt pixelgleich.
+
+![Kopfmarker nah und fern](e2e/screenshots/15-head-icon-near-far.png)
+*Links nah: nur der Name. Rechts aus der Ferne: Kopfbild und Name wie im Original.*
+
+**Mod-Name (`fabric.mod.json`):**
+- Angezeigter Name „BlueMap Live“ mit dem Hinweis „unofficial fork of BlueMap“ in der Beschreibung.
+- Homepage und Quelltext verweisen auf `Creepers1312/BlueMap-Live`.
+- Der Autor des Originals bleibt eingetragen.
+- Die Mod-ID bleibt `bluemap`. Eine Umbenennung würde Konfigurations- und Datenordner betreffen und ist eine eigene Entscheidung.
+

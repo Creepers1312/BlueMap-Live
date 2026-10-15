@@ -204,6 +204,8 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | I14 | Zweiter Spieler (LAN) mit anderem Item | Beide Items unabhängig; nach Verlassen verschwindet das Item |
 | I15 | Erstes Halten eines neuen Items | Item erscheint nach höchstens wenigen Sekunden (Asset wird beim ersten Bedarf erzeugt) |
 | I16 | Kartennavigation, „Spieler folgen“, Kopf drehen mit Item | unverändert; Item folgt dem Arm, nicht dem Kopf |
+| I17 | Nah an den Spieler heranzoomen, dann weit herauszoomen | nah: Kopfbild ausgeblendet, nur der Name; fern: Kopfbild und Name wie bisher |
+| I18 | Mod-Liste (Mod Menu) | Name „BlueMap Live“, Beschreibung mit Hinweis auf den inoffiziellen Fork |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

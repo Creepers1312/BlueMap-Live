@@ -319,6 +319,33 @@ await step("item-asset not yet available on the server: shown as soon as it exis
     assert.ok(await countColor("26-apple", await projectItem(D, "right"), COLORS.apple) > 10);
 });
 
+await step("close to the 3d-model the head-icon is faded out (the name stays), from far away it is shown", async () => {
+    // (this suite hides the whole css-marker for the pixel-checks, the attribute and the computed style are checked)
+    const icon = () => page.evaluate(uuid => {
+        const m = window.bluemap.playerMarkerManager.getPlayerMarker(uuid);
+        const element = m.element;
+        return {
+            model: element.getAttribute("model-data"),
+            opacity: getComputedStyle(element.getElementsByTagName("img")[0]).opacity,
+            name: element.getElementsByClassName("bm-player-name")[0].textContent,
+        };
+    }, D);
+    await page.waitForFunction(uuid => window.bluemap.playerMarkerManager.getPlayerMarker(uuid).element.getAttribute("model-data") === "near", D);
+    await sleep(500); // css-transition
+    let near = await icon();
+    assert.equal(near.opacity, "0", "head-icon faded out");
+    assert.equal(near.name, "Dave", "name unchanged");
+
+    // zoom out via the normal page-address (hash-navigation, no reload)
+    await page.evaluate(() => location.hash = "#world:8.5:64.9:8.5:300:0:1.45:0:0:perspective");
+    await page.waitForFunction(uuid => window.bluemap.playerMarkerManager.getPlayerMarker(uuid).element.getAttribute("model-data") === "none", D, {timeout: 10000});
+    await sleep(500);
+    assert.equal((await icon()).opacity, "1", "head-icon shown again");
+
+    await page.evaluate(() => location.hash = "#world:8.5:64.9:8.5:5:0:1.45:0:0:perspective");
+    await page.waitForFunction(uuid => window.bluemap.playerMarkerManager.getPlayerMarker(uuid).element.getAttribute("model-data") === "near", D, {timeout: 10000});
+});
+
 await step("held items do not move the camera, no page-reload, no errors", async () => {
     // (the camera-height is adapted to the terrain after loading and after map-switches, so it is compared here)
     const before = await camera();

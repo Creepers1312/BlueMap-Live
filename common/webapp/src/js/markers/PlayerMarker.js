@@ -37,6 +37,12 @@ const PLAYER_HEIGHT = 1.8;
 /** Beyond this camera-distance only the head/name marker is shown, the 3d-model is hidden */
 const MODEL_MAX_DISTANCE = 1000;
 
+/**
+ * Closer than this camera-distance the 3d-model is at least about as big as the head-icon (32px at a usual
+ * field of view), so the head-icon is faded out (it would cover the face), only the name stays
+ */
+const HEAD_ICON_HIDE_DISTANCE = 50;
+
 /** used if no skin-cache is provided */
 let fallbackSkinCache = null;
 
@@ -122,6 +128,12 @@ export class PlayerMarker extends Marker {
         this.element.setAttribute("distance-data", value);
 
         this.model.visible = this.model.hasSkin && distance <= MODEL_MAX_DISTANCE;
+
+        const modelNear = this.model.visible && distance <= HEAD_ICON_HIDE_DISTANCE;
+        if (modelNear !== this.modelNear) {
+            this.modelNear = modelNear;
+            this.element.setAttribute("model-data", modelNear ? "near" : "none");
+        }
     }
 
     /**

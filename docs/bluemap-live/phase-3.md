@@ -135,7 +135,7 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `phase-3-plan.md`
 ### 4.4 Bekannte Einschränkungen
 
 - **Animation:** in Schritt 4 nachgeliefert, siehe §7.
-- **Kopfmarker verdeckt das Gesicht:** Der CSS-Kopfmarker liegt weiterhin auf Kopfhöhe und verdeckt in der Nähe das 3D-Gesicht. Das bisherige Verhalten bleibt bewusst erhalten; eine Ausblendung in Modell-Distanz ist für Schritt 6 geplant. Im Screenshot-Test wird er per CSS ausgeblendet.
+- **Kopfmarker verdeckt das Gesicht:** behoben in Phase 4 (`phase-4.md` §9). Näher als 50 Blöcke wird das Kopfbild ausgeblendet, der Name bleibt.
 - **Beinüberlappung:** Die Beine überlappen sich wie im Vanilla-Modell um 0,2 px (Pivot ±1,9 bei 4 px Breite). An den deckungsgleichen Vorder- und Rückseiten ist theoretisch Z-Fighting auf einem 0,2 px breiten Streifen möglich; in den Screenshots war es nicht sichtbar.
 - **Standard-Skin nur synthetisch geprüft:** Mit einem echten Resource-Pack ist der Standard-Skin nicht geprüft, weil das Client-Jar nicht herunterladbar ist. Der E2E-Test verwendet eine synthetische graue Ersatztextur unter demselben `resourcePath`.
 - **Keine Option „Modell aus“:** Eine Option `live-player-models` ist noch nicht umgesetzt (Schritt 6).
