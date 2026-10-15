@@ -221,7 +221,7 @@ public class FabricPlayer extends Player {
         return equipment;
     }
 
-    private static @Nullable HeldItem toHeldItem(ItemStack stack) {
+    static @Nullable HeldItem toHeldItem(ItemStack stack) {
         if (stack.isEmpty()) return null;
 
         // the id from the registry-entry of the item (avoids the fabric-injected registry-interface)

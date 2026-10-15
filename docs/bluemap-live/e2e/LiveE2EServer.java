@@ -21,6 +21,8 @@ import de.bluecolored.bluemap.common.live.LivePlayersJson;
 import de.bluecolored.bluemap.common.live.Equipment;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.ItemUse;
+import de.bluecolored.bluemap.common.live.LiveEntitiesJson;
+import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.common.live.MovementState;
 import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.items.ItemModelBaker;
@@ -79,6 +81,8 @@ public class LiveE2EServer {
     private boolean endpointDown = false;
     private boolean itemsDown = false;
     private final Map<String, byte[]> itemAssets = new HashMap<>();
+    /** BlueMap Live entities (only in the overworld) */
+    private final Map<Integer, LiveEntityState> entities = new LinkedHashMap<>();
 
     public LiveE2EServer(Path webroot) throws IOException {
         this.webroot = webroot;
@@ -118,6 +122,7 @@ public class LiveE2EServer {
                     case "tiles/0/x0/z0.prbm" -> send(ex, 200, "application/octet-stream", tile);
                     case "live/players.json" -> handlePlayers(ex, mapId);
                     case "live/markers.json" -> send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+                    case "live/entities.json" -> handleEntities(ex, mapId);
                     default -> {
                         if (file.startsWith("assets/playerskins/") && file.endsWith(".png")) handleSkin(ex, file);
                         else if (file.startsWith("assets/items/") && file.endsWith(".json")) handleItem(ex, file);
@@ -197,6 +202,22 @@ public class LiveE2EServer {
         }
         if (q.containsKey("status")) {
             send(ex, 200, "application/json", ("{\"staleServed\":" + staleServed + "}").getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        // entities: /control?entity=ID&type=minecraft:item&x=..&y=..&z=..&item=minecraft:diamond&vx=..&vy=..&vz=..&yaw=..&pitch=..
+        //           /control?removeEntity=ID
+        if (q.containsKey("entity")) {
+            int id = Integer.parseInt(q.get("entity"));
+            entities.put(id, new LiveEntityState(id, q.getOrDefault("type", "minecraft:item"),
+                    new Vector3d(d(q, "x"), d(q, "y"), d(q, "z")), d(q, "yaw"), d(q, "pitch"),
+                    new Vector3d(d(q, "vx"), d(q, "vy"), d(q, "vz")), System.currentTimeMillis(),
+                    q.containsKey("item") ? new HeldItem(q.get("item")) : null, "1".equals(q.get("ground"))));
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (q.containsKey("removeEntity")) {
+            entities.remove(Integer.parseInt(q.get("removeEntity")));
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }
         if (q.containsKey("itemsDown")) {
@@ -365,6 +386,15 @@ public class LiveE2EServer {
             img.setRGB(hatFront[0] + x, hatFront[1] + y, skinColor(1, 0, 4, 0));
         }
         return img;
+    }
+
+    private void handleEntities(HttpExchange ex, String mapId) throws IOException {
+        StringWriter out = new StringWriter();
+        try (JsonWriter json = new JsonWriter(out)) {
+            LiveEntitiesJson.write(json, System.currentTimeMillis(), 250,
+                    mapId.equals("world") ? List.copyOf(entities.values()) : List.of());
+        }
+        send(ex, 200, "application/json", out.toString().getBytes(StandardCharsets.UTF_8));
     }
 
     /** baked by the real ItemModelBaker from a small, color-coded resource-pack (see E2EItemResources) */

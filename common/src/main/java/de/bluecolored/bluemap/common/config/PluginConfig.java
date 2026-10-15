@@ -53,6 +53,11 @@ public class PluginConfig {
 
     private boolean skinDownload = true;
 
+    private boolean liveEntities = true;
+    private int liveEntitiesRadius = 30;
+    private int liveEntitiesLimit = 200;
+    private List<String> liveEntitiesHiddenTypes = new ArrayList<>();
+
     private int playerRenderLimit = -1;
 
     private int updateCooldown = 60;
@@ -64,6 +69,20 @@ public class PluginConfig {
      */
     public int getLivePlayerUpdateInterval() {
         return Math.max(50, Math.min(10000, livePlayerUpdateInterval));
+    }
+
+    /**
+     * The radius (blocks) around the shown players in which entities are sent to the webapp. Clamped to 0 .. 128.
+     */
+    public int getLiveEntitiesRadius() {
+        return Math.max(0, Math.min(128, liveEntitiesRadius));
+    }
+
+    /**
+     * The maximum number of entities that are sent to the webapp per map (the nearest first). Clamped to 0 .. 1000.
+     */
+    public int getLiveEntitiesLimit() {
+        return Math.max(0, Math.min(1000, liveEntitiesLimit));
     }
 
     public Duration getUpdateCooldown() {

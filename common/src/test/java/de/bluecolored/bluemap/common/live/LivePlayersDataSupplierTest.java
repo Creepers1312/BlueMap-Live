@@ -168,6 +168,87 @@ public class LivePlayersDataSupplierTest {
         assertEquals(new Vector3d(1, 2, 3), snapshot.state().position());
     }
 
+    // --- entities (BlueMap Live) ---
+
+    private static LiveEntityState entity(int id, String type, Vector3d position, HeldItem item) {
+        return new LiveEntityState(id, type, position, 0, 0, Vector3d.ZERO, 1000, item, false);
+    }
+
+    private String supplyEntities(PluginConfig config, TestServer server, List<String> requested) {
+        return new LiveEntitiesDataSupplier(server, config, mapWorld, uuid -> true, 250, requested::add).get();
+    }
+
+    private static JsonArray entities(String json) {
+        return root(json).getAsJsonArray("entities");
+    }
+
+    @Test
+    public void testEntitiesAroundShownPlayers() {
+        TestPlayer player = new TestPlayer(overworld, new Vector3d(0, 64, 0));
+        player.snapshot = new Player.LiveSnapshot(overworld, state(new Vector3d(0, 64, 0), 0));
+        TestServer server = new TestServer(player);
+        server.entities = List.of(
+                entity(1, "minecraft:item", new Vector3d(20, 64, 0), new HeldItem("minecraft:diamond")),
+                entity(2, "minecraft:arrow", new Vector3d(5, 64, 0), new HeldItem("minecraft:arrow")),
+                entity(3, "minecraft:item", new Vector3d(100, 64, 0), new HeldItem("minecraft:stone")) // outside of 30 blocks
+        );
+
+        List<String> requested = new ArrayList<>();
+        JsonObject root = root(supplyEntities(new PluginConfig(), server, requested));
+        assertEquals(1, root.get("protocol").getAsInt());
+        JsonArray list = root.getAsJsonArray("entities");
+        assertEquals(2, list.size());
+        assertEquals(2, list.get(0).getAsJsonObject().get("id").getAsInt(), "the nearest entity first");
+        assertEquals("minecraft:item", list.get(1).getAsJsonObject().get("type").getAsString());
+        assertEquals("minecraft:diamond", list.get(1).getAsJsonObject().getAsJsonObject("item").get("id").getAsString());
+        assertEquals(List.of("minecraft:arrow", "minecraft:diamond"), requested, "item-assets of the listed entities");
+    }
+
+    @Test
+    public void testEntitiesLimitHiddenTypesAndDisabled() throws Exception {
+        TestPlayer player = new TestPlayer(overworld, Vector3d.ZERO);
+        player.snapshot = new Player.LiveSnapshot(overworld, state(Vector3d.ZERO, 0));
+        TestServer server = new TestServer(player);
+        List<LiveEntityState> many = new ArrayList<>();
+        for (int i = 0; i < 300; i++) many.add(entity(i, "minecraft:item", new Vector3d(i * 0.1, 0, 0), null));
+        many.add(entity(1000, "minecraft:arrow", new Vector3d(0, 0, 0), null));
+        server.entities = many;
+
+        assertEquals(200, entities(supplyEntities(new PluginConfig(), server, new ArrayList<>())).size(), "default limit");
+        assertEquals(10, entities(supplyEntities(config("liveEntitiesLimit", 10), server, new ArrayList<>())).size());
+        JsonArray noItems = entities(supplyEntities(config("liveEntitiesHiddenTypes", List.of("minecraft:item")), server, new ArrayList<>()));
+        assertEquals(1, noItems.size());
+        assertEquals("minecraft:arrow", noItems.get(0).getAsJsonObject().get("type").getAsString());
+        assertEquals(0, entities(supplyEntities(config("liveEntities", false), server, new ArrayList<>())).size());
+        assertEquals(0, entities(supplyEntities(config("livePlayerMarkers", false), server, new ArrayList<>())).size());
+    }
+
+    @Test
+    public void testEntitiesDoNotRevealHiddenPlayers() {
+        TestPlayer hidden = new TestPlayer(overworld, Vector3d.ZERO);
+        hidden.invisible = true; // invisible players are hidden by default
+        hidden.snapshot = new Player.LiveSnapshot(overworld, state(Vector3d.ZERO, 0));
+        TestServer server = new TestServer(hidden);
+        server.entities = List.of(entity(1, "minecraft:item", new Vector3d(1, 0, 0), null));
+        assertEquals(0, entities(supplyEntities(new PluginConfig(), server, new ArrayList<>())).size(),
+                "entities around a hidden player would reveal his position");
+
+        // a player in another world shows nothing on this map
+        TestPlayer inNether = new TestPlayer(nether, Vector3d.ZERO);
+        inNether.snapshot = new Player.LiveSnapshot(nether, state(Vector3d.ZERO, 0));
+        TestServer netherServer = new TestServer(inNether);
+        netherServer.entities = server.entities;
+        assertEquals(0, entities(supplyEntities(new PluginConfig(), netherServer, new ArrayList<>())).size());
+
+        // filtered by the player-filter (e.g. /bluemap player hide)
+        TestPlayer filtered = new TestPlayer(overworld, Vector3d.ZERO);
+        filtered.snapshot = new Player.LiveSnapshot(overworld, state(Vector3d.ZERO, 0));
+        TestServer filteredServer = new TestServer(filtered);
+        filteredServer.entities = server.entities;
+        String json = new LiveEntitiesDataSupplier(filteredServer, new PluginConfig(), mapWorld, uuid -> false, 250, id -> {}).get();
+        assertEquals(0, entities(json).size());
+    }
+
     // --- helpers ---
 
     private String supply(PluginConfig config, Player... players) {
@@ -207,6 +288,7 @@ public class LivePlayersDataSupplierTest {
 
     private class TestServer implements Server {
         private final List<Player> players;
+        private List<LiveEntityState> entities = List.of();
 
         TestServer(Player... players) {
             this.players = List.of(players);
@@ -222,6 +304,9 @@ public class LivePlayersDataSupplierTest {
         @Override public Collection<Player> getOnlinePlayers() { return players; }
         @Override public void registerListener(ServerEventListener listener) {}
         @Override public void unregisterAllListeners() {}
+        @Override public List<LiveEntityState> getLiveEntities(ServerWorld world) {
+            return world == overworld ? entities : List.of();
+        }
     }
 
     private static class TestPlayer extends Player {

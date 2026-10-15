@@ -53,7 +53,7 @@ import java.util.*;
 /**
  * Bakes the (third-person) item-model of an item into a self-contained json-asset for the webapp:
  * resolved faces (positions in block-units 0..1, uvs 0..1), the textures as png-data-urls (first frame of animated
- * textures), the <code>thirdperson_righthand/lefthand</code> display-transformations and the overrides.
+ * textures), the <code>thirdperson_righthand/lefthand</code> and <code>ground</code> display-transformations and the overrides.
  * <p>Follows the vanilla rules: the parent-chain is merged (textures by key, elements and each display-mode from the
  * nearest model that defines them), <code>builtin/generated</code> models are extruded from their layer-textures
  * like the vanilla <code>ItemModelGenerator</code>, faces and uvs are created with BlueMaps own model-classes
@@ -80,7 +80,12 @@ public class ItemModelBaker {
     static final int MAX_QUADS = 8192;
     static final int MAX_TEXTURE_SIZE = 512;
 
-    private static final String[] DISPLAY_MODES = {"thirdperson_righthand", "thirdperson_lefthand"};
+    private static final String[] DISPLAY_MODES = {"thirdperson_righthand", "thirdperson_lefthand", "ground"};
+    private static final Map<String, String> DISPLAY_NAMES = Map.of(
+            "thirdperson_righthand", "right",
+            "thirdperson_lefthand", "left",
+            "ground", "ground"
+    );
 
     private final Resources resources;
 
@@ -525,7 +530,7 @@ public class ItemModelBaker {
                 for (String mode : DISPLAY_MODES) {
                     JsonObject transform = model.display.get(mode);
                     if (transform == null) continue;
-                    json.name(mode.equals("thirdperson_righthand") ? "right" : "left").beginObject();
+                    json.name(DISPLAY_NAMES.get(mode)).beginObject();
                     writeVector(json, "rotation", transform, 0);
                     writeVector(json, "translation", transform, 0);
                     writeVector(json, "scale", transform, 1);

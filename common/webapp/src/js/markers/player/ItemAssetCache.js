@@ -270,7 +270,7 @@ export class ItemAssetCache {
         const result = {
             type: model.type,
             predicate: model.predicate && typeof model.predicate === "object" ? model.predicate : null,
-            display: {right: display.right || null, left: display.left || display.right || null},
+            display: {right: display.right || null, left: display.left || display.right || null, ground: display.ground || null},
             parts: [],
         };
 

@@ -25,6 +25,7 @@
 package de.bluecolored.bluemap.common.web;
 
 import de.bluecolored.bluemap.common.config.PluginConfig;
+import de.bluecolored.bluemap.common.live.LiveEntitiesDataSupplier;
 import de.bluecolored.bluemap.common.live.LiveMarkersDataSupplier;
 import de.bluecolored.bluemap.common.live.LivePlayersDataSupplier;
 import de.bluecolored.bluemap.common.live.LivePlayersJson;
@@ -65,6 +66,13 @@ public class MapRequestHandler extends RoutingRequestHandler {
                         pluginConfig.getLivePlayerUpdateInterval(), skinLookup, itemRequester),
                 new LiveMarkersDataSupplier(map.getMarkerSets()),
                 pluginConfig.getLivePlayerUpdateInterval());
+
+        // BlueMap Live: the entities around the players, refreshed like the players
+        register("live/entities\\.json", "", new JsonDataRequestHandler(new CachedRateLimitDataSupplier(
+                new LiveEntitiesDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter,
+                        pluginConfig.getLivePlayerUpdateInterval(), itemRequester),
+                pluginConfig.getLivePlayerUpdateInterval()
+        )));
     }
 
     public MapRequestHandler(MapStorage mapStorage) {

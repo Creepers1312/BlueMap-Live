@@ -47,6 +47,7 @@ public class ItemModelBakerTest {
         TestResources() {
             models.put("minecraft:item/generated", """
                     {"parent": "builtin/generated", "gui_light": "front", "display": {
+                      "ground": {"rotation": [0, 0, 0], "translation": [0, 2, 0], "scale": [0.5, 0.5, 0.5]},
                       "thirdperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 3, 1], "scale": [0.55, 0.55, 0.55]}}}""");
             models.put("minecraft:item/handheld", """
                     {"parent": "item/generated", "display": {
@@ -140,6 +141,8 @@ public class ItemModelBakerTest {
         JsonObject right = model.getAsJsonObject("display").getAsJsonObject("right");
         assertEquals(3, right.getAsJsonArray("translation").get(1).getAsDouble());
         assertEquals(right, model.getAsJsonObject("display").getAsJsonObject("left"));
+        // the ground-transformation (dropped and thrown items)
+        assertEquals(0.5, model.getAsJsonObject("display").getAsJsonObject("ground").getAsJsonArray("scale").get(1).getAsDouble(), 1e-6);
     }
 
     @Test

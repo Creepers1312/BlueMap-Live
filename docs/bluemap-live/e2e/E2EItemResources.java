@@ -38,7 +38,8 @@ import java.util.Map;
 public class E2EItemResources implements ItemModelBaker.Resources {
 
     public static final int SWORD = 0xFF00FFFF, APPLE = 0xFFFF0000, STONE = 0xFFFF8000, SHIELD = 0xFF00C800,
-            BOW = 0xFFFFFF00, BOW_PULLING = 0xFFFF00FF, CROSSBOW = 0xFF0000FF, CROSSBOW_ARROW = 0xFFFFFFFF;
+            BOW = 0xFFFFFF00, BOW_PULLING = 0xFFFF00FF, CROSSBOW = 0xFF0000FF, CROSSBOW_ARROW = 0xFFFFFFFF,
+            DIAMOND = 0xFF8080FF, SNOWBALL = 0xFF80FFFF, ARROW = 0xFFFF80C0;
 
     private final Map<String, String> models = new HashMap<>();
     private final Map<String, BufferedImage> textures = new HashMap<>();
@@ -46,13 +47,15 @@ public class E2EItemResources implements ItemModelBaker.Resources {
     public E2EItemResources() {
         models.put("minecraft:item/generated", """
                 {"parent": "builtin/generated", "display": {
+                  "ground": {"rotation": [0, 0, 0], "translation": [0, 2, 0], "scale": [0.5, 0.5, 0.5]},
                   "thirdperson_righthand": {"rotation": [0, 0, 0], "translation": [0, 3, 1], "scale": [0.55, 0.55, 0.55]}}}""");
         models.put("minecraft:item/handheld", """
                 {"parent": "item/generated", "display": {
                   "thirdperson_righthand": {"rotation": [0, -90, 55], "translation": [0, 4.0, 0.5], "scale": [0.85, 0.85, 0.85]},
                   "thirdperson_lefthand": {"rotation": [0, 90, -55], "translation": [0, 4.0, 0.5], "scale": [0.85, 0.85, 0.85]}}}""");
         models.put("minecraft:block/block", """
-                {"display": {"thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 2.5, 0], "scale": [0.375, 0.375, 0.375]}}}""");
+                {"display": {"thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 2.5, 0], "scale": [0.375, 0.375, 0.375]},
+                  "ground": {"rotation": [0, 0, 0], "translation": [0, 3, 0], "scale": [0.25, 0.25, 0.25]}}}""");
         models.put("minecraft:block/cube_all", """
                 {"parent": "block/block", "elements": [{"from": [0, 0, 0], "to": [16, 16, 16], "faces": {
                   "down": {"texture": "#all"}, "up": {"texture": "#all"}, "north": {"texture": "#all"},
@@ -98,6 +101,14 @@ public class E2EItemResources implements ItemModelBaker.Resources {
                 {"parent": "builtin/entity", "display": {
                   "thirdperson_righthand": {"rotation": [45, 135, 0], "translation": [3.51, 11, -2], "scale": [1, 1, 1]},
                   "thirdperson_lefthand": {"rotation": [45, 135, 0], "translation": [13.51, 3, 5], "scale": [1, 1, 1]}}}""");
+
+        for (String name : new String[] {"diamond", "snowball", "arrow"}) {
+            models.put("minecraft:item/" + name, """
+                    {"parent": "minecraft:item/generated", "textures": {"layer0": "minecraft:item/%s"}}""".formatted(name));
+        }
+        textures.put("minecraft:item/diamond", square(16, 3, 3, 10, 10, DIAMOND));
+        textures.put("minecraft:item/snowball", square(16, 3, 3, 10, 10, SNOWBALL));
+        textures.put("minecraft:item/arrow", diagonal(ARROW));
 
         textures.put("minecraft:item/diamond_sword", diagonal(SWORD));
         textures.put("minecraft:item/apple", square(16, 4, 4, 8, 8, APPLE));

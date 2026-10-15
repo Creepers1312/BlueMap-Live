@@ -37,7 +37,8 @@ javac --release 21 -d out-core -cp $CP -processorpath libs/lombok-1.18.32.jar \
 javac --release 21 -d out-e2e -cp out-core:$CP -processorpath libs/lombok-1.18.32.jar \
       -sourcepath common/src/main/java -implicit:class \
       docs/bluemap-live/e2e/LiveE2EServer.java docs/bluemap-live/e2e/E2EItemResources.java \
-      common/src/main/java/de/bluecolored/bluemap/common/plugin/items/ItemModelBaker.java
+      common/src/main/java/de/bluecolored/bluemap/common/plugin/items/ItemModelBaker.java \
+      common/src/main/java/de/bluecolored/bluemap/common/live/LiveEntitiesJson.java
 CP=out-core:$CP
 
 # 3. Server starten (neu starten vor jedem Testlauf, der Spielerzustand liegt im Speicher)
@@ -51,7 +52,14 @@ PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright node docs/bluemap-live/e2e/an
 
 # 6. Gehaltene Items und Item-Animationen – Server vorher neu starten
 PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/bluemap-live/e2e/items-e2e.mjs
+
+# 7. Entities (Gegenstände am Boden, Wurfgegenstände, Pfeile) – Server vorher neu starten
+PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/bluemap-live/e2e/entities-e2e.mjs
 ```
+
+Für `entities-e2e.mjs` liefert der Server `maps/world/live/entities.json`; die Nether-Karte ist leer. Steuerung:
+- `/control?entity=ID&type=minecraft:item&x=..&y=..&z=..&item=minecraft:diamond&vx=..&vy=..&vz=..&yaw=..&pitch=..&ground=1`
+- `/control?removeEntity=ID`
 
 Für `items-e2e.mjs` liefert der Server `maps/<id>/assets/items/<ns>/<pfad>.json`. Die Dateien erzeugt der echte `ItemModelBaker` aus einem kleinen, farbcodierten Resource-Pack (`E2EItemResources.java`, Modell-JSONs in der Struktur der Vanilla-Modelle). Weitere Steuerparameter:
 - `main=`/`off=` mit einer Item-ID oder `none` (bleibt gesetzt)

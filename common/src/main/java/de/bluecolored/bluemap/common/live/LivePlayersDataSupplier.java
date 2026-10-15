@@ -88,6 +88,23 @@ public class LivePlayersDataSupplier implements Supplier<String> {
         this.skinLookup = skinLookup;
     }
 
+    /**
+     * If a player is listed on the map according to the config (hidden game-modes, invisible, vanished, ...)
+     * and the player-filter (e.g. players hidden by command).
+     */
+    static boolean isShown(Player player, PluginConfig config, Predicate<UUID> playerFilter, boolean isCorrectWorld) {
+        if (config.isHideInvisible() && player.isInvisible()) return false;
+        if (config.isHideVanished() && player.isVanished()) return false;
+        if (config.isHideSneaking() && player.isSneaking()) return false;
+        if (config.getHiddenGameModes().contains(player.getGamemode().getId())) return false;
+        if (config.isHideDifferentWorld() && !isCorrectWorld) return false;
+        if (
+                player.getSkyLight() < config.getHideBelowSkyLight() &&
+                player.getBlockLight() < config.getHideBelowBlockLight()
+        ) return false;
+        return playerFilter.test(player.getUuid());
+    }
+
     @Override
     public String get() {
         if (serverWorld == null)
@@ -100,16 +117,7 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                 ServerWorld playerWorld = snapshot.world();
                 boolean isCorrectWorld = playerWorld != null && playerWorld.equals(serverWorld);
 
-                if (config.isHideInvisible() && player.isInvisible()) continue;
-                if (config.isHideVanished() && player.isVanished()) continue;
-                if (config.isHideSneaking() && player.isSneaking()) continue;
-                if (config.getHiddenGameModes().contains(player.getGamemode().getId())) continue;
-                if (config.isHideDifferentWorld() && !isCorrectWorld) continue;
-                if (
-                        player.getSkyLight() < config.getHideBelowSkyLight() &&
-                        player.getBlockLight() < config.getHideBelowBlockLight()
-                ) continue;
-                if (!this.playerFilter.test(player.getUuid())) continue;
+                if (!isShown(player, config, playerFilter, isCorrectWorld)) continue;
 
                 Equipment equipment = snapshot.state() != null ? snapshot.state().equipment() : null;
                 if (equipment != null && config.isLivePlayerExtendedData()) {

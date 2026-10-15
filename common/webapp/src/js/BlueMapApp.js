@@ -35,6 +35,7 @@ import {MarkerSet} from "./markers/MarkerSet";
 import {getLocalStorage, round, setLocalStorage} from "./Utils";
 import {i18n, setLanguage} from "../i18n";
 import {PlayerMarkerManager} from "./markers/PlayerMarkerManager";
+import {EntityMarkerManager} from "./markers/EntityMarkerManager";
 import {NormalMarkerManager} from "./markers/NormalMarkerManager";
 import {reactive} from "vue";
 
@@ -53,6 +54,8 @@ export class BlueMapApp {
 
         /** @type {PlayerMarkerManager} */
         this.playerMarkerManager = null;
+        /** @type {EntityMarkerManager} */
+        this.entityMarkerManager = null;
         /** @type {NormalMarkerManager} */
         this.markerFileManager = null;
 
@@ -252,6 +255,7 @@ export class BlueMapApp {
         if (!map) return Promise.reject(`There is no map with the id "${mapId}" loaded!`);
 
         if (this.playerMarkerManager) this.playerMarkerManager.dispose();
+        if (this.entityMarkerManager) this.entityMarkerManager.dispose();
         if (this.markerFileManager) this.markerFileManager.dispose();
 
         await this.mapViewer.switchMap(map)
@@ -263,6 +267,7 @@ export class BlueMapApp {
 
         await Promise.all([
             this.initPlayerMarkerManager(),
+            this.initEntityMarkerManager(),
             this.initMarkerFileManager()
         ]);
     }
@@ -421,6 +426,33 @@ export class BlueMapApp {
                 alert(this.events, e, "warning");
                 this.playerMarkerManager.dispose();
             });
+    }
+
+    /**
+     * BlueMap Live: the entities around the players (dropped items, thrown items, arrows)
+     */
+    initEntityMarkerManager() {
+        if (this.entityMarkerManager)
+            this.entityMarkerManager.dispose();
+
+        const map = this.mapViewer.map;
+        if (!map) return;
+
+        const manager = this.entityMarkerManager = new EntityMarkerManager(
+            this.mapViewer.markers,
+            map.data.liveDataRoot + "/live/entities.json",
+            this.events,
+            map.data.mapDataRoot + "/assets/items/",
+            this.mapViewer.camera,
+            this.mapViewer.redraw
+        );
+        manager.setAutoUpdateInterval(0);
+        return manager.update()
+            .then(success => {
+                // older servers (or BlueMap) without entities: no requests every interval, only every 30 seconds
+                manager.setAutoUpdateInterval(success ? manager.updateInterval : 30000);
+            })
+            .catch(() => manager.dispose());
     }
 
     initMarkerFileManager() {

@@ -24,11 +24,15 @@
  */
 package de.bluecolored.bluemap.fabric;
 
+import com.flowpowered.math.vector.Vector3d;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import de.bluecolored.bluecommands.brigadier.BrigadierBridge;
 import de.bluecolored.bluemap.common.BlueMapService;
 import de.bluecolored.bluemap.common.commands.BrigadierExecutionHandler;
 import de.bluecolored.bluemap.common.commands.Commands;
+import de.bluecolored.bluemap.common.config.PluginConfig;
+import de.bluecolored.bluemap.common.live.HeldItem;
+import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.Plugin;
 import de.bluecolored.bluemap.common.serverinterface.Player;
@@ -37,6 +41,7 @@ import de.bluecolored.bluemap.common.serverinterface.ServerEventListener;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
 import de.bluecolored.bluemap.core.logger.Logger;
 import de.bluecolored.bluemap.core.util.Caches;
+import de.bluecolored.bluemap.core.util.Key;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
@@ -49,6 +54,10 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.SharedConstants;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.FlyingItemEntity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
@@ -59,8 +68,11 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -78,6 +90,10 @@ public class FabricMod implements ModInitializer, Server {
 
     private int playerUpdateIndex = 0;
     private final Map<UUID, Player> onlinePlayerMap;
+
+    // BlueMap Live: the entities around the players per world, sampled on the server-thread, read by the webserver
+    private volatile Map<Key, List<LiveEntityState>> liveEntities = Map.of();
+    private int liveEntitySampleTicks = 0;
     private final List<FabricPlayer> onlinePlayerList;
 
     public FabricMod() {
@@ -171,6 +187,7 @@ public class FabricMod implements ModInitializer, Server {
             if (server == this.serverInstance) {
                 this.trackSwings(server);
                 this.updateSomePlayers();
+                this.sampleLiveEntities(server);
             }
         });
 
@@ -329,6 +346,80 @@ public class FabricMod implements ModInitializer, Server {
                 player.trackSwing(playerInstance);
             }
         }
+    }
+
+    /** the entity-types that are shown on the map so far (dropped items, thrown items, arrows and tridents) */
+    private static boolean isLiveEntity(Entity entity) {
+        return entity instanceof ItemEntity || entity instanceof FlyingItemEntity || entity instanceof PersistentProjectileEntity;
+    }
+
+    /** a protection against huge entity-amounts (e.g. farms), the data-supplier applies the configured limit */
+    private static final int MAX_SAMPLED_ENTITIES_PER_WORLD = 2000;
+
+    /**
+     * Samples the entities around all players, once per live-player-update-interval.
+     * Only call this method on the server-thread.
+     */
+    private void sampleLiveEntities(MinecraftServer server) {
+        if (++liveEntitySampleTicks < getPlayerUpdateIntervalTicks()) return;
+        liveEntitySampleTicks = 0;
+
+        BlueMapService blueMap = pluginInstance.getBlueMap();
+        PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
+        if (config == null || !config.isLiveEntities() || !config.isLivePlayerMarkers() || config.getLiveEntitiesRadius() <= 0) {
+            liveEntities = Map.of();
+            return;
+        }
+
+        double radius = config.getLiveEntitiesRadius();
+        long now = System.currentTimeMillis();
+        Map<Key, List<LiveEntityState>> result = new HashMap<>();
+        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
+            List<ServerPlayerEntity> players = world.getPlayers();
+            if (players.isEmpty()) continue;
+
+            Map<Integer, LiveEntityState> entities = new LinkedHashMap<>();
+            for (ServerPlayerEntity player : players) {
+                Box box = player.getBoundingBox().expand(radius);
+                for (Entity entity : world.getOtherEntities(player, box, FabricMod::isLiveEntity)) {
+                    if (entities.size() >= MAX_SAMPLED_ENTITIES_PER_WORLD) break;
+                    if (entities.containsKey(entity.getId())) continue;
+                    LiveEntityState state = toLiveEntity(entity, now);
+                    if (state != null) entities.put(entity.getId(), state);
+                }
+            }
+            result.put(getServerWorld(world).getDimension(), List.copyOf(entities.values()));
+        }
+        liveEntities = result;
+    }
+
+    private static @Nullable LiveEntityState toLiveEntity(Entity entity, long now) {
+        String type = entity.getType().getRegistryEntry().getKey().map(key -> key.getValue().toString()).orElse(null);
+        if (type == null) return null;
+
+        HeldItem item = null;
+        if (entity instanceof ItemEntity itemEntity) item = FabricPlayer.toHeldItem(itemEntity.getStack());
+        else if (entity instanceof FlyingItemEntity flyingItem) item = FabricPlayer.toHeldItem(flyingItem.getStack());
+        else if (entity instanceof PersistentProjectileEntity projectile) item = FabricPlayer.toHeldItem(projectile.getItemStack());
+
+        Vec3d pos = entity.getPos();
+        Vec3d velocity = entity.getVelocity();
+        return new LiveEntityState(
+                entity.getId(),
+                type,
+                new Vector3d(pos.x, pos.y, pos.z),
+                entity.getYaw(),
+                entity.getPitch(),
+                new Vector3d(velocity.x * 20, velocity.y * 20, velocity.z * 20), // blocks per tick -> per second
+                now,
+                item,
+                entity.isOnGround()
+        );
+    }
+
+    @Override
+    public List<LiveEntityState> getLiveEntities(ServerWorld world) {
+        return liveEntities.getOrDefault(world.getDimension(), List.of());
     }
 
     /**

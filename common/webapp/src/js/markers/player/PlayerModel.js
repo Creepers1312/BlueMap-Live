@@ -23,14 +23,10 @@
  * THE SOFTWARE.
  */
 
-import {Group, MathUtils, Mesh} from "three";
+import {Group, Mesh} from "three";
 import {getPlayerModelGeometries} from "./PlayerModelGeometry.js";
 import {PART_NAMES, PIXEL_SCALE, playerModelLayout} from "./PlayerModelLayout.js";
-import {selectItemModel} from "./PlayerItemPoses.js";
-
-/** vanilla: item-model translations are clamped to +-80/16 blocks, scales to +-4 */
-const MAX_ITEM_TRANSLATION = 5;
-const MAX_ITEM_SCALE = 4;
+import {ItemView} from "./ItemView.js";
 
 /**
  * Creates a mesh that is ignored by raycasting, so the model never intercepts the normal map-interactions (clicks)
@@ -212,12 +208,13 @@ export class PlayerModel extends Group {
     /**
      * The transformation-chain of vanilla HeldItemFeatureRenderer + ItemRenderer, as groups (created once):
      * arm-joint (+0.5px for slim arms) -> to vanilla model-space (rotate x 180°, pixels -> blocks) ->
-     * rotate x -90°, y 180° -> translate (+-1/16, 2/16, -10/16) -> display-transformation -> translate -0.5.
+     * rotate x -90°, y 180° -> translate (+-1/16, 2/16, -10/16) -> the ItemView (display-transformation, translate -0.5).
      * @private
+     * @returns {ItemView} the item-view of the hand, with an additional property "anchor" (the group at the arm)
      */
     createItemSlot(side) {
         const anchor = new Group();
-        anchor.name = side + "-item";
+        anchor.name = side + "-item-anchor";
         anchor.rotation.order = "ZYX";
         this.root.add(anchor);
 
@@ -234,90 +231,23 @@ export class PlayerModel extends Group {
         offset.position.set((side === "left" ? -1 : 1) / 16, 0.125, -0.625);
         hand.add(offset);
 
-        const display = new Group();
-        display.rotation.order = "XYZ";
-        offset.add(display);
-
-        const content = new Group();
-        content.position.set(-0.5, -0.5, -0.5);
-        display.add(content);
-
-        const slot = {side, anchor, display, content, entry: null, itemId: null, modelIndex: -1};
-        slot.onLoaded = () => {
-            slot.modelIndex = -1; // rebuild with the next pose
-        };
-        return slot;
+        const view = new ItemView(this.itemCache, side);
+        view.anchor = anchor;
+        view.display = view;
+        offset.add(view);
+        return view;
     }
 
     /** @private */
     updateItemSlot(slot, state) {
-        const arm = this.parts[slot.side === "right" ? "rightArm" : "leftArm"];
+        const arm = this.parts[slot.mode === "right" ? "rightArm" : "leftArm"];
 
         // follow the arm (vanilla shifts the joint of slim arms by half a pixel outwards for the item)
-        const slimShift = this.displayedVariant === "slim" ? (slot.side === "right" ? 0.5 : -0.5) : 0;
+        const slimShift = this.displayedVariant === "slim" ? (slot.mode === "right" ? 0.5 : -0.5) : 0;
         slot.anchor.position.set(arm.position.x + slimShift, arm.position.y, arm.position.z);
         slot.anchor.rotation.copy(arm.rotation);
 
-        const itemId = state && state.item && this.itemCache ? state.item.id : null;
-        if (itemId !== slot.itemId) this.setSlotItem(slot, itemId);
-
-        const entry = slot.entry;
-        if (!entry) return;
-        if (entry.state === "failed") {
-            this.itemCache.retry(entry);
-            return;
-        }
-        if (entry.state !== "loaded" || entry.models.length === 0) return;
-
-        const modelIndex = selectItemModel(entry.models, state.predicates);
-        if (modelIndex !== slot.modelIndex) this.showItemModel(slot, entry.models[modelIndex], modelIndex);
-    }
-
-    /** @private */
-    setSlotItem(slot, itemId) {
-        if (slot.entry) {
-            slot.entry.listeners.delete(slot.onLoaded);
-            this.itemCache.release(slot.entry);
-        }
-        slot.content.clear();
-        slot.entry = itemId ? this.itemCache.acquire(itemId) : null;
-        if (slot.entry) slot.entry.listeners.add(slot.onLoaded);
-        slot.itemId = itemId;
-        slot.modelIndex = -1;
-    }
-
-    /**
-     * Creates the meshes of an item-model (only when the item or its override changes; geometries and materials are shared).
-     * @private
-     */
-    showItemModel(slot, model, modelIndex) {
-        slot.content.clear();
-        for (const part of model.parts) {
-            const mesh = nonInteractiveMesh(part.geometry, part.material);
-            mesh.name = slot.side + "-item-part";
-            if (part.position) mesh.position.set(part.position[0] * part.scale, part.position[1] * part.scale, part.position[2] * part.scale);
-            mesh.scale.setScalar(part.scale);
-            slot.content.add(mesh);
-        }
-
-        // vanilla Transformation.apply(leftHanded): the left hand mirrors the translation-x and the y- and z-rotation
-        const transform = slot.side === "right" ? model.display.right : model.display.left;
-        const left = slot.side === "left";
-        const v = (array, i, fallback) => Array.isArray(array) && Number.isFinite(array[i]) ? array[i] : fallback;
-        const display = slot.display;
-        if (transform) {
-            const t = i => MathUtils.clamp(v(transform.translation, i, 0) / 16, -MAX_ITEM_TRANSLATION, MAX_ITEM_TRANSLATION);
-            const sc = i => MathUtils.clamp(v(transform.scale, i, 1), -MAX_ITEM_SCALE, MAX_ITEM_SCALE);
-            const r = i => MathUtils.degToRad(v(transform.rotation, i, 0));
-            display.position.set((left ? -1 : 1) * t(0), t(1), t(2));
-            display.rotation.set(r(0), (left ? -1 : 1) * r(1), (left ? -1 : 1) * r(2), "XYZ");
-            display.scale.set(sc(0), sc(1), sc(2));
-        } else {
-            display.position.set(0, 0, 0);
-            display.rotation.set(0, 0, 0, "XYZ");
-            display.scale.set(1, 1, 1);
-        }
-        slot.modelIndex = modelIndex;
+        slot.update(state && state.item ? state.item.id : null, state ? state.predicates : {});
     }
 
     /** @private */
@@ -333,9 +263,7 @@ export class PlayerModel extends Group {
      * Releases the skin. The shared geometries and the default skin are not disposed.
      */
     dispose() {
-        for (const slot of Object.values(this.itemSlots)) {
-            if (slot.itemId) this.setSlotItem(slot, null);
-        }
+        for (const slot of Object.values(this.itemSlots)) slot.dispose();
         this.skinCache.defaultSkinListeners.delete(this.onSkinStateChanged);
         if (this.skin) {
             this.skin.listeners.delete(this.onSkinStateChanged);

@@ -16,6 +16,7 @@
 | 2 | End-to-End-Prototyp: erweiterte Live-Spielerdaten + **vorläufiges** 3D-Objekt im Webclient | implementiert, teilweise getestet, **noch nicht mit Gradle gebaut und nicht auf einem echten Server geprüft** – [`docs/bluemap-live/phase-2.md`](docs/bluemap-live/phase-2.md) |
 | 3 | Echte Spielermodelle mit Skin und Animationen | teilweise: vollständige Skins, 3D-Modell, Animationen und Dimensionswechsel ohne Neuladen implementiert und automatisiert getestet; in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-3.md`](docs/bluemap-live/phase-3.md) |
 | 3b | Gehaltene Items und Item-Animationen | implementiert, automatisiert getestet, CI grün; in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-4.md`](docs/bluemap-live/phase-4.md) |
+| 5 | Entities (Release 0.2.0): Gegenstände am Boden, Wurfgegenstände, Pfeile | Schritt 1 implementiert und automatisiert getestet; in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-5.md`](docs/bluemap-live/phase-5.md) |
 | 4–5 | Live-Blockänderungen (zuverlässig, dann inkrementell), darin auch Truhen/interaktive Blöcke (Entscheidung: Option 1, `phase-4.md` §8) | geplant |
 | 6 | Stabilisierung und Dokumentation | geplant |
 

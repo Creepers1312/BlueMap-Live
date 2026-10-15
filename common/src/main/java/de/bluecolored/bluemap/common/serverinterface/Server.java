@@ -26,6 +26,7 @@ package de.bluecolored.bluemap.common.serverinterface;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import de.bluecolored.bluemap.common.debug.DebugDump;
+import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.core.util.Caches;
 import de.bluecolored.bluemap.core.util.Tristate;
 import de.bluecolored.bluemap.core.world.World;
@@ -34,6 +35,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface Server {
@@ -124,5 +126,14 @@ public interface Server {
      * Removes all registered listeners
      */
     void unregisterAllListeners();
+
+    /**
+     * The latest sampled live-states of the entities (no players) around the players in a world (BlueMap Live).
+     * The radius around the players can be larger than the configured one, the data-supplier filters again.
+     * Platforms that do not support this return an empty list.
+     */
+    default List<LiveEntityState> getLiveEntities(ServerWorld world) {
+        return List.of();
+    }
 
 }
