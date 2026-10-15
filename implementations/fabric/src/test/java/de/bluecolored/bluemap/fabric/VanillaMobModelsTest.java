@@ -41,10 +41,13 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 /**
  * Verifies the mob-models of the webapp (common/webapp/src/js/markers/mob/vanilla-mob-models.json) against the
- * model-definitions of Minecraft itself (<code>EntityModels.getModels()</code>, client-classes of the merged jar).
+ * model-definitions of Minecraft itself: the static model-methods of the vanilla model-classes (client-classes of the
+ * merged jar) that <code>EntityModels.getModels()</code> uses for these layers. <code>EntityModels.getModels()</code> itself
+ * needs the registries (the bootstrap), which do not work in a plain test-jvm with the dev-mappings.
  * <p>Every difference is reported (also as GitHub-annotations in <code>build/vanilla-model-check.txt</code>, printed by
  * the CI), together with the definition of the game in the format of the json, so a wrong value is never guessed.</p>
- * <p>The model-classes are read with reflection (yarn-names), only the data of the layers is used, nothing is rendered.</p>
+ * <p>The model-classes are called and read with reflection (yarn-names), only the data of the layers is used, nothing
+ * is rendered.</p>
  */
 public class VanillaMobModelsTest {
 
@@ -59,24 +62,12 @@ public class VanillaMobModelsTest {
 
         Map<String, Object> layers = new HashMap<>();
         List<String> report = new ArrayList<>();
-        try {
-            // the registries (used by some model-classes) need the bootstrap, like the vanilla data-generator
-            Class.forName("net.minecraft.SharedConstants").getMethod("createGameVersion").invoke(null);
-            Class.forName("net.minecraft.Bootstrap").getMethod("initialize").invoke(null);
-            Map<?, ?> models = (Map<?, ?>) Class.forName("net.minecraft.client.render.entity.model.EntityModels")
-                    .getMethod("getModels").invoke(null);
-            for (Map.Entry<?, ?> entry : models.entrySet()) layers.put(entry.getKey().toString(), entry.getValue());
-        } catch (Throwable t) {
-            Throwable cause = t;
-            while (cause.getCause() != null) cause = cause.getCause();
-            StringBuilder trace = new StringBuilder(cause.toString());
-            for (StackTraceElement element : cause.getStackTrace()) {
-                if (trace.length() > 3000) break;
-                trace.append(" | ").append(element);
+        for (Map.Entry<String, ModelSource> source : LAYERS.entrySet()) {
+            try {
+                layers.put(source.getKey(), source.getValue().create());
+            } catch (Throwable t) {
+                report.add("::" + source.getKey() + ": " + describe(t));
             }
-            report.add("error::loading the vanilla models failed: " + trace);
-            writeReport(report);
-            fail("loading the vanilla models failed: " + cause);
         }
 
         List<String> differences = new ArrayList<>();
@@ -84,8 +75,7 @@ public class VanillaMobModelsTest {
             String layer = entry.getKey();
             Object texturedModelData = layers.get(layer);
             if (texturedModelData == null) {
-                differences.add(layer + ": no such model-layer");
-                report.add("::" + layer + ": no such model-layer");
+                differences.add(layer + ": not created (see the report)");
                 continue;
             }
             JsonObject actual = toJson(texturedModelData);
@@ -96,30 +86,48 @@ public class VanillaMobModelsTest {
                 report.add("::" + String.join("; ", layerDifferences) + " -- vanilla: " + actual);
             }
         }
-        // the wool-colors of the sheep: vanilla SheepEntity.getRgbColor(DyeColor) (found by its signature)
+        // the wool-colors of the sheep: vanilla SheepEntity.getRgbColor(DyeColor) (found by its signature);
+        // if the entity-class can not be loaded without the registries, the dye-colors are checked with the formula
         JsonObject expectedColors = JsonParser.parseString(Files.readString(jsonFile, StandardCharsets.UTF_8))
                 .getAsJsonObject().getAsJsonObject("sheepWoolColors");
+        JsonObject actualColors = new JsonObject();
+        String colorSource;
+        try {
         Class<?> dyeColor = Class.forName("net.minecraft.util.DyeColor");
-        java.lang.reflect.Method woolColor = null;
-        for (java.lang.reflect.Method method : Class.forName("net.minecraft.entity.passive.SheepEntity").getDeclaredMethods()) {
-            if (java.lang.reflect.Modifier.isStatic(method.getModifiers()) && method.getReturnType() == int.class &&
-                    method.getParameterCount() == 1 && method.getParameterTypes()[0] == dyeColor &&
-                    java.lang.reflect.Modifier.isPublic(method.getModifiers())) woolColor = method;
-        }
-        if (woolColor == null) {
-            differences.add("sheepWoolColors: no SheepEntity.getRgbColor(DyeColor)");
-            report.add("::sheepWoolColors: no SheepEntity.getRgbColor(DyeColor)");
-        } else {
-            JsonObject actualColors = new JsonObject();
+        try {
+            java.lang.reflect.Method woolColor = null;
+            for (java.lang.reflect.Method method : Class.forName("net.minecraft.entity.passive.SheepEntity").getDeclaredMethods()) {
+                if (java.lang.reflect.Modifier.isStatic(method.getModifiers()) && method.getReturnType() == int.class &&
+                        method.getParameterCount() == 1 && method.getParameterTypes()[0] == dyeColor &&
+                        java.lang.reflect.Modifier.isPublic(method.getModifiers())) woolColor = method;
+            }
+            if (woolColor == null) throw new NoSuchMethodException("SheepEntity.getRgbColor(DyeColor)");
             for (Object dye : dyeColor.getEnumConstants()) {
-                String name = ((Enum<?>) dye).name().toLowerCase(Locale.ROOT);
-                actualColors.addProperty(name, String.format("#%06x", ((int) woolColor.invoke(null, dye)) & 0xFFFFFF));
+                actualColors.addProperty(((Enum<?>) dye).name().toLowerCase(Locale.ROOT),
+                        String.format("#%06x", ((int) woolColor.invoke(null, dye)) & 0xFFFFFF));
             }
-            if (!actualColors.equals(expectedColors)) {
-                differences.add("sheepWoolColors differ");
-                report.add("::sheepWoolColors differ -- vanilla: " + actualColors);
+            colorSource = "SheepEntity.getRgbColor";
+        } catch (Throwable t) {
+            // vanilla SheepEntity.getDyedColor: white is 0xE6E6E6, the other entity-colors * 0.75
+            java.lang.reflect.Method entityColor = dyeColor.getMethod("getEntityColor");
+            for (Object dye : dyeColor.getEnumConstants()) {
+                int color = (int) entityColor.invoke(dye);
+                int wool = ((Enum<?>) dye).name().equals("WHITE") ? 0xE6E6E6 :
+                        ((int) Math.floor(((color >> 16) & 0xFF) * 0.75f) << 16) |
+                        ((int) Math.floor(((color >> 8) & 0xFF) * 0.75f) << 8) |
+                        (int) Math.floor((color & 0xFF) * 0.75f);
+                actualColors.addProperty(((Enum<?>) dye).name().toLowerCase(Locale.ROOT), String.format("#%06x", wool));
             }
+            colorSource = "DyeColor.getEntityColor (SheepEntity not loadable: " + describe(t) + ")";
         }
+        } catch (Throwable t) {
+            colorSource = "unavailable: " + describe(t);
+        }
+        if (!actualColors.equals(expectedColors)) {
+            differences.add("sheepWoolColors differ (" + colorSource + ")");
+            report.add("::sheepWoolColors differ (" + colorSource + ") -- vanilla: " + actualColors);
+        }
+        System.out.println("vanilla-model-check: " + layers.size() + " layers, colors from " + colorSource);
 
         writeReport(report);
         if (!differences.isEmpty()) fail("The webapp mob-models differ from vanilla:\n" + String.join("\n", differences));
@@ -137,6 +145,89 @@ public class VanillaMobModelsTest {
         Path out = Path.of(System.getProperty("bluemap.modelCheckReport", "build/vanilla-model-check.txt"));
         Files.createDirectories(out.getParent());
         Files.write(out, lines, StandardCharsets.UTF_8);
+    }
+
+    // ---- the model-layers: the vanilla methods that EntityModels.getModels() (1.21) uses for them ----
+
+    /** creates the TexturedModelData of a layer with the vanilla model-classes (no registries needed) */
+    private interface ModelSource {
+        Object create() throws Exception;
+    }
+
+    private static final String MODEL = "net.minecraft.client.render.entity.model.";
+
+    private static final Map<String, ModelSource> LAYERS = new LinkedHashMap<>();
+    static {
+        ModelSource zombie = () -> of(call(MODEL + "BipedEntityModel", "getModelData", dilation(0), 0f), 64, 64);
+        ModelSource skeleton = () -> call(MODEL + "SkeletonEntityModel", "getTexturedModelData");
+        ModelSource cow = () -> call(MODEL + "CowEntityModel", "getTexturedModelData");
+        ModelSource spider = () -> call(MODEL + "SpiderEntityModel", "getTexturedModelData");
+        ModelSource piglin = () -> of(call(MODEL + "PiglinEntityModel", "getModelData", dilation(0)), 64, 64);
+        LAYERS.put("minecraft:zombie#main", zombie);
+        LAYERS.put("minecraft:husk#main", zombie);
+        LAYERS.put("minecraft:drowned#main", () -> call(MODEL + "DrownedEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:drowned#outer", () -> call(MODEL + "DrownedEntityModel", "getTexturedModelData", dilation(0.25f)));
+        LAYERS.put("minecraft:skeleton#main", skeleton);
+        LAYERS.put("minecraft:stray#main", skeleton);
+        LAYERS.put("minecraft:stray#outer", () -> of(call(MODEL + "BipedEntityModel", "getModelData", dilation(0.25f), 0f), 64, 32));
+        LAYERS.put("minecraft:wither_skeleton#main", skeleton);
+        LAYERS.put("minecraft:creeper#main", () -> call(MODEL + "CreeperEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:creeper#armor", () -> call(MODEL + "CreeperEntityModel", "getTexturedModelData", dilation(2f)));
+        LAYERS.put("minecraft:pig#main", () -> call(MODEL + "PigEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:pig#saddle", () -> call(MODEL + "PigEntityModel", "getTexturedModelData", dilation(0.5f)));
+        LAYERS.put("minecraft:cow#main", cow);
+        LAYERS.put("minecraft:mooshroom#main", cow);
+        LAYERS.put("minecraft:sheep#main", () -> call(MODEL + "SheepEntityModel", "getTexturedModelData"));
+        LAYERS.put("minecraft:sheep#fur", () -> call(MODEL + "SheepWoolEntityModel", "getTexturedModelData"));
+        LAYERS.put("minecraft:chicken#main", () -> call(MODEL + "ChickenEntityModel", "getTexturedModelData"));
+        LAYERS.put("minecraft:spider#main", spider);
+        LAYERS.put("minecraft:cave_spider#main", spider);
+        LAYERS.put("minecraft:enderman#main", () -> call(MODEL + "EndermanEntityModel", "getTexturedModelData"));
+        LAYERS.put("minecraft:slime#main", () -> call(MODEL + "SlimeEntityModel", "getInnerTexturedModelData"));
+        LAYERS.put("minecraft:slime#outer", () -> call(MODEL + "SlimeEntityModel", "getOuterTexturedModelData"));
+        LAYERS.put("minecraft:villager#main", () -> of(call(MODEL + "VillagerResemblingModel", "getModelData"), 64, 64));
+        LAYERS.put("minecraft:zombie_villager#main", () -> call(MODEL + "ZombieVillagerEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:piglin#main", piglin);
+        LAYERS.put("minecraft:zombified_piglin#main", piglin);
+        LAYERS.put("minecraft:piglin_brute#main", piglin);
+    }
+
+    /** calls a static method by its name and the number of arguments (primitive floats are matched) */
+    private static Object call(String className, String method, Object... args) throws Exception {
+        Class<?> type = Class.forName(className);
+        List<String> candidates = new ArrayList<>();
+        for (java.lang.reflect.Method m : type.getDeclaredMethods()) {
+            if (!m.getName().equals(method) || !java.lang.reflect.Modifier.isStatic(m.getModifiers())) continue;
+            candidates.add(m.toString());
+            if (m.getParameterCount() != args.length) continue;
+            m.setAccessible(true);
+            return m.invoke(null, args);
+        }
+        List<String> methods = new ArrayList<>();
+        for (java.lang.reflect.Method m : type.getDeclaredMethods())
+            if (java.lang.reflect.Modifier.isStatic(m.getModifiers())) methods.add(m.getName() + m.getParameterCount());
+        throw new NoSuchMethodException(className + "." + method + "/" + args.length + " (candidates: " + candidates + ", static: " + methods + ")");
+    }
+
+    private static Object dilation(float radius) throws Exception {
+        return Class.forName("net.minecraft.client.model.Dilation").getConstructor(float.class).newInstance(radius);
+    }
+
+    /** TexturedModelData.of(modelData, width, height) */
+    private static Object of(Object modelData, int width, int height) throws Exception {
+        Class<?> type = Class.forName("net.minecraft.client.model.TexturedModelData");
+        return type.getMethod("of", modelData.getClass(), int.class, int.class).invoke(null, modelData, width, height);
+    }
+
+    private static String describe(Throwable t) {
+        Throwable cause = t;
+        while (cause.getCause() != null) cause = cause.getCause();
+        StringBuilder trace = new StringBuilder(cause.toString());
+        for (StackTraceElement element : cause.getStackTrace()) {
+            if (trace.length() > 1500) break;
+            trace.append(" | ").append(element);
+        }
+        return trace.toString();
     }
 
     // ---- vanilla -> json (the format of vanilla-mob-models.json) ----
@@ -178,7 +269,7 @@ public class VanillaMobModelsTest {
             part.add("cuboids", array);
         }
         JsonObject children = childrenToJson(partData);
-        if (!children.isEmpty()) part.add("children", children);
+        if (children.size() > 0) part.add("children", children);
         return part;
     }
 
