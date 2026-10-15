@@ -57,8 +57,15 @@ Alle anderen Lebewesen (außer Spielern und Rüstungsständern, ohne unsichtbare
   - `common/webapp/src/js/markers/mob/vanilla-mob-models.json` enthält die Modell-Ebenen im Format der Vanilla-`TexturedModelData`: Teile, Drehpunkt, Drehung, Quader mit UV, Vergrößerung (`dilation`), Spiegelung und Texturgröße.
   - Dazu kommen die Wollfarben der Schafe.
 - **Prüfung gegen Minecraft:**
-  - Der Fabric-Test `VanillaMobModelsTest` vergleicht diese Datei im CI mit `EntityModels.getModels()` und `SheepEntity.getRgbColor` aus Minecraft selbst. Dafür läuft `fabric-loader-junit` mit den Client-Klassen des Merged-Jars.
-  - Jede Abweichung lässt den Test fehlschlagen. Die Vanilla-Definition wird dann als GitHub-Annotation ausgegeben, so muss kein Wert geraten werden.
+  - Der Fabric-Test `VanillaMobModelsTest` vergleicht diese Datei im CI mit den Modelldaten aus Minecraft selbst. Er ruft dafür die statischen Modell-Methoden der Vanilla-Klassen auf (Client-Klassen des Merged-Jars), z. B. `BipedEntityModel.getModelData`, `CowEntityModel.getTexturedModelData` und `SlimeEntityModel.getInnerTexturedModelData`.
+  - Jede Abweichung lässt den Test fehlschlagen. Die Vanilla-Definition wird dann als GitHub-Annotation ausgegeben, so muss kein Wert geraten werden. Gefunden und korrigiert wurde so die Texturgröße des Schweins (64×32).
+  - Geprüft werden Teile, Drehpunkte, Drehungen, Quader, UV, Vergrößerung, Spiegelung und Texturgröße.
+- **Nicht von Minecraft geprüft:**
+  - Welche Methode zu welcher Modell-Ebene gehört (die Zuordnung aus `EntityModels.getModels()`): `getModels()` selbst braucht die Registries, und die lassen sich in der Test-JVM mit den Entwickler-Mappings nicht starten. Der Fabric-Loader im Test scheitert an den aufgelösten Abhängigkeiten.
+  - Die Texturgröße der Ebenen, die `EntityModels` selbst mit `TexturedModelData.of` erzeugt: Zombie, Wüstenzombie, Eiswanderer-Hülle, Dorfbewohner, Piglins.
+- **Wollfarben:**
+  - `SheepEntity` lässt sich ohne Registries nicht laden. Geprüft werden deshalb die Farbstoff-Farben (`DyeColor.getEntityColor`) aus Minecraft.
+  - Die Abdunklung (Weiß = `#E6E6E6`, sonst · 0,75) entspricht `SheepEntity.getDyedColor`. Sie ist nachgebaut, nicht aus Minecraft gelesen.
 - **Geometrie** (`MobModelGeometry.js`):
   - Die Quader werden wie in `ModelPart.Cuboid` aufgebaut: Ecken, UV-Layout, Spiegelung, Vergrößerung, Texturskalierung.
   - Ein Node-Test prüft das UV-Layout gegen das in Minecraft bestätigte Spielermodell.
@@ -136,7 +143,7 @@ Alle anderen Lebewesen (außer Spielern und Rüstungsständern, ohne unsichtbare
 
 | Test | Ergebnis | Inhalt |
 |---|---|---|
-| Fabric `VanillaMobModelsTest` (CI) | siehe CI-Lauf | 27 Modell-Ebenen und Wollfarben gegen Minecraft 1.21 |
+| Fabric `VanillaMobModelsTest` (CI) | siehe CI-Lauf | 27 Modell-Ebenen und Farbstoff-Farben gegen Minecraft 1.21 |
 | Java (lokal) | 61/61 | u. a. Mob-JSON, Ausrüstungs-Assets, Mob-Texturen, Ordner-Texturen |
 | Node | 82/82 | u. a. UV gegen das Spielermodell, Spiegelung, Animationen, Varianten, Material-Cache, MobModel, Marker |
 | Browser `mobs-e2e.mjs` | 8/8 | siehe unten |

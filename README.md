@@ -17,6 +17,7 @@
 | 3 | Echte Spielermodelle mit Skin und Animationen | teilweise: vollständige Skins, 3D-Modell, Animationen und Dimensionswechsel ohne Neuladen implementiert und automatisiert getestet; in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-3.md`](docs/bluemap-live/phase-3.md) |
 | 3b | Gehaltene Items und Item-Animationen | implementiert, automatisiert getestet, CI grün; in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-4.md`](docs/bluemap-live/phase-4.md) |
 | 5 | Entities (Release 0.2.0): Gegenstände am Boden, Wurfgegenstände, Pfeile | Schritt 1 implementiert und automatisiert getestet; in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-5.md`](docs/bluemap-live/phase-5.md) |
+| 6 | Mobs (Release 0.3.0): Vanilla-Modelle mit Textur und Animation, Platzhalter für andere Lebewesen | implementiert und automatisiert getestet (Modelldaten im CI gegen Minecraft geprüft); in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-6.md`](docs/bluemap-live/phase-6.md) |
 | 4–5 | Live-Blockänderungen (zuverlässig, dann inkrementell), darin auch Truhen/interaktive Blöcke (Entscheidung: Option 1, `phase-4.md` §8) | geplant |
 | 6 | Stabilisierung und Dokumentation | geplant |
 
