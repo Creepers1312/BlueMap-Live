@@ -67,10 +67,43 @@ public final class LiveEntitiesJson {
                 if (entity.item().customModelData() != null) json.name("customModelData").value(entity.item().customModelData());
                 json.endObject();
             }
+            if (entity.mob() != null) writeMob(json, entity.mob());
             json.endObject();
         }
         json.endArray();
 
+        json.endObject();
+    }
+
+    /** only the values that differ from the default, so a mob costs only a few bytes more per update */
+    private static void writeMob(JsonWriter json, LiveMobState mob) throws IOException {
+        json.name("mob").beginObject();
+        json.name("bodyYaw").value(finite(mob.bodyYaw()));
+        json.name("headYaw").value(finite(mob.headYaw()));
+        if (mob.hurtTime() > 0) json.name("hurtTime").value(mob.hurtTime());
+        if (mob.deathTime() > 0) json.name("deathTime").value(mob.deathTime());
+        if (mob.baby()) json.name("baby").value(true);
+        if (mob.variant() != null) json.name("variant").value(mob.variant());
+        if (mob.size() > 0) json.name("size").value(mob.size());
+        if (!mob.flags().isEmpty()) {
+            json.name("flags").beginArray();
+            for (String flag : mob.flags()) json.value(flag);
+            json.endArray();
+        }
+        Equipment equipment = mob.equipment();
+        if (equipment != null && (equipment.mainHand() != null || equipment.offHand() != null)) {
+            json.name("equipment").beginObject();
+            if (equipment.mainHand() != null) {
+                json.name("mainHand");
+                LivePlayersJson.writeItem(json, equipment.mainHand());
+            }
+            if (equipment.offHand() != null) {
+                json.name("offHand");
+                LivePlayersJson.writeItem(json, equipment.offHand());
+            }
+            if (equipment.leftHanded()) json.name("leftHanded").value(true);
+            json.endObject();
+        }
         json.endObject();
     }
 

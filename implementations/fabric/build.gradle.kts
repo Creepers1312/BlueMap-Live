@@ -118,3 +118,13 @@ curseforgeBlueMap {
         addGameVersion(it)
     }
 }
+
+// BlueMap Live: the mob-models of the webapp are verified against the model-definitions of minecraft
+dependencies {
+    testImplementation ( libs.junit.core )
+    testRuntimeOnly ( libs.junit.engine )
+}
+tasks.test {
+    systemProperty("bluemap.mobModels", rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json").absolutePath)
+    inputs.file(rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json"))
+}

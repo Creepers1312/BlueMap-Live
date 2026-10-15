@@ -30,6 +30,10 @@ jobs:
           cache: 'gradle'
       - name: Tests
         run: ./gradlew spotlessCheck test --stacktrace
+      # BlueMap Live: the differences of the webapp mob-models to vanilla (if any) as annotations
+      - name: Vanilla model check
+        if: always()
+        run: cat implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
 
   build:
     name: "Build"

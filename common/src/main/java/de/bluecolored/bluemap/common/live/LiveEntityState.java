@@ -39,6 +39,7 @@ import org.jetbrains.annotations.Nullable;
  * @param time the time (epoch-millis) when this state was sampled
  * @param item the item of the entity (dropped items, thrown items, arrows), or null
  * @param onGround if the entity is on the ground
+ * @param mob the state of a living entity (mob), null for other entities
  */
 public record LiveEntityState(
         int id,
@@ -49,5 +50,13 @@ public record LiveEntityState(
         Vector3d velocity,
         long time,
         @Nullable HeldItem item,
-        boolean onGround
-) {}
+        boolean onGround,
+        @Nullable LiveMobState mob
+) {
+
+    public LiveEntityState(int id, String type, Vector3d position, double yaw, double pitch, Vector3d velocity,
+                           long time, @Nullable HeldItem item, boolean onGround) {
+        this(id, type, position, yaw, pitch, velocity, time, item, onGround, null);
+    }
+
+}

@@ -186,7 +186,7 @@ public final class LivePlayersJson {
     }
 
     /** only the id and the flags that are set, so an item costs only a few bytes per update */
-    private static void writeItem(JsonWriter json, HeldItem item) throws IOException {
+    static void writeItem(JsonWriter json, HeldItem item) throws IOException {
         json.beginObject();
         json.name("id").value(item.id());
         if (item.glint()) json.name("glint").value(true);
