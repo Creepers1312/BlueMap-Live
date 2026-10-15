@@ -175,7 +175,14 @@ Vorbereitung: Die Welt mit dem neuen JAR öffnen, die Seite einmal öffnen und d
 
 **Gehaltene Items und Item-Animationen (Phase 4, `phase-4.md`)**
 
-Rückmeldung aus Minecraft 1.21.1, Einzelspieler, CI-Artefakt von `b4e64b4c`: Items werden angezeigt und animiert (Screenshot mit Schwert in der rechten Hand). Die Einzelprüfungen unten sind noch nicht einzeln bestätigt, insbesondere die genaue Ausrichtung im Vergleich zur F5-Ansicht (I1–I4).
+Rückmeldung aus Minecraft 1.21.1, Einzelspieler, CI-Artefakt von `b4e64b4c`, belegt mit Screenshots aus dem Webclient:
+- Items werden angezeigt und animiert.
+- Schwert in der rechten Hand (I1, teilweise).
+- Schild in der linken Hand, gehalten und blockend (I3).
+- Armbrust mit beidhändiger Pose (I7, teilweise).
+- Bogen in der Hand (I6, Spannen nicht gezeigt).
+
+Noch offen: der direkte Vergleich mit der F5-Ansicht, Linkshänder (I4) und die übrigen Prüfungen.
 
 Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `players.json` (§4) muss beim Spieler `"equipment"` stehen.
 
