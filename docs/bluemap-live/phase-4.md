@@ -216,5 +216,11 @@ Die Armposen sind aus Vanillas 1.21.1 `PlayerEntityRenderer.getArmPose`, `BipedE
 - Angezeigter Name „BlueMap Live“ mit dem Hinweis „unofficial fork of BlueMap“ in der Beschreibung.
 - Homepage und Quelltext verweisen auf `Creepers1312/BlueMap-Live`.
 - Der Autor des Originals bleibt eingetragen.
-- Die Mod-ID bleibt `bluemap`. Eine Umbenennung würde Konfigurations- und Datenordner betreffen und ist eine eigene Entscheidung.
+- Mod-ID: `bluemap_live` (entschieden für die erste Version). Den Konfigurationsordner `config/bluemap` legt der Code fest, nicht die Mod-ID; vorhandene Einstellungen und Karten werden daher weiterverwendet. Original und BlueMap Live sollten nicht gleichzeitig installiert sein, da beide denselben Ordner und Port verwenden.
+
+**Erste Version:**
+- Tag `v0.1.0-alpha`, Pre-release „BlueMap Live 0.1.0 (Alpha)“, Release-Notes in `releases/v0.1.0-alpha.md`.
+- Die Versionsnummer kommt wie im Original aus dem letzten Git-Tag (`buildSrc/.../versioning.kt`).
+- Der CI hängt bei Versions-Tags des Forks die Fabric-JAR an das GitHub-Release (`.github/workflows/build.yml`, Schritt „Attach to GitHub release“).
+- Auf Modrinth oder CurseForge wird nichts veröffentlicht. Diese Gradle-Tasks laufen im CI nicht und bräuchten Zugangsschlüssel, die der Fork nicht hat.
 
