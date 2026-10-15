@@ -35,11 +35,16 @@ import de.bluecolored.bluemap.core.util.FileHelper;
 
 import java.io.*;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.security.DigestInputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.Set;
 
 public class WebFilesManager {
@@ -49,11 +54,20 @@ public class WebFilesManager {
             //.setPrettyPrinting() // enable pretty printing for easy editing
             .create();
 
+    /** stores the hash of the bundled webapp the files in the webroot were extracted from */
+    static final String WEBAPP_HASH_FILE = ".bluemap-webapp-hash";
+
     private final Path webRoot;
+    private final URL bundledWebapp;
     private Settings settings;
 
     public WebFilesManager(Path webRoot) {
+        this(webRoot, WebFilesManager.class.getResource("/de/bluecolored/bluemap/webapp.zip"));
+    }
+
+    WebFilesManager(Path webRoot, URL bundledWebapp) {
         this.webRoot = webRoot;
+        this.bundledWebapp = bundledWebapp;
         this.settings = new Settings();
     }
 
@@ -103,17 +117,46 @@ public class WebFilesManager {
         this.settings.addFrom(webappConfig);
     }
 
+    /**
+     * The web-app files need an update if they are missing, or if they were extracted from a different
+     * (older or newer) bundled web-app than the one of this BlueMap version.
+     * Files in the webroot that are not part of the bundled web-app (e.g. the map-data) are never touched.
+     */
     public boolean filesNeedUpdate() {
-        return !Files.exists(webRoot.resolve("index.html"));
+        if (!Files.exists(webRoot.resolve("index.html"))) return true;
+        if (bundledWebapp == null) return false;
+
+        try {
+            Path hashFile = webRoot.resolve(WEBAPP_HASH_FILE);
+            if (!Files.exists(hashFile)) return true;
+            return !Files.readString(hashFile, StandardCharsets.UTF_8).trim().equals(bundledWebappHash());
+        } catch (IOException ex) {
+            Logger.global.logWarning("Failed to check if the web-app files are up to date: " + ex);
+            return false;
+        }
     }
 
     public void updateFiles() throws IOException {
-        URL zippedWebapp = getClass().getResource("/de/bluecolored/bluemap/webapp.zip");
-        if (zippedWebapp == null) throw new IOException("Failed to open bundled webapp.");
+        if (bundledWebapp == null) throw new IOException("Failed to open bundled webapp.");
 
         // extract zip to webroot
         Files.createDirectories(webRoot);
-        FileHelper.extractZipFile(zippedWebapp, webRoot, StandardCopyOption.REPLACE_EXISTING);
+        FileHelper.extractZipFile(bundledWebapp, webRoot, StandardCopyOption.REPLACE_EXISTING);
+
+        Files.writeString(webRoot.resolve(WEBAPP_HASH_FILE), bundledWebappHash(), StandardCharsets.UTF_8);
+    }
+
+    private String bundledWebappHash() throws IOException {
+        MessageDigest digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256");
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IOException(ex);
+        }
+        try (InputStream in = new DigestInputStream(bundledWebapp.openStream(), digest)) {
+            in.transferTo(OutputStream.nullOutputStream());
+        }
+        return HexFormat.of().formatHex(digest.digest());
     }
 
     @SuppressWarnings({"FieldMayBeFinal", "FieldCanBeLocal", "unused", "MismatchedQueryAndUpdateOfCollection"})

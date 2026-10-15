@@ -94,6 +94,16 @@ Voraussetzungen:
 7. Mit `/bluemap status` prüfen, bis die Render-Aufgaben fertig sind; zwischendurch einmal **ESC** drücken, damit das Spiel die Chunks speichert.
 8. Im Browser auf **demselben Rechner** öffnen: **<http://127.0.0.1:8100/>**
 
+**Welche Version läuft? (nach jedem JAR-Wechsel prüfen)**
+- **Server-Teil:** Bei offener Welt <http://127.0.0.1:8100/maps/new_world/live/players.json> öffnen (statt `new_world` die Karten-ID). Ab Schritt 4 enthält jeder Spieler `"swing":{…}` und `"state":{…}`. Fehlt `swing`, läuft ein älteres JAR. Fehlt auch `state`, ist zusätzlich `live-player-extended-data: false` gesetzt.
+- **Webclient:** In der Browser-Konsole (F12) mit einem Spieler auf der Karte ausführen:
+  `!!window.bluemap.playerMarkerManager.getPlayerMarkerSet(false).markers.values().next().value.animator`.
+  `true` heißt: Der Webclient mit Animationen ist geladen.
+- **Alte Webclient-Dateien:** Bis einschließlich `a529aba5` hat BlueMap den Webclient nur entpackt, wenn `index.html` im Web-Ordner fehlte (Verhalten des Originals). Ein späteres JAR hat dann zwar den neuen Server-Teil verwendet, aber weiter den **alten** Webclient ausgeliefert.
+  - Ab dem Folge-Commit wird der Webclient automatisch neu entpackt, wenn er nicht aus dem mitgelieferten Webclient des JARs stammt. Erkannt wird das über einen Hash in `.bluemap-webapp-hash`. Kartendaten (`maps/`) und `settings.json` bleiben erhalten.
+  - Für ältere JARs: Die Welt schließen, `index.html` im Web-Ordner löschen (Standard: `bluemap/web/` im Minecraft-Ordner, siehe `webapp.conf`) und die Welt neu öffnen.
+  - Danach die Seite einmal mit **Strg+F5** neu laden (Browser-Cache).
+
 Optional für den Live-Spieler:
 - `.minecraft/config/bluemap/plugin.conf`: `live-player-markers: true`, `live-player-update-interval: 250`, `live-player-extended-data: true`, `skin-download: true`. Das sind die Standardwerte.
 - **Wichtig:** `hidden-game-modes` enthält standardmäßig `"spectator"`; im Zuschauermodus ist der Spieler auf der Karte unsichtbar.
@@ -181,6 +191,7 @@ Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phas
 | Kein Spieler auf der Karte | Zuschauermodus (`hidden-game-modes`), unsichtbar (Trank), andere Dimension als die angezeigte Karte, `live-player-markers: false` |
 | Spieler als graues bzw. Standard-Modell | Skin konnte nicht geladen werden (Offline-Launcher ohne Mojang-Profil, `skin-download: false`, kein Internet) → Standard-Skin aus dem Resource-Pack, kein Fehler |
 | Kein 3D-Modell, nur Kopf | Weder Spieler-Skin noch Standard-Skin verfügbar; prüfen, ob `maps/<id>/textures.json` `minecraft:entity/player/slim/steve` enthält (offener Prüfpunkt S5) |
+| Skin wird angezeigt, aber keine Animationen bzw. Modell erscheint nach Dimensionswechsel erst nach Neuladen | Alter Webclient im Web-Ordner (§4 „Welche Version läuft?“) → neues JAR verwenden bzw. `index.html` löschen, Welt neu öffnen, Strg+F5 |
 | Spiel ruckelt beim Rendern | `render-thread-count` in `core.conf` verringern |
 
 ---

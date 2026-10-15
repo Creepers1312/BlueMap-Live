@@ -283,6 +283,26 @@ Ein Schlag lässt sich nicht aus Positionen ableiten. Der Server zählt deshalb 
 - Sprung, Schwimmen, Gleiten und Fliegen sind Näherungen und keine Vanilla-Posen.
 - Die Schlaganimation zeigt nur den Armschwung. Gehaltene Gegenstände, Bogen, Schild und Essen werden nicht dargestellt.
 
+### 7.3a Erster manueller Test: keine Animationen sichtbar
+
+**Rückmeldung aus Minecraft 1.21.1 (Einzelspieler, Commit `a529aba5`):** Der Skin wird geladen, es gibt aber keine Animationen, weder Gehen noch Schleichen. Im Log steht keine Fehlermeldung.
+
+**Wahrscheinliche Ursache:**
+- `WebFilesManager.filesNeedUpdate()` (Original-BlueMap) entpackt den mitgelieferten Webclient nur, wenn `index.html` im Web-Ordner **fehlt**.
+- Aus den früheren Tests lag bereits ein Webclient im Web-Ordner. Das neue JAR hat also den neuen Server-Teil verwendet, aber weiterhin den alten Webclient ohne Animationen ausgeliefert.
+- Der Skin funktioniert trotzdem, weil Skins vom Server kommen und schon der vorige Webclient das 3D-Modell hatte.
+- Das passt zur Beobachtung, ist in Minecraft aber **nicht bestätigt**. Prüfen lässt es sich mit `singleplayer-test.md` §4 „Welche Version läuft?“.
+
+**Fix:**
+- `updateFiles()` speichert den SHA-256 des mitgelieferten `webapp.zip` in `.bluemap-webapp-hash`.
+- `filesNeedUpdate()` meldet ein Update auch dann, wenn die Datei fehlt oder der Hash abweicht.
+- Folgen:
+  - Jedes neue JAR mit geändertem Webclient entpackt ihn beim nächsten Laden neu.
+  - Eine Installation aus einer älteren Version wird einmal aktualisiert.
+  - Dateien, die nicht im Zip stehen (`maps/`, `settings.json`, eigene Skripte/Styles), bleiben erhalten.
+  - Abweichung vom Original: Von Hand geänderte Webclient-Dateien aus dem Zip (z. B. `index.html`) werden bei einem BlueMap-Update überschrieben.
+- Tests: `WebFilesManagerTest` (fehlende Dateien, geänderter Webclient, alte Installation ohne Hash, Kartendaten bleiben erhalten). Lokal nicht ausführbar (Lombok im Klassenpfad), nur im CI.
+
 ### 7.4 Tests zu Schritt 4
 
 **Automatisiert ausgeführt**
