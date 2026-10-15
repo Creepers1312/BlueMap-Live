@@ -5,10 +5,22 @@ Stand: 2026-10-15 · Branch `bluemap-live` (Basis `mc1.21.1`, aufbauend auf Comm
 > **Kurzfassung:** Der Datenfluss vom Fabric-Server bis zu einem **vorläufigen** 3D-Objekt in der originalen BlueMap-Marker-Szene ist implementiert.
 > - **Getestet:** die plattformneutrale Server-Logik (JUnit, 17 Tests) und die Client-Logik (Node, 16 Tests).
 > - **Im echten Browser geprüft:** der gebaute Original-Webclient (15 Schritte, 4/4 Läufe grün) und die pixelgleiche Kartendarstellung gegenüber dem unveränderten `mc1.21.1`-Webclient.
-> - **Nicht gebaut** ist der Java-/Fabric-Teil: Die Netzwerk-Policy dieser Umgebung blockiert `maven.fabricmc.net`, `libraries.minecraft.net`, `piston-meta.mojang.com` und `repo.bluecolored.de`.
-> - **Nicht** in einer echten Minecraft-Umgebung verifiziert.
+> - **Gebaut und getestet über GitHub Actions** (Nachtrag, siehe §1a): `./gradlew release` und `./gradlew spotlessCheck test` sind auf Commit `064ee35` erfolgreich, inklusive Fabric-Modul und JUnit-Tests. Lokal ist der Gradle-Build weiterhin nicht möglich (Netzwerk-Policy).
+> - **Nicht** in einer echten Minecraft-Umgebung verifiziert; die manuellen Tests M1–M16 sind offen.
 >
-> Phase 2 ist damit **implementiert und teilweise getestet, aber nicht vollständig gebaut und nicht verifiziert**.
+> Phase 2 ist damit **implementiert, gebaut und automatisiert getestet, aber nicht zur Laufzeit auf einem Minecraft-Server verifiziert**.
+
+## 1a. Nachtrag: Verifikation über GitHub Actions (2026-10-15)
+
+Der Workflow `.github/workflows/build.yml` (unverändert aus BlueMap übernommen) lief im Repository `Creepers1312/BlueMap-Live` auf Commit `064ee35` (Push und Pull Request):
+
+| Job | Befehl | Ergebnis |
+|---|---|---|
+| Build | `./gradlew release --stacktrace` (Java 21, Temurin) | **erfolgreich** (Push-Lauf; PR-Lauf siehe GitHub) |
+| Tests | `./gradlew spotlessCheck test --stacktrace` | **erfolgreich** (beide Läufe) |
+| Deploy Docker Build | Push nach `ghcr.io/creepers1312/bluemap-live` | fehlgeschlagen: `denied: installation not allowed to Create organization package`; nicht codebezogen. Der Job läuft seit dem nachfolgenden CI-Commit nur noch im Original-Repository (`if: github.repository == 'BlueMap-Minecraft/BlueMap'`). |
+
+Einschränkung: Die Job-Protokolle sind aus dieser Umgebung nicht abrufbar (Actions-Log-API über den Proxy gesperrt). Belegt ist das Job-Ergebnis, nicht die Anzahl der ausgeführten Tests. Der Gradle-Build mit Fabric/Loom bestätigt, dass `FabricMod`, `FabricPlayer` und die geänderten `common`-Klassen gegen Minecraft 1.21, Yarn `1.21+build.1` und Fabric API `0.100.1+1.21` kompilieren. Spotless bestätigt Format und Lizenz-Header.
 
 ---
 
@@ -16,12 +28,12 @@ Stand: 2026-10-15 · Branch `bluemap-live` (Basis `mc1.21.1`, aufbauend auf Comm
 
 | Funktion | Implementiert | Gebaut | Getestet | Verifiziert (Minecraft 1.21.1) |
 |---|---|---|---|---|
-| `PlayerMotionTracker` (Generation, Geschwindigkeit, Teleport-Erkennung) | ja | kompiliert mit `javac` (ohne Gradle) | **ja**, JUnit 11 Tests | nein |
-| `LivePlayersJson` (versioniertes Format) | ja | kompiliert mit `javac` | **ja**, JUnit 6 Tests + E2E | nein |
-| `LivePlayerState`, `MovementState`, `Player#getLiveState()` | ja | nur die Records per `javac`; `Player.java` **nicht** | indirekt | nein |
-| `LivePlayersDataSupplier` / `MapRequestHandler` / `PluginConfig` / `Plugin` | ja | **nein** (Gradle-Build blockiert) | nein | nein |
-| `FabricPlayer` (Snapshot, Bewegungszustände, Body-Yaw) | ja | **nein** | nein | nein |
-| `FabricMod` (Sampling-Intervall, Respawn-/Weltwechsel-Events) | ja | **nein** | nein | nein |
+| `PlayerMotionTracker` (Generation, Geschwindigkeit, Teleport-Erkennung) | ja | **ja** (`javac` lokal + Gradle, CI) | **ja**, JUnit 11 Tests (lokal; CI-Job `test` grün) | nein |
+| `LivePlayersJson` (versioniertes Format) | ja | **ja** (`javac` lokal + Gradle, CI) | **ja**, JUnit 6 Tests + E2E | nein |
+| `LivePlayerState`, `MovementState`, `Player#getLiveState()` | ja | **ja** (Gradle, CI) | indirekt | nein |
+| `LivePlayersDataSupplier` / `MapRequestHandler` / `PluginConfig` / `Plugin` | ja | **ja** (Gradle, CI) | nein (keine eigenen Tests) | nein |
+| `FabricPlayer` (Snapshot, Bewegungszustände, Body-Yaw) | ja | **ja** (Gradle/Loom, CI) | nein | nein |
+| `FabricMod` (Sampling-Intervall, Respawn-/Weltwechsel-Events) | ja | **ja** (Gradle/Loom, CI) | nein | nein |
 | Webclient: Parsing/Validierung (`LivePlayerData.js`) | ja | ja (`vite build`) | **ja**, 16 Node-Tests | – |
 | Webclient: 3D-Platzhalter, Interpolation, Sprung, Entfernen | ja | ja | **ja**, Browser-E2E (Chromium) | nein |
 | Regression Kartendarstellung | – | ja | **ja**, Pixelvergleich 0 Abweichungen (3/3) | nein |
@@ -249,11 +261,9 @@ Inhalt des Browser-E2E (`player-e2e.mjs`):
 
 | Test | Grund |
 |---|---|
-| `./gradlew build` / `:common:test` / `:fabric:build` | Netzwerk-Policy blockiert die Abhängigkeits-Repositories |
-| Kompilieren von `FabricMod`, `FabricPlayer`, `LivePlayersDataSupplier`, `MapRequestHandler`, `PluginConfig`, `Plugin`, `Player` | wie oben (Minecraft-, Fabric-, Configurate-, Adventure- und BlueMap-Abhängigkeiten fehlen) |
-| Spotless-Check (Lizenz-Header, Format) | Gradle nicht ausführbar; Lizenz-Header wurden manuell aus bestehenden Dateien übernommen |
+| Lokaler Gradle-Build in dieser Umgebung | Netzwerk-Policy blockiert die Abhängigkeits-Repositories. **Ersetzt durch GitHub Actions** (§1a): `release` und `spotlessCheck test` grün. |
 | Echte HTTP-Kette `MapRequestHandler` → `CachedRateLimitDataSupplier` → `JsonDataRequestHandler` | nicht baubar; im E2E durch `LiveE2EServer` ersetzt |
-| Alle Laufzeittests mit Minecraft 1.21.1 + Fabric (Abschnitt 10) | kein Minecraft-Server in dieser Umgebung |
+| Alle Laufzeittests mit Minecraft 1.21.1 + Fabric (Abschnitt 10, M1–M16) | **offen.** Fehlende Voraussetzungen: (1) Minecraft-1.21.1-Server-Jar und Libraries (`piston-meta.mojang.com`, `libraries.minecraft.net` gesperrt); (2) Fabric Loader/Installer und Fabric API (`maven.fabricmc.net` gesperrt); (3) zwei Minecraft-Java-Accounts mit Vanilla-Client 1.21.1 für Beitritt, Bewegung, Teleport, Portal, Respawn – ein Client lässt sich in dieser Umgebung nicht bedienen; (4) für Skins: Zugriff auf `sessionserver.mojang.com`. Der `release`-Jar aus dem CI-Artefakt („artifacts“, Build-Job) kann für den Test direkt verwendet werden. |
 | Performance-Messungen (Server-Tick-Zeit, Netzwerkvolumen) | erst mit lauffähigem Server sinnvoll |
 
 ---
