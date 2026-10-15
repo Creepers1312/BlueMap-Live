@@ -237,7 +237,7 @@ Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phas
 | **Phase 4 (Items):** JUnit lokal (`live`, `plugin.items`, `WebFilesManagerTest`, mit `core`) | 53/53 |
 | Phase 4: `npm test` | 60/60 |
 | Phase 4: Browser-E2E `items-e2e.mjs`, `player-e2e.mjs`, `animation-e2e.mjs`, Regression | 15/15, 22/22, 18/18, 0 abweichende Pixel |
-| Phase 4: Gradle/CI (Fabric-Kompilierung) | **nicht ausgeführt** (kein Push) |
+| Phase 4: Gradle/CI (Fabric-Kompilierung) | erfolgreich auf `fbd62486` (Push- und PR-Lauf) |
 | **Echter Minecraft-Client/-Server, echte Mojang-Skins** | **nicht ausgeführt** (keine Minecraft-Umgebung; `piston-meta.mojang.com`, `libraries.minecraft.net`, `maven.fabricmc.net`, `sessionserver.mojang.com` nicht erreichbar) |
 
 ---

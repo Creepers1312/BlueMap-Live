@@ -4,7 +4,8 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `phase-4-plan.md`
 
 > **Kurzfassung:** Implementiert ist Phase 1 des Auftrags: Haupt- und Nebenhand werden übertragen, die Items mit den Modellen, Texturen und Anzeige-Transformationen des Resource-Packs an den Händen dargestellt, und die Vanilla-Armposen für Halten, Blocken, Bogen, Armbrust, Dreizack, Fernrohr, Horn und Pinsel animiert. Für Essen und Trinken gibt es eine gekennzeichnete Näherung. Die Art des Armschwungs (Angriff/Abbauen/Benutzen) kommt aus Server-Ereignissen.
 > - **Getestet** (automatisiert): 53 Java-Tests lokal, 60 Node-Tests, Browser-E2E mit Items 15/15 (3/3 Läufe) sowie die bisherigen Suites 22/22 und 18/18; ohne Spieler ist die Darstellung pixelgleich zum Original.
-> - **Nicht** geprüft: Fabric-Kompilierung (lokal kein Gradle, kein CI-Lauf ohne Push), Minecraft und echte Vanilla-Ressourcen.
+> - **CI:** `spotlessCheck test` und `release` sind auf `fbd62486` grün (Push- und PR-Lauf). Der erste Lauf auf `dc9a9b05` scheiterte an zwei Kompilierfehlern in `FabricPlayer`, die behoben sind (§6).
+> - **Nicht** geprüft: Minecraft und echte Vanilla-Ressourcen.
 > - **Phase 2 (Truhen):** nur Analyse, siehe §8.
 
 ---
@@ -13,9 +14,9 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `phase-4-plan.md`
 
 | Funktion | Implementiert | Gebaut | Getestet | Visuell geprüft | Minecraft |
 |---|---|---|---|---|---|
-| Haupt-/Nebenhand, Linkshänder, Itemwechsel (Server) | ja | `common` lokal (javac), **Fabric nicht** | ja (JUnit: JSON) | – | nein |
-| Benutzung: Hand, `UseAction`, Ticks (Server) | ja | Fabric nicht | ja (JUnit: JSON) | – | nein |
-| Schwung-Art aus Fabric-Ereignissen (Angriff/Abbauen/Benutzen) | ja | Fabric nicht | ja (JUnit: `SwingTracker`) | – | nein |
+| Haupt-/Nebenhand, Linkshänder, Itemwechsel (Server) | ja | ja (CI) | ja (JUnit: JSON) | – | nein |
+| Benutzung: Hand, `UseAction`, Ticks (Server) | ja | ja (CI) | ja (JUnit: JSON) | – | nein |
+| Schwung-Art aus Fabric-Ereignissen (Angriff/Abbauen/Benutzen) | ja | ja (CI) | ja (JUnit: `SwingTracker`) | – | nein |
 | Item-Assets aus dem Resource-Pack (`ItemModelBaker`, `ItemResourceIndex`, `ItemAssetUpdater`) | ja | lokal (javac mit `core`) | ja (JUnit mit synthetischem Pack, Zip, Priorität, Schreiben in alle Karten) | – | **nein** (echte Vanilla-Modelle nicht verfügbar) |
 | Darstellung an den Händen (Vanilla-Transformationskette) | ja | `vite build` | ja (Node: unabhängig nachgerechnete Matrix; E2E) | ja (Screenshot-Farben, synthetische Texturen) | nein |
 | Overrides (Bogen, Armbrust, Schild, Dreizack, Angel, `custom_model_data`) | ja | ja | ja (Node, E2E: Bogen, Armbrust, Schild) | teilweise | nein |
@@ -160,11 +161,12 @@ Die Armposen sind aus Vanillas 1.21.1 `PlayerEntityRenderer.getArmPose`, `BipedE
 | Regression gegen den Original-Webclient (ohne Spieler) | **0 abweichende Pixel** |
 | Richtungsprüfung Schwert (Node, Asset vom Testserver) | Griff an der Hand, Klinge zeigt nach vorn und leicht nach oben (0, 0,14, 0,99) |
 
+| GitHub Actions `spotlessCheck test` + `release` | `dc9a9b05`: **fehlgeschlagen**, zwei Kompilierfehler in `FabricPlayer`. `Registries.ITEM.getId` scheiterte am von Fabric injizierten Registry-Interface (jetzt: `stack.getRegistryEntry().getKey()`); die Record-Komponente von `CustomModelDataComponent` hat in Yarn 1.21.1 keinen Namen (jetzt: Intermediary-Name `comp_2382()`). `fbd62486`: **grün** (Push- und PR-Lauf) |
+
 **Nicht ausgeführt**
 
 | Test | Grund |
 |---|---|
-| Gradle `spotlessCheck test` / `release`, insbesondere die Fabric-Kompilierung (Komponenten, `CrossbowItem.isCharged`, Fabric-Ereignisse) sowie `Plugin` und `BlueMapService` (lokal fehlen Adventure/BlueCommands; `LivePlayersDataSupplier` und `MapRequestHandler` kompilieren lokal) | lokal nicht möglich (Netzwerk-Policy). Die Namen sind gegen Yarn 1.21.1 und den Fabric-API-Quelltext 0.100.1 geprüft. Das CI läuft erst nach einem Push. |
 | Item-Assets mit den echten Vanilla-Ressourcen | Client-Jar nicht herunterladbar; getestet mit synthetischen Modellen in Vanilla-Struktur |
 | Alles in Minecraft | keine Minecraft-Umgebung; manuelle Tests I1–I16 in `singleplayer-test.md` |
 
@@ -193,8 +195,8 @@ Die Armposen sind aus Vanillas 1.21.1 `PlayerEntityRenderer.getArmPose`, `BipedE
 | Endertruhe | `EnderChestInventory.isActiveBlockEntity(…)` |
 | Shulkerkiste | `ShulkerBoxBlockEntity.getAnimationStage()` / `getAnimationProgress(…)` |
 
-**Optionen für die Darstellung** (Entscheidung offen):
+**Optionen für die Darstellung** (entschieden: **Option 1**):
 1. **Teil der Live-Block-Updates (Plan-Phase 4/5):** Geöffnete Truhen werden beim Kachel-Update ohne Deckel gerendert; der Deckel wird als animiertes Objekt im Webclient ergänzt. Das ist sauber, setzt aber Kachel-Updates voraus.
 2. **Laufzeit-Ausblendung im Webclient:** Die Dreiecke des gebackenen Deckels an der Blockposition werden in der geladenen Kachelgeometrie ausgeblendet, solange die Truhe offen ist. Das ist ein Eingriff in die vom Original geladene Kachelgeometrie und widerspricht der Vorgabe, den Renderer nicht zu verändern.
 
-**Vorbereitete Architektur:** keine; bewusst nicht vorweggenommen, bis die Darstellungsfrage entschieden ist.
+**Vorgehen:** Truhen und interaktive Blöcke werden zusammen mit den Live-Block-Updates umgesetzt, erst nachdem Phase 1 in Minecraft bestätigt ist.
