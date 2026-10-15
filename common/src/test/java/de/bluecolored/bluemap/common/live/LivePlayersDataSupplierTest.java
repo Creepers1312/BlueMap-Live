@@ -139,6 +139,28 @@ public class LivePlayersDataSupplierTest {
     }
 
     @Test
+    public void testHeldItemsAreRequested() throws Exception {
+        TestPlayer player = new TestPlayer(overworld, Vector3d.ZERO);
+        Equipment equipment = new Equipment(new HeldItem("minecraft:bow"), new HeldItem("minecraft:shield"), false, false);
+        player.snapshot = new Player.LiveSnapshot(overworld, new LivePlayerState(Vector3d.ZERO, Vector3d.ZERO, 0, Vector3d.ZERO,
+                0, 0, null, null, equipment, null));
+
+        List<String> requested = new ArrayList<>();
+        String json = new LivePlayersDataSupplier(new TestServer(player), new PluginConfig(), mapWorld, uuid -> true, 250,
+                uuid -> null, requested::add).get();
+        assertEquals(List.of("minecraft:bow", "minecraft:shield"), requested, "the item-assets of listed players are requested");
+        assertEquals("minecraft:bow", onlyPlayer(json).getAsJsonObject("equipment").getAsJsonObject("mainHand").get("id").getAsString());
+
+        // hidden players and disabled extended data: nothing is requested
+        requested.clear();
+        new LivePlayersDataSupplier(new TestServer(player), new PluginConfig(), mapWorld, uuid -> false, 250,
+                uuid -> null, requested::add).get();
+        new LivePlayersDataSupplier(new TestServer(player), config("livePlayerExtendedData", false), mapWorld, uuid -> true, 250,
+                uuid -> null, requested::add).get();
+        assertEquals(List.of(), requested);
+    }
+
+    @Test
     public void testDefaultSnapshotUsesWorldAndLiveState() {
         Player player = new TestPlayer(nether, new Vector3d(1, 2, 3));
         Player.LiveSnapshot snapshot = player.getLiveSnapshot();

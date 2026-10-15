@@ -39,6 +39,8 @@ import org.jetbrains.annotations.Nullable;
  * @param time the time (epoch-millis) when this state was sampled
  * @param movement the movement-flags of the player, or null if unknown on this platform
  * @param swing the arm-swing state of the player, or null if unknown on this platform
+ * @param equipment the items the player holds, or null if unknown on this platform
+ * @param use the item the player is currently using, or null if none (or unknown on this platform)
  */
 public record LivePlayerState(
         Vector3d position,
@@ -48,12 +50,19 @@ public record LivePlayerState(
         int generation,
         long time,
         @Nullable MovementState movement,
-        @Nullable SwingState swing
+        @Nullable SwingState swing,
+        @Nullable Equipment equipment,
+        @Nullable ItemUse use
 ) {
 
     public LivePlayerState(Vector3d position, Vector3d rotation, double bodyYaw, Vector3d velocity, int generation,
                            long time, @Nullable MovementState movement) {
         this(position, rotation, bodyYaw, velocity, generation, time, movement, null);
+    }
+
+    public LivePlayerState(Vector3d position, Vector3d rotation, double bodyYaw, Vector3d velocity, int generation,
+                           long time, @Nullable MovementState movement, @Nullable SwingState swing) {
+        this(position, rotation, bodyYaw, velocity, generation, time, movement, swing, null, null);
     }
 
 }

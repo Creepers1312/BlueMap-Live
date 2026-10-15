@@ -18,8 +18,12 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import de.bluecolored.bluemap.common.live.LivePlayerState;
 import de.bluecolored.bluemap.common.live.LivePlayersJson;
+import de.bluecolored.bluemap.common.live.Equipment;
+import de.bluecolored.bluemap.common.live.HeldItem;
+import de.bluecolored.bluemap.common.live.ItemUse;
 import de.bluecolored.bluemap.common.live.MovementState;
 import de.bluecolored.bluemap.common.live.SwingState;
+import de.bluecolored.bluemap.common.plugin.items.ItemModelBaker;
 import de.bluecolored.bluemap.common.live.PlayerMotionTracker;
 import de.bluecolored.bluemap.core.map.hires.ArrayTileModel;
 import de.bluecolored.bluemap.core.map.hires.PRBMWriter;
@@ -56,6 +60,9 @@ public class LiveE2EServer {
         String skin = "none"; // none | classic | slim | broken
         int swingCount = 0;
         boolean swingLeft = false;
+        SwingState.Kind swingKind = SwingState.Kind.SWING;
+        String mainHand = null, offHand = null;
+        boolean leftHanded = false, charged = false;
 
         SimPlayer(String uuid, String name) {
             this.uuid = uuid;
@@ -70,6 +77,8 @@ public class LiveE2EServer {
     private boolean serveStaleOnce = false;
     private int staleServed = 0;
     private boolean endpointDown = false;
+    private boolean itemsDown = false;
+    private final Map<String, byte[]> itemAssets = new HashMap<>();
 
     public LiveE2EServer(Path webroot) throws IOException {
         this.webroot = webroot;
@@ -111,6 +120,7 @@ public class LiveE2EServer {
                     case "live/markers.json" -> send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
                     default -> {
                         if (file.startsWith("assets/playerskins/") && file.endsWith(".png")) handleSkin(ex, file);
+                        else if (file.startsWith("assets/items/") && file.endsWith(".json")) handleItem(ex, file);
                         else send(ex, 404, "text/plain", "not found".getBytes(StandardCharsets.UTF_8));
                     }
                 }
@@ -171,7 +181,10 @@ public class LiveE2EServer {
      * One server-sample: /control?uuid=..&name=..&x=..&y=..&z=..&pitch=..&yaw=..&bodyYaw=..&world=..&respawn=1
      * Movement-flags (default: standing on the ground): &sneaking=1&sprinting=1&ground=0&swimming=1&flying=1&fallFlying=1
      * Velocity override (instead of the one derived from the samples): &vx=..&vy=..&vz=..
-     * Arm-swing (increments the swing-counter): &swing=right|left
+     * Arm-swing (increments the swing-counter): &swing=right|left&swingKind=attack|mine|use|swing
+     * Held items (kept until changed, "none" clears): &main=minecraft:diamond_sword&off=minecraft:shield&leftHanded=1&charged=1
+     * Item use (only for this sample): &use=main|off&useAction=bow&useTicks=12
+     * Item-assets unavailable (404, like before the server created them): /control?itemsDown=1|0
      * Other commands: /control?leave=uuid, /control?stale=1, /control?down=1|0, /control?status=1
      */
     private void handleControl(HttpExchange ex) throws IOException {
@@ -184,6 +197,11 @@ public class LiveE2EServer {
         }
         if (q.containsKey("status")) {
             send(ex, 200, "application/json", ("{\"staleServed\":" + staleServed + "}").getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (q.containsKey("itemsDown")) {
+            itemsDown = q.get("itemsDown").equals("1");
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }
         if (q.containsKey("down")) {
@@ -203,7 +221,20 @@ public class LiveE2EServer {
             if (q.containsKey("swing")) {
                 p.swingCount++;
                 p.swingLeft = q.get("swing").equals("left");
+                p.swingKind = SwingState.Kind.valueOf(q.getOrDefault("swingKind", "swing").toUpperCase(java.util.Locale.ROOT));
             }
+            if (q.containsKey("main")) p.mainHand = q.get("main").equals("none") ? null : q.get("main");
+            if (q.containsKey("off")) p.offHand = q.get("off").equals("none") ? null : q.get("off");
+            if (q.containsKey("leftHanded")) p.leftHanded = q.get("leftHanded").equals("1");
+            if (q.containsKey("charged")) p.charged = q.get("charged").equals("1");
+            Equipment equipment = new Equipment(
+                    p.mainHand != null ? new HeldItem(p.mainHand, false, null, p.charged && p.mainHand.endsWith(":crossbow"), false) : null,
+                    p.offHand != null ? new HeldItem(p.offHand) : null,
+                    p.leftHanded, false
+            );
+            ItemUse use = q.containsKey("use") ?
+                    new ItemUse(q.get("use").equals("main"), q.getOrDefault("useAction", "none"), Integer.parseInt(q.getOrDefault("useTicks", "0"))) :
+                    null;
 
             Vector3d position = new Vector3d(d(q, "x"), d(q, "y"), d(q, "z"));
             long now = System.currentTimeMillis();
@@ -220,7 +251,9 @@ public class LiveE2EServer {
                             flag(q, "sneaking"), flag(q, "sprinting"), !"0".equals(q.get("ground")),
                             flag(q, "swimming"), flag(q, "flying"), flag(q, "fallFlying")
                     ),
-                    new SwingState(p.swingCount, p.swingLeft)
+                    new SwingState(p.swingCount, p.swingLeft, p.swingKind),
+                    equipment,
+                    use
             );
         }
 
@@ -332,6 +365,23 @@ public class LiveE2EServer {
             img.setRGB(hatFront[0] + x, hatFront[1] + y, skinColor(1, 0, 4, 0));
         }
         return img;
+    }
+
+    /** baked by the real ItemModelBaker from a small, color-coded resource-pack (see E2EItemResources) */
+    private void handleItem(HttpExchange ex, String file) throws IOException {
+        if (itemsDown) {
+            send(ex, 404, "text/plain", "not yet".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        String path = file.substring("assets/items/".length(), file.length() - ".json".length());
+        int slash = path.indexOf('/');
+        String itemId = path.substring(0, slash) + ":" + path.substring(slash + 1);
+        byte[] json = itemAssets.get(itemId);
+        if (json == null) {
+            json = new ItemModelBaker(new E2EItemResources()).bake(itemId).getBytes(StandardCharsets.UTF_8);
+            itemAssets.put(itemId, json);
+        }
+        send(ex, 200, "application/json", json);
     }
 
     private void handleSkin(HttpExchange ex, String file) throws IOException {

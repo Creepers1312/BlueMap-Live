@@ -38,6 +38,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -50,6 +51,7 @@ public class LivePlayersDataSupplier implements Supplier<String> {
     private final Predicate<UUID> playerFilter;
     private final int updateIntervalMillis;
     private final Function<UUID, LivePlayersJson.Skin> skinLookup;
+    private final Consumer<String> itemRequester;
 
     private transient @Nullable ServerWorld serverWorld;
 
@@ -69,6 +71,15 @@ public class LivePlayersDataSupplier implements Supplier<String> {
      */
     public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter, int updateIntervalMillis,
                                    Function<UUID, LivePlayersJson.Skin> skinLookup) {
+        this(server, config, world, playerFilter, updateIntervalMillis, skinLookup, itemId -> {});
+    }
+
+    /**
+     * @param itemRequester called with the id of every item a listed player holds (so the item-asset can be provided)
+     */
+    public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter, int updateIntervalMillis,
+                                   Function<UUID, LivePlayersJson.Skin> skinLookup, Consumer<String> itemRequester) {
+        this.itemRequester = itemRequester;
         this.server = server;
         this.config = config;
         this.world = world;
@@ -99,6 +110,12 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                         player.getBlockLight() < config.getHideBelowBlockLight()
                 ) continue;
                 if (!this.playerFilter.test(player.getUuid())) continue;
+
+                Equipment equipment = snapshot.state() != null ? snapshot.state().equipment() : null;
+                if (equipment != null && config.isLivePlayerExtendedData()) {
+                    if (equipment.mainHand() != null) itemRequester.accept(equipment.mainHand().id());
+                    if (equipment.offHand() != null) itemRequester.accept(equipment.offHand().id());
+                }
 
                 entries.add(new LivePlayersJson.Entry(
                         player.getUuid().toString(),

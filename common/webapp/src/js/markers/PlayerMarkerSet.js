@@ -36,8 +36,9 @@ export class PlayerMarkerSet extends MarkerSet {
      * @param data {object | null}
      * @param skinCache {import("./player/PlayerSkinCache").PlayerSkinCache | null}
      * @param playerskinsUrl {string | null}
+     * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache | null}
      */
-    constructor(id, playerheadsUrl, data = null, skinCache = null, playerskinsUrl = null) {
+    constructor(id, playerheadsUrl, data = null, skinCache = null, playerskinsUrl = null, itemCache = null) {
         super(id, data);
         this.data.label = "Player";
         this.data.toggleable = true;
@@ -48,6 +49,7 @@ export class PlayerMarkerSet extends MarkerSet {
         // not part of the (reactive) data
         this.skinCache = skinCache;
         this.playerskinsUrl = playerskinsUrl;
+        this.itemCache = itemCache;
 
         this.lastServerTime = null;
         this.updateInterval = DEFAULT_UPDATE_INTERVAL;
@@ -60,11 +62,13 @@ export class PlayerMarkerSet extends MarkerSet {
      * @param playerheadsUrl {string}
      * @param skinCache {import("./player/PlayerSkinCache").PlayerSkinCache | null}
      * @param playerskinsUrl {string | null}
+     * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache | null}
      */
-    bindSource(playerheadsUrl, skinCache, playerskinsUrl) {
+    bindSource(playerheadsUrl, skinCache, playerskinsUrl, itemCache = null) {
         this.data.playerheadsUrl = playerheadsUrl;
         this.skinCache = skinCache;
         this.playerskinsUrl = playerskinsUrl;
+        this.itemCache = itemCache;
         this.lastServerTime = null;
     }
 
@@ -119,7 +123,7 @@ export class PlayerMarkerSet extends MarkerSet {
         // create new if not existent of wrong type
         if (!marker || !marker.isPlayerMarker) {
             if (marker) this.remove(marker);
-            marker = new PlayerMarker(markerId, playerUuid, `${this.data.playerheadsUrl}${playerUuid}.png`, this.skinCache, this.playerskinsUrl);
+            marker = new PlayerMarker(markerId, playerUuid, `${this.data.playerheadsUrl}${playerUuid}.png`, this.skinCache, this.playerskinsUrl, this.itemCache);
             this.add(marker);
         }
 

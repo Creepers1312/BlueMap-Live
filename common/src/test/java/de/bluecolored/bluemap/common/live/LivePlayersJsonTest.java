@@ -208,4 +208,53 @@ public class LivePlayersJsonTest {
         assertEquals("minecraft:the_end", players.get(1).getAsJsonObject().get("world").getAsString());
     }
 
+    @Test
+    public void testEquipmentAndUse() throws IOException {
+        HeldItem bow = new HeldItem("minecraft:bow", true, null, false, false);
+        HeldItem crossbow = new HeldItem("minecraft:crossbow", false, 7, true, true);
+        LivePlayerState withItems = new LivePlayerState(Vector3d.ZERO, Vector3d.ZERO, 0, Vector3d.ZERO, 0, 0, null,
+                new SwingState(2, false, SwingState.Kind.ATTACK),
+                new Equipment(bow, crossbow, true, true),
+                new ItemUse(true, "bow", 12));
+
+        JsonObject p = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, withItems)))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+
+        assertEquals("attack", p.getAsJsonObject("swing").get("kind").getAsString());
+
+        JsonObject equipment = p.getAsJsonObject("equipment");
+        assertEquals("left", equipment.get("mainArm").getAsString());
+        assertTrue(equipment.get("fishing").getAsBoolean());
+        JsonObject main = equipment.getAsJsonObject("mainHand");
+        assertEquals("minecraft:bow", main.get("id").getAsString());
+        assertTrue(main.get("glint").getAsBoolean());
+        assertFalse(main.has("customModelData"), "only set flags are written");
+        assertFalse(main.has("charged"));
+        JsonObject off = equipment.getAsJsonObject("offHand");
+        assertEquals(7, off.get("customModelData").getAsInt());
+        assertTrue(off.get("charged").getAsBoolean());
+        assertTrue(off.get("firework").getAsBoolean());
+
+        JsonObject use = p.getAsJsonObject("use");
+        assertEquals("main", use.get("hand").getAsString());
+        assertEquals("bow", use.get("action").getAsString());
+        assertEquals(12, use.get("ticks").getAsInt());
+
+        // empty hands, no use
+        LivePlayerState empty = new LivePlayerState(Vector3d.ZERO, Vector3d.ZERO, 0, Vector3d.ZERO, 0, 0, null, null,
+                Equipment.EMPTY, null);
+        p = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, empty)))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+        assertEquals("right", p.getAsJsonObject("equipment").get("mainArm").getAsString());
+        assertFalse(p.getAsJsonObject("equipment").has("mainHand"));
+        assertFalse(p.getAsJsonObject("equipment").has("fishing"));
+        assertFalse(p.has("use"));
+
+        // without extended data nothing of it
+        p = writeAndParse(false, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, withItems)))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+        assertFalse(p.has("equipment"));
+        assertFalse(p.has("use"));
+    }
+
 }

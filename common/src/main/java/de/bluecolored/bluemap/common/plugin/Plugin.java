@@ -40,12 +40,15 @@ import de.bluecolored.bluemap.common.plugin.skins.SkinInfo;
 import de.bluecolored.bluemap.common.rendermanager.MapUpdatePreparationTask;
 import de.bluecolored.bluemap.common.rendermanager.RenderManager;
 import de.bluecolored.bluemap.common.rendermanager.RenderTask;
+import de.bluecolored.bluemap.common.plugin.items.ItemAssetUpdater;
+import de.bluecolored.bluemap.common.plugin.items.ItemResourceIndex;
 import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.Server;
 import de.bluecolored.bluemap.common.serverinterface.ServerEventListener;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
 import de.bluecolored.bluemap.common.web.*;
 import de.bluecolored.bluemap.common.web.http.HttpServer;
+import de.bluecolored.bluemap.core.BlueMap;
 import de.bluecolored.bluemap.core.logger.Logger;
 import de.bluecolored.bluemap.core.map.BmMap;
 import de.bluecolored.bluemap.core.map.hires.ArrayTileModel;
@@ -105,6 +108,7 @@ public class Plugin implements ServerEventListener {
     private Timer daemonTimer;
     private Map<String, MapUpdateService> mapUpdateServices;
     private PlayerSkinUpdater skinUpdater;
+    private @Nullable ItemAssetUpdater itemAssetUpdater;
 
     private boolean loaded = false;
 
@@ -210,7 +214,8 @@ public class Plugin implements ServerEventListener {
                         MapRequestHandler mapRequestHandler;
                         BmMap map = maps.get(id);
                         if (map != null) {
-                            mapRequestHandler = new MapRequestHandler(map, serverInterface, pluginConfig, Predicate.not(pluginState::isPlayerHidden), this::getLiveSkin);
+                            mapRequestHandler = new MapRequestHandler(map, serverInterface, pluginConfig, Predicate.not(pluginState::isPlayerHidden), this::getLiveSkin,
+                                    this::requestItemAsset);
                         } else {
                             Storage storage = blueMap.getOrLoadStorage(mapConfig.getStorage());
                             mapRequestHandler = new MapRequestHandler(storage.map(id));
@@ -285,6 +290,24 @@ public class Plugin implements ServerEventListener {
                         skinUpdater.onPlayerJoin(player.getUuid());
                     }
                 }
+
+                //item-models of held items for the live player-models (created when first needed)
+                this.itemAssetUpdater = new ItemAssetUpdater(
+                        () -> {
+                            BlueMapService blueMap = this.blueMap;
+                            if (blueMap == null) return null;
+                            return blueMap.getMaps().values().stream().map(BmMap::getStorage).toList();
+                        },
+                        () -> {
+                            BlueMapService blueMap = this.blueMap;
+                            if (blueMap == null || blueMap.getResourcePack() == null) return null;
+                            ItemResourceIndex index = ItemResourceIndex.load(blueMap.getResourcePack(), blueMap.getResourcePackRoots());
+                            Logger.global.logDebug("Loaded " + index.getModelCount() + " models and " +
+                                    index.getTextureCount() + " textures for item-models.");
+                            return index;
+                        },
+                        BlueMap.THREAD_POOL
+                );
 
                 //init timer
                 daemonTimer = new Timer("BlueMap-Plugin-DaemonTimer", true);
@@ -412,6 +435,7 @@ public class Plugin implements ServerEventListener {
                 //unregister listeners
                 serverInterface.unregisterAllListeners();
                 skinUpdater = null;
+                itemAssetUpdater = null;
 
                 //stop scheduled threads
                 if (daemonTimer != null) daemonTimer.cancel();
@@ -583,6 +607,14 @@ public class Plugin implements ServerEventListener {
         SkinInfo info = skinUpdater.getSkinInfo(playerUuid);
         if (info == null) return null;
         return new LivePlayersJson.Skin(info.model().getId(), info.version());
+    }
+
+    /**
+     * Makes sure the item-asset (model and textures for the webapp) of a held item exists.
+     */
+    private void requestItemAsset(String itemId) {
+        ItemAssetUpdater itemAssetUpdater = this.itemAssetUpdater;
+        if (itemAssetUpdater != null) itemAssetUpdater.request(itemId);
     }
 
     public synchronized void startWatchingMap(BmMap map) {

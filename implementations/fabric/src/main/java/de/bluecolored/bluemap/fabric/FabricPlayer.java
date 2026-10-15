@@ -25,16 +25,27 @@
 package de.bluecolored.bluemap.fabric;
 
 import com.flowpowered.math.vector.Vector3d;
+import de.bluecolored.bluemap.common.live.Equipment;
+import de.bluecolored.bluemap.common.live.HeldItem;
+import de.bluecolored.bluemap.common.live.ItemUse;
 import de.bluecolored.bluemap.common.live.LivePlayerState;
 import de.bluecolored.bluemap.common.live.MovementState;
 import de.bluecolored.bluemap.common.live.PlayerMotionTracker;
+import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.live.SwingTracker;
 import de.bluecolored.bluemap.common.plugin.text.Text;
 import de.bluecolored.bluemap.common.serverinterface.Gamemode;
 import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.ChargedProjectilesComponent;
+import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.item.CrossbowItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Arm;
@@ -42,8 +53,10 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.LightType;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -63,6 +76,9 @@ public class FabricPlayer extends Player {
     // only accessed on the server-thread
     private final PlayerMotionTracker motionTracker;
     private final SwingTracker swingTracker;
+    private ItemStack lastMainHand = ItemStack.EMPTY, lastOffHand = ItemStack.EMPTY;
+    private @Nullable HeldItem mainHandItem, offHandItem;
+    private Equipment equipment = Equipment.EMPTY;
 
     // written on the server-thread, read from other threads (e.g. webserver)
     private volatile State state;
@@ -171,6 +187,67 @@ public class FabricPlayer extends Player {
     }
 
     /**
+     * Notes an action (attack, start breaking a block, use) of the player, the next arm-swing is of this kind.
+     * Only call on server thread!
+     */
+    public void noteAction(SwingState.Kind action) {
+        swingTracker.noteAction(action);
+    }
+
+    /**
+     * The held items, a new object is only created when an item (or its components) changed.
+     */
+    private Equipment sampleEquipment(ServerPlayerEntity player) {
+        ItemStack mainHand = player.getMainHandStack();
+        ItemStack offHand = player.getOffHandStack();
+        boolean changed = false;
+
+        // the count is ignored, it does not change how the item looks
+        if (!ItemStack.areItemsAndComponentsEqual(mainHand, lastMainHand)) {
+            lastMainHand = mainHand.copy();
+            mainHandItem = toHeldItem(mainHand);
+            changed = true;
+        }
+        if (!ItemStack.areItemsAndComponentsEqual(offHand, lastOffHand)) {
+            lastOffHand = offHand.copy();
+            offHandItem = toHeldItem(offHand);
+            changed = true;
+        }
+
+        boolean leftHanded = player.getMainArm() == Arm.LEFT;
+        boolean fishing = player.fishHook != null;
+        if (changed || leftHanded != equipment.leftHanded() || fishing != equipment.fishing()) {
+            equipment = new Equipment(mainHandItem, offHandItem, leftHanded, fishing);
+        }
+        return equipment;
+    }
+
+    private static @Nullable HeldItem toHeldItem(ItemStack stack) {
+        if (stack.isEmpty()) return null;
+
+        CustomModelDataComponent customModelData = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+        boolean charged = stack.isOf(Items.CROSSBOW) && CrossbowItem.isCharged(stack);
+        ChargedProjectilesComponent projectiles = charged ? stack.get(DataComponentTypes.CHARGED_PROJECTILES) : null;
+
+        return new HeldItem(
+                Registries.ITEM.getId(stack.getItem()).toString(),
+                stack.hasGlint(),
+                customModelData != null ? customModelData.value() : null,
+                charged,
+                projectiles != null && projectiles.contains(Items.FIREWORK_ROCKET)
+        );
+    }
+
+    private static @Nullable ItemUse sampleItemUse(ServerPlayerEntity player) {
+        if (!player.isUsingItem()) return null;
+        return new ItemUse(
+                player.getActiveHand() == Hand.MAIN_HAND,
+                player.getActiveItem().getUseAction().name().toLowerCase(Locale.ROOT),
+                player.getItemUseTime()
+        );
+    }
+
+    /**
      * Only call on server thread!
      */
     public void update() {
@@ -232,7 +309,9 @@ public class FabricPlayer extends Player {
                         motion.generation(),
                         now,
                         movement,
-                        swingTracker.getState()
+                        swingTracker.getState(),
+                        sampleEquipment(player),
+                        sampleItemUse(player)
                 )
         );
     }

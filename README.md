@@ -15,7 +15,8 @@
 | 1 | Analyse und Architektur | fertig – [`docs/bluemap-live/analysis.md`](docs/bluemap-live/analysis.md) |
 | 2 | End-to-End-Prototyp: erweiterte Live-Spielerdaten + **vorläufiges** 3D-Objekt im Webclient | implementiert, teilweise getestet, **noch nicht mit Gradle gebaut und nicht auf einem echten Server geprüft** – [`docs/bluemap-live/phase-2.md`](docs/bluemap-live/phase-2.md) |
 | 3 | Echte Spielermodelle mit Skin und Animationen | teilweise: vollständige Skins, 3D-Modell, Animationen und Dimensionswechsel ohne Neuladen implementiert und automatisiert getestet; in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-3.md`](docs/bluemap-live/phase-3.md) |
-| 4–5 | Live-Blockänderungen (zuverlässig, dann inkrementell) | geplant |
+| 3b | Gehaltene Items und Item-Animationen | implementiert und automatisiert getestet; Fabric-Teil noch nicht kompiliert, in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-4.md`](docs/bluemap-live/phase-4.md) |
+| 4–5 | Live-Blockänderungen (zuverlässig, dann inkrementell), darin auch Truhen/interaktive Blöcke | geplant |
 | 6 | Stabilisierung und Dokumentation | geplant |
 
 Noch **nicht für den produktiven Einsatz** gedacht.

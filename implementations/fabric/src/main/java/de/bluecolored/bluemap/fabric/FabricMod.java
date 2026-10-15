@@ -29,6 +29,7 @@ import de.bluecolored.bluecommands.brigadier.BrigadierBridge;
 import de.bluecolored.bluemap.common.BlueMapService;
 import de.bluecolored.bluemap.common.commands.BrigadierExecutionHandler;
 import de.bluecolored.bluemap.common.commands.Commands;
+import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.Plugin;
 import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.Server;
@@ -42,14 +43,22 @@ import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.SharedConstants;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.TypedActionResult;
 import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 
@@ -135,6 +144,27 @@ public class FabricMod implements ModInitializer, Server {
 
         ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> {
             this.onPlayerDiscontinuity(player);
+        });
+
+        // actions that cause an arm-swing, only observed (always PASS), so the swing can be classified
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.ATTACK);
+            return ActionResult.PASS;
+        });
+
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.MINE);
+            return ActionResult.PASS;
+        });
+
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.USE);
+            return ActionResult.PASS;
+        });
+
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.USE);
+            return TypedActionResult.pass(ItemStack.EMPTY);
         });
 
         ServerTickEvents.END_SERVER_TICK.register((MinecraftServer server) -> {
@@ -276,6 +306,15 @@ public class FabricMod implements ModInitializer, Server {
             if (playerUpdateIndex < onlinePlayerCount) {
                 onlinePlayerList.get(playerUpdateIndex).update();
             }
+        }
+    }
+
+    /**
+     * Only call this method on the server-thread.
+     */
+    private void onPlayerAction(PlayerEntity playerInstance, SwingState.Kind action) {
+        if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+            player.noteAction(action);
         }
     }
 

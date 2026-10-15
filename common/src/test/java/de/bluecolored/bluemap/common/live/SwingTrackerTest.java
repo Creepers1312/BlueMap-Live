@@ -86,4 +86,53 @@ public class SwingTrackerTest {
         assertEquals(5, tracker.getState().count());
     }
 
+    @Test
+    public void testSwingKinds() {
+        SwingTracker tracker = new SwingTracker();
+
+        // swing into the air
+        swing(tracker, false, 6);
+        assertEquals(SwingState.Kind.SWING, tracker.getState().kind());
+
+        // attack: the event comes in the same tick as the swing
+        tracker.noteAction(SwingState.Kind.ATTACK);
+        swing(tracker, false, 6);
+        assertEquals(SwingState.Kind.ATTACK, tracker.getState().kind());
+
+        // the next swing without an event is a normal swing again
+        tracker.update(false, 0, false);
+        swing(tracker, false, 6);
+        assertEquals(SwingState.Kind.SWING, tracker.getState().kind());
+
+        // use (e.g. throwing a snowball): the swing comes one tick after the event
+        tracker.noteAction(SwingState.Kind.USE);
+        tracker.update(false, 0, false);
+        swing(tracker, true, 6);
+        assertEquals(new SwingState(4, true, SwingState.Kind.USE), tracker.getState());
+    }
+
+    @Test
+    public void testOldActionsAreNotAssigned() {
+        SwingTracker tracker = new SwingTracker();
+        tracker.noteAction(SwingState.Kind.ATTACK);
+        for (int i = 0; i < 5; i++) tracker.update(false, 0, false);
+        swing(tracker, false, 6);
+        assertEquals(SwingState.Kind.SWING, tracker.getState().kind(), "an attack without a swing is not assigned to a later swing");
+    }
+
+    @Test
+    public void testContinuedMining() {
+        SwingTracker tracker = new SwingTracker();
+        tracker.noteAction(SwingState.Kind.MINE);
+        // the client keeps swinging while breaking a block (a restart every few ticks)
+        for (int i = 0; i < 5; i++) swing(tracker, false, 3);
+        assertEquals(5, tracker.getState().count());
+        assertEquals(SwingState.Kind.MINE, tracker.getState().kind());
+
+        // a pause ends the mining
+        for (int i = 0; i < SwingTracker.MINE_CONTINUE_TICKS + 2; i++) tracker.update(false, 0, false);
+        swing(tracker, false, 6);
+        assertEquals(SwingState.Kind.SWING, tracker.getState().kind());
+    }
+
 }

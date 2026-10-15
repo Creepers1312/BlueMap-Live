@@ -134,6 +134,32 @@ public final class LivePlayersJson {
                 json.name("swing").beginObject();
                 json.name("count").value(swing.count());
                 json.name("arm").value(swing.leftArm() ? "left" : "right");
+                json.name("kind").value(swing.kind().getId());
+                json.endObject();
+            }
+
+            Equipment equipment = state.equipment();
+            if (equipment != null) {
+                json.name("equipment").beginObject();
+                json.name("mainArm").value(equipment.leftHanded() ? "left" : "right");
+                if (equipment.mainHand() != null) {
+                    json.name("mainHand");
+                    writeItem(json, equipment.mainHand());
+                }
+                if (equipment.offHand() != null) {
+                    json.name("offHand");
+                    writeItem(json, equipment.offHand());
+                }
+                if (equipment.fishing()) json.name("fishing").value(true);
+                json.endObject();
+            }
+
+            ItemUse use = state.use();
+            if (use != null) {
+                json.name("use").beginObject();
+                json.name("hand").value(use.mainHand() ? "main" : "off");
+                json.name("action").value(use.action());
+                json.name("ticks").value(use.ticks());
                 json.endObject();
             }
 
@@ -150,6 +176,17 @@ public final class LivePlayersJson {
             }
         }
 
+        json.endObject();
+    }
+
+    /** only the id and the flags that are set, so an item costs only a few bytes per update */
+    private static void writeItem(JsonWriter json, HeldItem item) throws IOException {
+        json.beginObject();
+        json.name("id").value(item.id());
+        if (item.glint()) json.name("glint").value(true);
+        if (item.customModelData() != null) json.name("customModelData").value(item.customModelData());
+        if (item.charged()) json.name("charged").value(true);
+        if (item.firework()) json.name("firework").value(true);
         json.endObject();
     }
 

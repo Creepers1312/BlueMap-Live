@@ -48,8 +48,9 @@ export class PlayerMarker extends Marker {
      * @param playerHead {string}
      * @param skinCache {PlayerSkinCache | null} - shared skin-textures
      * @param playerskinsUrl {string | null} - the url-prefix of the full skins (assets/playerskins/)
+     * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache | null} - shared item-models of held items
      */
-    constructor(markerId, playerUuid, playerHead = "assets/steve.png", skinCache = null, playerskinsUrl = null) {
+    constructor(markerId, playerUuid, playerHead = "assets/steve.png", skinCache = null, playerskinsUrl = null, itemCache = null) {
         super(markerId);
         Object.defineProperty(this, 'isPlayerMarker', {value: true});
         this.data.type = "player";
@@ -86,7 +87,7 @@ export class PlayerMarker extends Marker {
         // 3d player-model, rendered in the normal marker-scene (same camera & depth-buffer as the map)
         if (!skinCache) skinCache = fallbackSkinCache || (fallbackSkinCache = new PlayerSkinCache());
         this.playerskinsUrl = playerskinsUrl;
-        this.model = new PlayerModel(skinCache);
+        this.model = new PlayerModel(skinCache, itemCache);
         this.model.position.y = -PLAYER_HEIGHT; // the marker itself sits at head-height, the model origin is at the feet
         this.headPivot = this.model.parts.head;
         this.add(this.model);
@@ -244,7 +245,10 @@ export class PlayerMarker extends Marker {
      * @returns {boolean} true if the model is currently moving and should be rendered with a high frame-rate
      */
     stepAnimation(dt) {
-        const active = this.animator.step(dt, MathUtils.degToRad(this.displayed.pitch));
+        const active = this.animator.step(dt,
+            MathUtils.degToRad(this.displayed.pitch),
+            MathUtils.degToRad(angleDelta(this.displayed.bodyYaw, this.displayed.headYaw))
+        );
         this.model.applyPose(this.animator.pose);
         return active;
     }

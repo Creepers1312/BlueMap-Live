@@ -29,5 +29,33 @@ package de.bluecolored.bluemap.common.live;
  *
  * @param count increased by one for every new arm-swing (wraps around), clients start a swing-animation whenever it changes
  * @param leftArm true if the last swing was done with the left arm, false for the right arm
+ * @param kind what the last swing was detected to be (from server-events), {@link Kind#SWING} if nothing specific
  */
-public record SwingState(int count, boolean leftArm) {}
+public record SwingState(int count, boolean leftArm, Kind kind) {
+
+    public SwingState(int count, boolean leftArm) {
+        this(count, leftArm, Kind.SWING);
+    }
+
+    public enum Kind {
+        /** an arm-swing without a detected action (e.g. into the air) */
+        SWING("swing"),
+        /** the player attacked an entity */
+        ATTACK("attack"),
+        /** the player started or continued breaking a block */
+        MINE("mine"),
+        /** the player used an item or interacted with a block */
+        USE("use");
+
+        private final String id;
+
+        Kind(String id) {
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
+        }
+    }
+
+}

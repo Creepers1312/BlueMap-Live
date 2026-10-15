@@ -15,6 +15,9 @@ import {
     parsePlayer,
     parsePlayersResponse,
     parseSkin,
+    parseEquipment,
+    parseItem,
+    parseItemUse,
     parseSwing,
     resolveUpdateInterval,
     SUPPORTED_PROTOCOL,
@@ -241,16 +244,52 @@ test("skin-info is parsed and validated", () => {
 });
 
 test("swing-info is parsed and validated", () => {
-    assert.deepEqual(parseSwing({count: 3, arm: "left"}), {count: 3, arm: "left"});
-    assert.deepEqual(parseSwing({count: 0, arm: "right"}), {count: 0, arm: "right"});
-    assert.deepEqual(parseSwing({count: 2}), {count: 2, arm: "right"}, "unknown arm -> right");
+    assert.deepEqual(parseSwing({count: 3, arm: "left", kind: "attack"}), {count: 3, arm: "left", kind: "attack"});
+    assert.deepEqual(parseSwing({count: 0, arm: "right"}), {count: 0, arm: "right", kind: "swing"}, "older servers: no kind");
+    assert.deepEqual(parseSwing({count: 2, kind: "explode"}), {count: 2, arm: "right", kind: "swing"}, "unknown arm/kind -> right/swing");
     assert.equal(parseSwing(null), null);
     assert.equal(parseSwing({count: -1}), null);
     assert.equal(parseSwing({count: 1.5}), null);
     assert.equal(parseSwing({count: "1"}), null);
 
-    assert.deepEqual(parsePlayer({...v1Player(), swing: {count: 4, arm: "left"}}).swing, {count: 4, arm: "left"});
+    assert.deepEqual(parsePlayer({...v1Player(), swing: {count: 4, arm: "left"}}).swing, {count: 4, arm: "left", kind: "swing"});
     assert.equal(parsePlayer(v1Player()).swing, null, "missing swing field");
     const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), swing: {count: 4, arm: "left"}}]});
     assert.equal(legacy.players[0].swing, null, "unsupported protocol -> only the original fields");
+});
+
+test("held items are parsed and validated", () => {
+    assert.deepEqual(parseItem({id: "minecraft:bow", glint: true}),
+        {id: "minecraft:bow", glint: true, customModelData: null, charged: false, firework: false});
+    assert.deepEqual(parseItem({id: "minecraft:crossbow", customModelData: 3, charged: true, firework: true}),
+        {id: "minecraft:crossbow", glint: false, customModelData: 3, charged: true, firework: true});
+    assert.deepEqual(parseItem({id: "mymod:tools/hammer"}).id, "mymod:tools/hammer");
+    assert.equal(parseItem(null), null, "empty hand");
+    assert.equal(parseItem({}), null);
+    assert.equal(parseItem({id: "stone"}), null, "the namespace is required");
+    assert.equal(parseItem({id: "minecraft:../../evil"}), null, "the id is used in an url");
+    assert.equal(parseItem({id: "Minecraft:Stone"}), null);
+    assert.equal(parseItem({id: 5}), null);
+
+    const equipment = parseEquipment({mainArm: "left", mainHand: {id: "minecraft:diamond_sword"}, fishing: true});
+    assert.equal(equipment.leftHanded, true);
+    assert.equal(equipment.mainHand.id, "minecraft:diamond_sword");
+    assert.equal(equipment.offHand, null);
+    assert.equal(equipment.fishing, true);
+    assert.deepEqual(parseEquipment({}), {mainHand: null, offHand: null, leftHanded: false, fishing: false}, "empty hands");
+    assert.equal(parseEquipment(null), null);
+
+    assert.deepEqual(parseItemUse({hand: "off", action: "block", ticks: 12}), {mainHand: false, action: "block", ticks: 12});
+    assert.deepEqual(parseItemUse({action: "eat"}), {mainHand: true, action: "eat", ticks: 0});
+    assert.equal(parseItemUse({action: "<script>"}), null);
+    assert.equal(parseItemUse(null), null);
+
+    const p = parsePlayer({...v1Player(), equipment: {mainHand: {id: "minecraft:bow"}}, use: {hand: "main", action: "bow", ticks: 5}});
+    assert.equal(p.equipment.mainHand.id, "minecraft:bow");
+    assert.equal(p.use.action, "bow");
+    assert.equal(parsePlayer(v1Player()).equipment, null, "older servers: no equipment");
+
+    const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), equipment: {mainHand: {id: "minecraft:bow"}}}]});
+    assert.equal(legacy.players[0].equipment, null, "unsupported protocol -> only the original fields");
+    assert.equal(legacy.players[0].use, null);
 });

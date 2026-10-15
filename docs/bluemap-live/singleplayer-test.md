@@ -173,6 +173,29 @@ Vorbereitung: Die Welt mit dem neuen JAR öffnen, die Seite einmal öffnen und d
 | E24 | Respawn oder `/tp` während des Gehens | Kein Nachschwingen über die Karte, Animation startet neu |
 | E25 | Kopf drehen/heben während einer Animation; Kartennavigation, „Spieler folgen“ | Kopf folgt weiter dem Blick; Navigation und Folgen unverändert |
 
+**Gehaltene Items und Item-Animationen (Phase 4, `phase-4.md`, alle offen)**
+
+Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `players.json` (§4) muss beim Spieler `"equipment"` stehen.
+
+| # | Prüfung | Erwartung |
+|---|---|---|
+| I1 | Diamantschwert, eiserne Axt, Spitzhacke, Schaufel, Hacke in die Haupthand; Spieler von der Seite und von vorn ansehen | Werkzeug in der rechten Hand, Klinge bzw. Kopf nach vorn und leicht nach oben wie in Minecraft (F5-Ansicht zum Vergleich) |
+| I2 | Steinblock, Treppe, Zaun, Fackel, Apfel, Stock | Blöcke als kleine gedrehte Würfel bzw. Modelle, flache Items als 1 px dicke Form mit Kanten |
+| I3 | Schild in die Nebenhand, Rechtsklick halten | Schild in der linken Hand; beim Blocken vor dem Körper, Arm angehoben |
+| I4 | Optionen → Skin-Anpassung → Haupthand links; Schwert halten | Schwert in der linken Hand, gespiegelt |
+| I5 | Itemwechsel mit dem Mausrad, Hand leeren (Q bzw. leerer Slot) | Item wechselt innerhalb von ≈ 0,25 s, Arm geht weich in die Pose; leere Hand ohne Item |
+| I6 | Bogen spannen und loslassen | Beide Arme nach vorn, Bogentextur wechselt durch die drei Spannstufen, nach dem Schuss normal |
+| I7 | Armbrust laden, geladen halten, schießen | Lade-Pose mit Zugarm; geladen: beide Arme vorn, Armbrust mit Pfeil (mit Feuerwerk: Feuerwerk-Textur) |
+| I8 | Dreizack spannen und werfen | Arm über den Kopf; Dreizack als flaches Item (Einschränkung) |
+| I9 | Essen und Trinken (Brot, Trank) | Arm zum Mund mit Wippen (Näherung, Vanilla zeigt in F5 keine Pose) |
+| I10 | Mob schlagen, Block abbauen (gedrückt halten), Schneeball werfen | Armschwung mit Item; beim Abbauen wiederholte Schwünge. In `players.json` hat `swing.kind` den Wert `attack`, `mine` bzw. `use`. |
+| I11 | Fernrohr, Ziegenhorn, Pinsel benutzen | Arm-Posen wie in F5 (Fernrohr bleibt in der Hand, Einschränkung) |
+| I12 | Angel auswerfen | Angel mit ausgeworfener Textur |
+| I13 | Dimensionswechsel mit Item in der Hand (ohne Neuladen) | Modell und Item erscheinen auf der neuen Karte |
+| I14 | Zweiter Spieler (LAN) mit anderem Item | Beide Items unabhängig; nach Verlassen verschwindet das Item |
+| I15 | Erstes Halten eines neuen Items | Item erscheint nach höchstens wenigen Sekunden (Asset wird beim ersten Bedarf erzeugt) |
+| I16 | Kartennavigation, „Spieler folgen“, Kopf drehen mit Item | unverändert; Item folgt dem Arm, nicht dem Kopf |
+
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 
 ---
@@ -210,7 +233,11 @@ Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phas
 | Schritt 4: `npm test` | 43/43 |
 | Schritt 4: Browser-E2E `animation-e2e.mjs` (Kartenwechsel Overworld↔Nether ohne Neuladen, alle Animationsübergänge) | 18/18 |
 | Schritt 4: Browser-E2E `player-e2e.mjs`, Regression gegen das Original | 22/22, 0 abweichende Pixel |
-| Schritt 4: Gradle/CI (Fabric-Kompilierung des Armschwungs, `Plugin.java`) | **nicht ausgeführt** (siehe `phase-3.md` §7.4) |
+| Schritt 4: Gradle/CI (Fabric-Kompilierung des Armschwungs, `Plugin.java`) | erfolgreich auf `a529aba5` und `c81b46b9` (Push- und PR-Lauf) |
+| **Phase 4 (Items):** JUnit lokal (`live`, `plugin.items`, `WebFilesManagerTest`, mit `core`) | 53/53 |
+| Phase 4: `npm test` | 60/60 |
+| Phase 4: Browser-E2E `items-e2e.mjs`, `player-e2e.mjs`, `animation-e2e.mjs`, Regression | 15/15, 22/22, 18/18, 0 abweichende Pixel |
+| Phase 4: Gradle/CI (Fabric-Kompilierung) | **nicht ausgeführt** (kein Push) |
 | **Echter Minecraft-Client/-Server, echte Mojang-Skins** | **nicht ausgeführt** (keine Minecraft-Umgebung; `piston-meta.mojang.com`, `libraries.minecraft.net`, `maven.fabricmc.net`, `sessionserver.mojang.com` nicht erreichbar) |
 
 ---

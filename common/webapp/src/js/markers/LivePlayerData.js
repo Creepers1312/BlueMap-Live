@@ -67,10 +67,12 @@ export function parseSkin(value) {
     };
 }
 
+const SWING_KINDS = ["swing", "attack", "mine", "use"];
+
 /**
  * @param value {any}
- * @returns {{count: number, arm: "left" | "right"} | null} - the arm-swing counter of the player (it increases by one
- *  with every new swing, the arm is the one of the last swing), null if unknown or invalid
+ * @returns {{count: number, arm: "left" | "right", kind: string} | null} - the arm-swing counter of the player (it increases by one
+ *  with every new swing, the arm and kind are the ones of the last swing), null if unknown or invalid
  */
 export function parseSwing(value) {
     if (!value || typeof value !== "object") return null;
@@ -78,6 +80,56 @@ export function parseSwing(value) {
     return {
         count: value.count,
         arm: value.arm === "left" ? "left" : "right",
+        kind: SWING_KINDS.includes(value.kind) ? value.kind : "swing",
+    };
+}
+
+const ITEM_ID_PATTERN = /^[a-z0-9_.-]+:[a-z0-9_.-]+(\/[a-z0-9_.-]+)*$/;
+
+/**
+ * @param value {any}
+ * @returns {{id: string, glint: boolean, customModelData: number | null, charged: boolean, firework: boolean} | null}
+ *  - null for an empty hand or an invalid item (the id is used in an url and must be a valid resource-location)
+ */
+export function parseItem(value) {
+    if (!value || typeof value !== "object") return null;
+    if (typeof value.id !== "string" || !ITEM_ID_PATTERN.test(value.id) || value.id.includes("..")) return null;
+    return {
+        id: value.id,
+        glint: value.glint === true,
+        customModelData: Number.isInteger(value.customModelData) ? value.customModelData : null,
+        charged: value.charged === true,
+        firework: value.firework === true,
+    };
+}
+
+/**
+ * @param value {any}
+ * @returns {{mainHand: object | null, offHand: object | null, leftHanded: boolean, fishing: boolean} | null}
+ */
+export function parseEquipment(value) {
+    if (!value || typeof value !== "object") return null;
+    return {
+        mainHand: parseItem(value.mainHand),
+        offHand: parseItem(value.offHand),
+        leftHanded: value.mainArm === "left",
+        fishing: value.fishing === true,
+    };
+}
+
+const USE_ACTION_PATTERN = /^[a-z_]{1,32}$/;
+
+/**
+ * @param value {any}
+ * @returns {{mainHand: boolean, action: string, ticks: number} | null} - the item the player is using, null if none
+ */
+export function parseItemUse(value) {
+    if (!value || typeof value !== "object") return null;
+    if (typeof value.action !== "string" || !USE_ACTION_PATTERN.test(value.action)) return null;
+    return {
+        mainHand: value.hand !== "off",
+        action: value.action,
+        ticks: Number.isInteger(value.ticks) && value.ticks >= 0 ? value.ticks : 0,
     };
 }
 
@@ -95,7 +147,9 @@ export function parseSwing(value) {
  *     velocity: {x: number, y: number, z: number} | null,
  *     state: object | null,
  *     skin: {model: "classic" | "slim", version: string} | null,
- *     swing: {count: number, arm: "left" | "right"} | null
+ *     swing: {count: number, arm: "left" | "right", kind: string} | null,
+ *     equipment: {mainHand: object | null, offHand: object | null, leftHanded: boolean, fishing: boolean} | null,
+ *     use: {mainHand: boolean, action: string, ticks: number} | null
  * }}
  */
 
@@ -139,6 +193,8 @@ export function parsePlayer(raw) {
         state,
         skin: parseSkin(raw.skin),
         swing: parseSwing(raw.swing),
+        equipment: parseEquipment(raw.equipment),
+        use: parseItemUse(raw.use),
     };
 }
 
@@ -194,6 +250,8 @@ function toLegacy(player) {
         state: null,
         skin: null,
         swing: null,
+        equipment: null,
+        use: null,
     };
 }
 

@@ -36,6 +36,7 @@ import de.bluecolored.bluemap.core.storage.Storage;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -51,9 +52,17 @@ public class MapRequestHandler extends RoutingRequestHandler {
      */
     public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter,
                              Function<UUID, LivePlayersJson.Skin> skinLookup) {
+        this(map, serverInterface, pluginConfig, playerFilter, skinLookup, itemId -> {});
+    }
+
+    /**
+     * @param itemRequester called with the ids of the items the players hold (to provide their item-assets)
+     */
+    public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter,
+                             Function<UUID, LivePlayersJson.Skin> skinLookup, Consumer<String> itemRequester) {
         this(map.getStorage(),
                 new LivePlayersDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter,
-                        pluginConfig.getLivePlayerUpdateInterval(), skinLookup),
+                        pluginConfig.getLivePlayerUpdateInterval(), skinLookup, itemRequester),
                 new LiveMarkersDataSupplier(map.getMarkerSets()),
                 pluginConfig.getLivePlayerUpdateInterval());
     }

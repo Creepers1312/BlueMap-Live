@@ -13,16 +13,32 @@ Diese Dateien gehören **nicht** zum BlueMap-Build. Sie prüfen den Live-Spieler
 
 ## Ausführen
 
-Voraussetzungen: JDK 21, Node 22, Playwright (global oder lokal) mit Chromium, die Jars `flow-math-1.0.3`, `gson-2.8.9`, `annotations-23.0.0`.
+Voraussetzungen: JDK 21, Node 22, Playwright (global oder lokal) mit Chromium. Seit den Item-Assets (Phase 4) nutzt der Testserver den echten `ItemModelBaker` und damit BlueMaps `core`. Deshalb werden die BlueMap-API und `core` (ohne SQL-Speicher) mitkompiliert. Benötigte Jars:
+- flow-math 1.0.3
+- gson 2.8.9
+- annotations 23.0.0
+- caffeine 3.1.8
+- configurate-core/-gson 4.1.2
+- lz4-java 1.8.0
+- aircompressor 0.27
+- commons-dbcp2 2.9.0
+- checker-qual 3.33.0
+- lombok 1.18.32 als Annotation-Prozessor
+- BlueNBT 3.5.0, aus dem Quelltext von `BlueMap-Minecraft/BlueNBT` (Tag `v3.5.0`) kompiliert
 
 ```bash
 # 1. Webclient bauen
 (cd common/webapp && npm ci && npm run build)
 
-# 2. Testserver kompilieren (nutzt die Quellen aus core/ und common/ direkt)
-CP=flow-math-1.0.3.jar:gson-2.8.9.jar:annotations-23.0.0.jar
-javac --release 21 -d out-e2e -cp $CP -sourcepath core/src/main/java:common/src/main/java \
-      -implicit:class docs/bluemap-live/e2e/LiveE2EServer.java
+# 2. API + core kompilieren, dann den Testserver (nutzt die Quellen aus common/ direkt)
+CP=$(ls libs/*.jar | tr '\n' ':')
+javac --release 21 -d out-core -cp $CP -processorpath libs/lombok-1.18.32.jar \
+      $(find api/src/main/java core/src/main/java -name "*.java" | grep -v "/storage/sql/")
+javac --release 21 -d out-e2e -cp out-core:$CP -processorpath libs/lombok-1.18.32.jar \
+      -sourcepath common/src/main/java -implicit:class \
+      docs/bluemap-live/e2e/LiveE2EServer.java docs/bluemap-live/e2e/E2EItemResources.java \
+      common/src/main/java/de/bluecolored/bluemap/common/plugin/items/ItemModelBaker.java
+CP=out-core:$CP
 
 # 3. Server starten (neu starten vor jedem Testlauf, der Spielerzustand liegt im Speicher)
 java -cp out-e2e:$CP LiveE2EServer common/webapp/dist 8100 &
@@ -32,7 +48,17 @@ PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/blu
 
 # 5. Kartenwechsel (Overworld/Nether) und Animationen – Server vorher neu starten
 PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright node docs/bluemap-live/e2e/animation-e2e.mjs
+
+# 6. Gehaltene Items und Item-Animationen – Server vorher neu starten
+PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/bluemap-live/e2e/items-e2e.mjs
 ```
+
+Für `items-e2e.mjs` liefert der Server `maps/<id>/assets/items/<ns>/<pfad>.json`. Die Dateien erzeugt der echte `ItemModelBaker` aus einem kleinen, farbcodierten Resource-Pack (`E2EItemResources.java`, Modell-JSONs in der Struktur der Vanilla-Modelle). Weitere Steuerparameter:
+- `main=`/`off=` mit einer Item-ID oder `none` (bleibt gesetzt)
+- `leftHanded=1`, `charged=1`
+- `use=main|off&useAction=bow&useTicks=12` (nur für diese Abtastung)
+- `swingKind=attack|mine|use|swing`
+- `/control?itemsDown=1|0`: Item-Assets mit 404 beantworten
 
 Steuerparameter von `/control` für die Animationen: `sneaking=1`, `sprinting=1`, `ground=0`, `swimming=1`, `flying=1`, `fallFlying=1`, `vx`/`vy`/`vz` (Geschwindigkeit statt der aus den Abtastungen abgeleiteten) und `swing=right|left` (erhöht den Armschwung-Zähler).
 

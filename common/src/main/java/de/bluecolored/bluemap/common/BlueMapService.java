@@ -62,6 +62,7 @@ public class BlueMapService implements Closeable {
 
     private MinecraftVersion minecraftVersion;
     private ResourcePack resourcePack;
+    private List<Path> resourcePackRoots = List.of();
     private final Map<String, World> worlds;
     private final Map<String, BmMap> maps;
     private final Map<String, Storage> storages;
@@ -287,6 +288,13 @@ public class BlueMapService implements Closeable {
         return resourcePack;
     }
 
+    /**
+     * The roots (in priority-order) the resource-pack was loaded from, empty if it is not loaded.
+     */
+    public synchronized List<Path> getResourcePackRoots() {
+        return resourcePackRoots;
+    }
+
     public synchronized ResourcePack getOrLoadResourcePack() throws ConfigurationException, InterruptedException {
         if (resourcePack == null) {
             MinecraftVersion minecraftVersion = getOrLoadMinecraftVersion();
@@ -301,6 +309,7 @@ public class BlueMapService implements Closeable {
                 ResourcePack resourcePack = new ResourcePack(minecraftVersion.getResourcePackVersion());
                 resourcePack.loadResources(packRoots);
                 this.resourcePack = resourcePack;
+                this.resourcePackRoots = List.copyOf(packRoots);
             } catch (IOException | RuntimeException e) {
                 throw new ConfigurationException("Failed to parse resources!\n" +
                         "Is one of your resource-packs corrupted?", e);
