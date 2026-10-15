@@ -40,6 +40,7 @@ import de.bluecolored.bluemap.common.plugin.skins.SkinInfo;
 import de.bluecolored.bluemap.common.rendermanager.MapUpdatePreparationTask;
 import de.bluecolored.bluemap.common.rendermanager.RenderManager;
 import de.bluecolored.bluemap.common.rendermanager.RenderTask;
+import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.Server;
 import de.bluecolored.bluemap.common.serverinterface.ServerEventListener;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
@@ -277,6 +278,12 @@ public class Plugin implements ServerEventListener {
                 this.skinUpdater = new PlayerSkinUpdater(this);
                 if (pluginConfig.isLivePlayerMarkers()) {
                     serverInterface.registerListener(skinUpdater);
+
+                    // players that joined while BlueMap was (re)loading (e.g. the player of a singleplayer world,
+                    // or everyone after /bluemap reload) did not trigger a join-event for the skin-updater
+                    for (Player player : serverInterface.getOnlinePlayers()) {
+                        skinUpdater.onPlayerJoin(player.getUuid());
+                    }
                 }
 
                 //init timer

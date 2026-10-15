@@ -38,6 +38,7 @@ import org.jetbrains.annotations.Nullable;
  * @param generation a counter that changes whenever the position changed discontinuously (teleport, respawn, world-change)
  * @param time the time (epoch-millis) when this state was sampled
  * @param movement the movement-flags of the player, or null if unknown on this platform
+ * @param swing the arm-swing state of the player, or null if unknown on this platform
  */
 public record LivePlayerState(
         Vector3d position,
@@ -46,5 +47,13 @@ public record LivePlayerState(
         Vector3d velocity,
         int generation,
         long time,
-        @Nullable MovementState movement
-) {}
+        @Nullable MovementState movement,
+        @Nullable SwingState swing
+) {
+
+    public LivePlayerState(Vector3d position, Vector3d rotation, double bodyYaw, Vector3d velocity, int generation,
+                           long time, @Nullable MovementState movement) {
+        this(position, rotation, bodyYaw, velocity, generation, time, movement, null);
+    }
+
+}

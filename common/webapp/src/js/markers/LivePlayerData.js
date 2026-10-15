@@ -68,6 +68,20 @@ export function parseSkin(value) {
 }
 
 /**
+ * @param value {any}
+ * @returns {{count: number, arm: "left" | "right"} | null} - the arm-swing counter of the player (it increases by one
+ *  with every new swing, the arm is the one of the last swing), null if unknown or invalid
+ */
+export function parseSwing(value) {
+    if (!value || typeof value !== "object") return null;
+    if (!Number.isInteger(value.count) || value.count < 0) return null;
+    return {
+        count: value.count,
+        arm: value.arm === "left" ? "left" : "right",
+    };
+}
+
+/**
  * @typedef LivePlayer {{
  *     uuid: string,
  *     name: string,
@@ -80,7 +94,8 @@ export function parseSkin(value) {
  *     time: number | null,
  *     velocity: {x: number, y: number, z: number} | null,
  *     state: object | null,
- *     skin: {model: "classic" | "slim", version: string} | null
+ *     skin: {model: "classic" | "slim", version: string} | null,
+ *     swing: {count: number, arm: "left" | "right"} | null
  * }}
  */
 
@@ -123,6 +138,7 @@ export function parsePlayer(raw) {
         velocity: parseVector(raw.velocity),
         state,
         skin: parseSkin(raw.skin),
+        swing: parseSwing(raw.swing),
     };
 }
 
@@ -177,6 +193,7 @@ function toLegacy(player) {
         velocity: null,
         state: null,
         skin: null,
+        swing: null,
     };
 }
 

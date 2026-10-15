@@ -134,9 +134,9 @@ Beim Verlassen der Welt: `BlueMap unloaded!`
 | E2 | `http://127.0.0.1:8100/` im Browser | Originale BlueMap-Oberfläche, Karte der Welt (nach dem Rendern) |
 | E3 | von einem anderen Gerät im Netz `http://<PC-IP>:8100/` | **nicht** erreichbar |
 | E4 | Spieler auf der Karte | 3D-Spielermodell mit eigenem Skin (bei Mojang-Account und `skin-download: true`), Kopf- und Namensmarker |
-| E5 | Laufen, Drehen, Kopf heben/senken | Modell folgt flüssig (≈ 250 ms), keine Animation der Gliedmaßen (noch nicht umgesetzt) |
+| E5 | Laufen, Drehen, Kopf heben/senken | Modell folgt flüssig (≈ 250 ms), Gliedmaßen siehe E17–E25 |
 | E6 | `/tp @s ~200 ~ ~` | Modell springt, kein Flug über die Karte |
-| E7 | Netherportal oder `/execute in minecraft:the_nether run tp @s 0 100 0` | Spieler verschwindet auf der Overworld-Karte, erscheint auf der Nether-Karte |
+| E7 | Netherportal oder `/execute in minecraft:the_nether run tp @s 0 100 0` | Spieler verschwindet auf der Overworld-Karte, erscheint auf der Nether-Karte (Modell **ohne** Neuladen, siehe E15) |
 | E8 | Sterben und Respawn | Sprung zum Spawnpunkt |
 | E9 | ESC (Pause) | Live-Position bleibt stehen (integrierter Server tickt nicht), Karte bleibt nutzbar |
 | E10 | Welt verlassen | Spieler verschwindet; Karte ist nicht mehr erreichbar (Webserver gestoppt) |
@@ -144,6 +144,24 @@ Beim Verlassen der Welt: `BlueMap unloaded!`
 | E12 | Slim-Skin-Account (falls vorhanden) | Arme 3 px breit |
 | E13 | `skin-download: false`, Welt neu öffnen | keine Skin-Downloads; bereits gespeicherte Skins weiter sichtbar |
 | E14 | Navigation, Texturen, Marker, „Spieler folgen“ | unverändert wie im originalen BlueMap |
+
+**Dimensionswechsel und Animationen (Schritt 4, `phase-3.md` §7, alle offen)**
+
+Vorbereitung: Die Welt mit dem neuen JAR öffnen, die Seite einmal öffnen und danach **nicht mehr neu laden**.
+
+| # | Prüfung | Erwartung |
+|---|---|---|
+| E15 | Über „Spieler folgen“ in den Nether gehen, dann zurück; dasselbe mit manuellem Kartenwechsel im Menü | Das 3D-Modell erscheint jeweils auf der neuen Karte **ohne** Neuladen (mit eigenem Skin oder Standard-Skin); nur ein Modell, kein doppelter Name |
+| E16 | Mehrmals schnell hintereinander durch ein Portal gehen | Ein Modell, keine Fehler in der Browser-Konsole (F12); die Karte bleibt bedienbar |
+| E17 | Stillstehen | Arme bewegen sich leicht (Idle), Beine still |
+| E18 | Gehen, dann stehen bleiben | Beine und Arme schwingen gegenläufig; nach dem Stehenbleiben laufen sie innerhalb von ≈ 0,5 s aus |
+| E19 | Sprinten (Strg/Doppel-W), dann wieder gehen | Etwas schnellere, weitere Schritte als beim Gehen (wie in Minecraft nur geringer Unterschied) |
+| E20 | Schleichen (Shift), stehend und gehend | Oberkörper nach vorn geneigt, Kopf tiefer, Beine nach hinten; langsame Schritte; zurück beim Loslassen |
+| E21 | Linksklick in die Luft bzw. auf einen Block/Mob; mit Linkshänder-Einstellung (Optionen → Skin-Anpassung → Haupthand links) | Ein Armschwung pro Klick (rechter Arm, bei Linkshänder links); Dauerklick zeigt wiederholte Schwünge |
+| E22 | Springen, Herunterfallen von einem Block | In der Luft Arme leicht abgespreizt, beim Fallen stärker; nach der Landung normal |
+| E23 | Schwimmen (Sprint unter Wasser), Elytra-Gleiten, Kreativflug | Modell liegt beim Schwimmen/Gleiten waagerecht (Näherung); beim Fliegen keine Sprungpose |
+| E24 | Respawn oder `/tp` während des Gehens | Kein Nachschwingen über die Karte, Animation startet neu |
+| E25 | Kopf drehen/heben während einer Animation; Kartennavigation, „Spieler folgen“ | Kopf folgt weiter dem Blick; Navigation und Folgen unverändert |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 
@@ -177,6 +195,11 @@ Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phas
 | ESLint auf allen geänderten/neuen JS-Dateien | ok. Auf ganz `src/js` gibt es 3 Befunde in unveränderten Original-Dateien (`PopupMarker.js`, `PRBMLoader.js`, `Utils.js`), identisch auf `mc1.21.1`, nicht angefasst. |
 | `npm run build` | ok |
 | Browser-E2E `player-e2e.mjs` | 22/22 |
+| **Schritt 4 (Dimensionswechsel, Animationen):** JUnit `live` lokal | 25/25 |
+| Schritt 4: `npm test` | 43/43 |
+| Schritt 4: Browser-E2E `animation-e2e.mjs` (Kartenwechsel Overworld↔Nether ohne Neuladen, alle Animationsübergänge) | 18/18 |
+| Schritt 4: Browser-E2E `player-e2e.mjs`, Regression gegen das Original | 22/22, 0 abweichende Pixel |
+| Schritt 4: Gradle/CI (Fabric-Kompilierung des Armschwungs, `Plugin.java`) | **nicht ausgeführt** (siehe `phase-3.md` §7.4) |
 | **Echter Minecraft-Client/-Server, echte Mojang-Skins** | **nicht ausgeführt** (keine Minecraft-Umgebung; `piston-meta.mojang.com`, `libraries.minecraft.net`, `maven.fabricmc.net`, `sessionserver.mojang.com` nicht erreichbar) |
 
 ---

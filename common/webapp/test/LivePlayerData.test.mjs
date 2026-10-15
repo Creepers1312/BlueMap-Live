@@ -15,6 +15,7 @@ import {
     parsePlayer,
     parsePlayersResponse,
     parseSkin,
+    parseSwing,
     resolveUpdateInterval,
     SUPPORTED_PROTOCOL,
 } from "../src/js/markers/LivePlayerData.js";
@@ -237,4 +238,19 @@ test("skin-info is parsed and validated", () => {
 
     const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), skin: {model: "slim", version: "05"}}]});
     assert.equal(legacy.players[0].skin, null, "unsupported protocol -> only the original fields");
+});
+
+test("swing-info is parsed and validated", () => {
+    assert.deepEqual(parseSwing({count: 3, arm: "left"}), {count: 3, arm: "left"});
+    assert.deepEqual(parseSwing({count: 0, arm: "right"}), {count: 0, arm: "right"});
+    assert.deepEqual(parseSwing({count: 2}), {count: 2, arm: "right"}, "unknown arm -> right");
+    assert.equal(parseSwing(null), null);
+    assert.equal(parseSwing({count: -1}), null);
+    assert.equal(parseSwing({count: 1.5}), null);
+    assert.equal(parseSwing({count: "1"}), null);
+
+    assert.deepEqual(parsePlayer({...v1Player(), swing: {count: 4, arm: "left"}}).swing, {count: 4, arm: "left"});
+    assert.equal(parsePlayer(v1Player()).swing, null, "missing swing field");
+    const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), swing: {count: 4, arm: "left"}}]});
+    assert.equal(legacy.players[0].swing, null, "unsupported protocol -> only the original fields");
 });

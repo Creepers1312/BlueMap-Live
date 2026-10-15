@@ -29,6 +29,9 @@ import { PlayerSkinCache } from "./player/PlayerSkinCache";
 
 export const PLAYER_MARKER_SET_ID = "bm-players";
 
+/** frames that took longer (e.g. a background-tab) are animated as if they took this long (seconds) */
+const MAX_ANIMATION_STEP = 0.25;
+
 export class PlayerMarkerManager extends MarkerManager {
 
     /**
@@ -39,8 +42,9 @@ export class PlayerMarkerManager extends MarkerManager {
      * @param events {EventTarget}
      * @param playerskinsUrl {string | null} - The url from which the full player-skins should be loaded
      * @param texturesUrl {string | null} - The textures.json of the map (contains the default skin)
+     * @param redraw {function() | null} - requests high-fps rendering from the map-viewer, called while a model is animated
      */
-    constructor(root, fileUrl, playerheadsUrl, events = null, playerskinsUrl = null, texturesUrl = null) {
+    constructor(root, fileUrl, playerheadsUrl, events = null, playerskinsUrl = null, texturesUrl = null, redraw = null) {
         super(root, fileUrl, events);
 
         this.playerheadsUrl = playerheadsUrl;
@@ -48,6 +52,31 @@ export class PlayerMarkerManager extends MarkerManager {
 
         this.skinCache = new PlayerSkinCache();
         if (texturesUrl) this.skinCache.loadDefaultSkinFromTextures(texturesUrl);
+
+        // the models are animated in the existing render-loop of the map-viewer (no own animation-loop)
+        this.redraw = redraw;
+        this.onRenderFrame = evt => this.animatePlayers(evt.detail.delta / 1000);
+        if (this.events) this.events.addEventListener("bluemapRenderFrame", this.onRenderFrame);
+    }
+
+    /**
+     * Advances the animations of all player-models by one frame.
+     * While a visible model is moving, high-fps rendering is requested, otherwise the map-viewer keeps its normal
+     * (low) frame-rate.
+     * @param dt {number} - seconds since the last rendered frame
+     */
+    animatePlayers(dt) {
+        const playerMarkerSet = this.getPlayerMarkerSet(false);
+        if (!playerMarkerSet) return;
+
+        const setVisible = playerMarkerSet.visible;
+        dt = Math.min(Math.max(dt, 0), MAX_ANIMATION_STEP);
+        let active = false;
+        playerMarkerSet.markers.forEach(marker => {
+            if (!marker.isPlayerMarker) return;
+            if (marker.stepAnimation(dt) && setVisible && marker.visible && marker.model.visible) active = true;
+        });
+        if (active && this.redraw) this.redraw();
     }
 
     /**
@@ -75,6 +104,12 @@ export class PlayerMarkerManager extends MarkerManager {
             this.root.add(playerMarkerSet);
         }
 
+        // the set stays in the marker-scene when the map is switched (and the previous manager is disposed),
+        // so a new manager has to bind it to its own (map-specific) skin-cache and urls
+        if (playerMarkerSet && playerMarkerSet.skinCache !== this.skinCache) {
+            playerMarkerSet.bindSource(this.playerheadsUrl, this.skinCache, this.playerskinsUrl);
+        }
+
         return playerMarkerSet;
     }
 
@@ -99,6 +134,7 @@ export class PlayerMarkerManager extends MarkerManager {
     }
 
     dispose() {
+        if (this.events) this.events.removeEventListener("bluemapRenderFrame", this.onRenderFrame);
         super.dispose();
         this.skinCache.dispose();
     }

@@ -29,7 +29,12 @@ java -cp out-e2e:$CP LiveE2EServer common/webapp/dist 8100 &
 
 # 4. Test
 PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/bluemap-live/e2e/player-e2e.mjs
+
+# 5. Kartenwechsel (Overworld/Nether) und Animationen – Server vorher neu starten
+PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright node docs/bluemap-live/e2e/animation-e2e.mjs
 ```
+
+Steuerparameter von `/control` für die Animationen: `sneaking=1`, `sprinting=1`, `ground=0`, `swimming=1`, `flying=1`, `fallFlying=1`, `vx`/`vy`/`vz` (Geschwindigkeit statt der aus den Abtastungen abgeleiteten) und `swing=right|left` (erhöht den Armschwung-Zähler).
 
 Regressionsvergleich: Den Original-Webclient (`git archive mc1.21.1 common/webapp`) separat bauen, einen zweiten Server auf Port 8101 mit dessen `dist` starten und dann Folgendes ausführen:
 

@@ -5,7 +5,9 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `phase-3-plan.md`
 > **Kurzfassung:** Implementiert sind vollständige Spieler-Skins auf dem Server (64×64, Konvertierung alter 64×32-Skins, Classic/Slim, `skin-download`) und ein echtes 3D-Spielermodell mit sechs getrennten Körperteilen, korrektem Skin-UV-Mapping und zweiter Skin-Schicht im originalen Webclient.
 > - **Getestet:** Server über GitHub Actions (`spotlessCheck test`, `release` grün auf `ddea9cf`) und lokal (35 Java-Tests ohne Gradle); Webclient mit 30 Node-Tests und einem Browser-Screenshot-Test (22/22 Schritte, 3/3 Läufe).
 > - **Pixelgleich:** Die Kartendarstellung ohne Spieler ist gegenüber dem Original weiterhin pixelgleich.
-> - **Noch offen:** Animationen sind ausdrücklich noch nicht umgesetzt. Nicht verifiziert sind echte Mojang-Skins und der Betrieb auf einem Minecraft-1.21.1-Server.
+> - **Noch offen:** Nicht verifiziert sind echte Mojang-Skins und der Betrieb auf einem Minecraft-1.21.1-Server.
+>
+> **Nachtrag (Schritt 4, §7):** Der Dimensionswechsel zeigt das Modell jetzt ohne Neuladen der Seite. Dazu kommen Animationen für Idle, Gehen, Sprinten, Schleichen, Schlag (Armschwung), Springen/Fallen sowie vereinfacht Schwimmen, Gleiten und Fliegen. Der Armschwung beruht auf einem Server-Ereignis. Automatisch getestet ist das mit JUnit, Node und Browser-E2E; in Minecraft ist es **nicht** geprüft.
 
 ---
 
@@ -25,7 +27,11 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `phase-3-plan.md`
 | Classic- vs. Slim-Arme | ja | ja | ja (Node) | ja (3-px-Arm im Screenshot) | nein |
 | Geometrie-/Texturteilung, Freigabe | ja | ja | ja (Node + E2E) | – | – |
 | Standard-Skin aus `textures.json` | ja | ja | ja (Node + E2E mit synthetischer Textur) | ja | **nein**: mit einem echten Resource-Pack nicht geprüft |
-| Animationen (Idle, Gehen, Sprinten, Springen) | **nein** (bewusst, nächster Schritt) | | | | |
+| Modell nach Dimensionswechsel/Kartenwechsel ohne Neuladen (§7.1) | ja | ja (`vite build`) | ja (Browser-E2E) | – | **nein** (der Fehler wurde in Minecraft beobachtet, der Fix ist dort nicht geprüft) |
+| Skin für Spieler, die vor dem Laden von BlueMap beigetreten sind (§7.1) | ja | **nein** (lokal kein Gradle, CI nicht gelaufen) | nein (nur Code-Review) | – | nein |
+| Armschwung-Ereignis vom Server `swing {count, arm}` (§7.2) | ja | `common` lokal (javac), **Fabric nicht** | ja (JUnit) | – | nein |
+| Animationen Idle, Gehen, Sprinten, Schleichen, Schlag (§7.3) | ja | ja (`vite build`) | ja (Node + Browser-E2E) | nein (Knochenwinkel geprüft, kein Pixelvergleich) | nein |
+| Springen/Fallen, Schwimmen, Gleiten, Fliegen (Näherungen, §7.3) | ja | ja | ja (Node + Browser-E2E für Springen) | nein | nein |
 
 „Visuell geprüft“ heißt hier: im gebauten Original-Webclient in Chromium (SwiftShader) gerendert, Pixelfarben im Screenshot automatisch mit dem farbcodierten Test-Skin verglichen.
 
@@ -128,7 +134,7 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `phase-3-plan.md`
 
 ### 4.4 Bekannte Einschränkungen
 
-- **Animation fehlt:** keine Animation; Rendering weiterhin mit 20 fps ohne Interaktion (Schritt 4 laut Plan).
+- **Animation:** in Schritt 4 nachgeliefert, siehe §7.
 - **Kopfmarker verdeckt das Gesicht:** Der CSS-Kopfmarker liegt weiterhin auf Kopfhöhe und verdeckt in der Nähe das 3D-Gesicht. Das bisherige Verhalten bleibt bewusst erhalten; eine Ausblendung in Modell-Distanz ist für Schritt 6 geplant. Im Screenshot-Test wird er per CSS ausgeblendet.
 - **Beinüberlappung:** Die Beine überlappen sich wie im Vanilla-Modell um 0,2 px (Pivot ±1,9 bei 4 px Breite). An den deckungsgleichen Vorder- und Rückseiten ist theoretisch Z-Fighting auf einem 0,2 px breiten Streifen möglich; in den Screenshots war es nicht sichtbar.
 - **Standard-Skin nur synthetisch geprüft:** Mit einem echten Resource-Pack ist der Standard-Skin nicht geprüft, weil das Client-Jar nicht herunterladbar ist. Der E2E-Test verwendet eine synthetische graue Ersatztextur unter demselben `resourcePath`.
@@ -182,9 +188,120 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `phase-3-plan.md`
 
 ## 6. Nächster Schritt
 
-Schritt 4 laut Plan:
-- Interpolation in einen zentralen Frame-Hook (`bluemapRenderFrame`) verlegen
-- `redraw()` nur bei sichtbarer Bewegung
-- danach `PlayerAnimator` (Idle, Gehen, Sprinten, Schleichen, Springen) auf den jetzt vorhandenen Gelenken
+Schritt 4 ist umgesetzt (§7). Offen bleiben:
+- der manuelle Test in Minecraft 1.21.1 (M1–M16, S1–S5, E1–E25 in `singleplayer-test.md`),
+- Schritt 6 laut Plan: Option `live-player-models` und Ausblenden des Kopfmarkers in Modellnähe.
 
-Parallel bleibt der manuelle Test auf einem echten 1.21.1-Fabric-Server (M1–M16, S1–S5) offen.
+---
+
+## 7. Schritt 4 – Dimensionswechsel ohne Neuladen und Spieleranimationen
+
+### 7.1 Dimensionswechsel: Ursache und Fix
+
+**Beobachtung (manuell in Minecraft 1.21.1, Einzelspieler):** Nach einem Dimensionswechsel erschien das Spielermodell erst nach dem Neuladen der Seite.
+
+**Datenfluss:**
+- Beim Dimensionswechsel wechselt der Webclient die Karte, entweder automatisch über „Spieler folgen“ oder von Hand.
+- Dafür ruft `BlueMapApp.switchMap` die Methode `initPlayerMarkerManager` auf: der alte `PlayerMarkerManager` wird verworfen, ein neuer für die neue Karte angelegt.
+- Der neue Manager bekommt eine eigene `skinsUrl` und einen eigenen `PlayerSkinCache`, der den Standard-Skin aus der `textures.json` der Karte lädt.
+
+**Ursache (mit einem Browser-Skript reproduziert, siehe E2E unten):**
+- `MarkerManager.dispose()` leert nur die Marker. Das Marker-Set `bm-players` bleibt in der Marker-Szene.
+- Der neue Manager fand dieses Set wieder und verwendete es weiter. Das Set hielt aber noch:
+  - den **verworfenen** Skin-Cache des alten Managers (ohne Standard-Skin),
+  - die alten URLs,
+  - die alte `serverTime`.
+- Folgen:
+  - Neu angelegte Spielermarker hatten keinen Standard-Skin. Damit galt `hasSkin = false`, und das Modell blieb unsichtbar.
+  - Spieler mit eigenem Skin verwendeten die Skin-URL der vorherigen Karte.
+- Erst ein Neuladen erzeugte das Set neu.
+- Im Einzelspieler ist besonders oft nur der Standard-Skin vorhanden: Der Spieler tritt der integrierten Welt bei, **bevor** BlueMap asynchron geladen ist und den Skin-Updater registriert. Für ihn wurde deshalb nie ein Skin heruntergeladen.
+
+**Fix (klein, ohne Neuladen):**
+- `PlayerMarkerSet.bindSource(...)`: Der neue Manager bindet ein vorhandenes Set an seinen eigenen Skin-Cache und seine URLs und setzt `lastServerTime` zurück.
+  - Es entsteht kein zweites Set.
+  - Die alten Marker sind bereits entfernt und freigegeben; ihre Skins wurden über die Referenzzählung freigegeben.
+  - Die neuen Marker verwenden den richtigen Cache.
+- `Plugin.load`: Nach dem Registrieren des Skin-Updaters wird `onPlayerJoin` für alle bereits verbundenen Spieler aufgerufen. Das betrifft Einzelspieler und `/bluemap reload`.
+  - Für diesen Teil gibt es nur ein Code-Review: Gradle läuft lokal nicht, und der CI-Lauf steht aus.
+
+**Was nicht geändert wurde:** Renderer, Kartennavigation, „Spieler folgen“ (`followPlayerMarkerWorld`) und der Ablauf von `switchMap`.
+
+### 7.2 Armschwung als zuverlässiges Server-Ereignis
+
+Ein Schlag lässt sich nicht aus Positionen ableiten. Der Server zählt deshalb die Armschwünge mit.
+
+**Fabric (`FabricMod`/`FabricPlayer`):**
+- In jedem Server-Tick (`END_SERVER_TICK`) werden pro Spieler drei Felder von `LivingEntity` gelesen: `handSwinging`, `handSwingTicks`, `preferredHand`. Dazu kommt `getMainArm()`.
+- Namen laut Yarn 1.21.1. Der Fabric-Build ist dafür **noch nicht** gelaufen.
+- Ein Schwung dauert nur 6 Ticks und würde bei einem Abtastintervall von 250 ms verpasst, daher die Prüfung in jedem Tick.
+
+**`SwingTracker` (`common`):**
+- Ein neuer Schwung liegt vor, wenn `handSwinging` von `false` zu `true` wechselt oder die Ticks zurückspringen (erneuter Schwung während eines laufenden).
+- Bei jedem neuen Schwung erhöht sich der Zähler.
+
+**`players.json`:**
+- Neues Feld `"swing": {"count": N, "arm": "right"|"left"}`, nur mit erweiterten Daten.
+- Bleibt kompatibel zu Protokoll 1: Ältere Clients ignorieren das Feld, und ohne das Feld gibt es keine Schlaganimation.
+
+**Webclient:** Ein Schwung startet nur, wenn sich der Zähler ändert. Der erste bekannte Zähler (Beitritt, Neuanlage nach Kartenwechsel) setzt nur den Bezugswert.
+
+### 7.3 Animationen
+
+`markers/player/PlayerAnimator.js` ist reine Logik ohne three.js und berechnet aus dem Live-Zustand eine Pose. `PlayerModel.applyPose` setzt diese Pose nur auf die vorhandenen Knochen: Rotation sowie Gelenkposition relativ zum Pivot der angezeigten Variante.
+
+**Was unverändert bleibt:**
+- Es werden keine Geometrien, Materialien oder Meshes erzeugt.
+- Das Pose-Objekt wird wiederverwendet.
+- Kopfrotation (Blickrichtung), Position, Körperdrehung, Interpolation und Synchronisation bleiben unverändert.
+
+| Zustand | Datenquelle | Umsetzung |
+|---|---|---|
+| Idle | – | Vanilla `CrossbowPosing.swingArms` (leichte Armbewegung) |
+| Gehen / Sprinten | horizontale `velocity` vom Server | Vanilla `LimbAnimator`: Zielgeschwindigkeit `min(v/20·4, 1)`, Glättung 0,4 pro Tick, Beine `cos(p·0,6662)·1,4·s`, Arme gegenläufig. Sprinten ist wie in Vanilla nur etwas schneller und weiter (Begrenzung auf 1). |
+| Schleichen | `state.sneaking` | Vanilla-Pose: Rumpf 0,5 rad, Arme +0,4, Kopf/Rumpf/Arme/Beine versetzt, Modell 2/16 Block tiefer. Wird in etwa 50 ms überblendet (Vanilla schaltet hart). |
+| Schlag | `swing` (§7.2) | Vanilla `animateArms`: 0,3 s, Arm nach vorn, Rumpfdrehung, rechter oder linker Arm |
+| Springen / Fallen | `state.onGround`, `velocity.y` | **Näherung** (Vanilla hat keine Sprungpose): Arme leicht abgespreizt, beim Fallen stärker, Beine leicht versetzt. Wird in etwa 100 ms ein- und ausgeblendet. |
+| Schwimmen / Gleiten | `state.swimming`, `state.fallFlying` | **Näherung**: Das Modell neigt sich um seine Mitte in die Waagerechte. Die Gliedmaßenbewegung ist beim Gleiten gedämpft. |
+| Fliegen (Kreativ) | `state.flying` | **Näherung**: keine Sprungpose, Gliedmaßenbewegung gedämpft |
+| Fehlende Zustände | ältere Server, andere Plattformen | Ohne `state`, `velocity` oder `swing` gilt „steht auf dem Boden“, also nur Idle und gegebenenfalls Gehen. Es tritt kein Fehler auf. |
+
+**Zeitbasis und Renderzyklus:**
+- Alle Formeln laufen in Sekunden, nicht pro Frame. Die Glättung ist exakt bildratenunabhängig (`0,6^(dt·20)` bzw. `exp(−dt/τ)`).
+- Gesteuert wird über das vorhandene Ereignis `bluemapRenderFrame` des `MapViewer`. Der `PlayerMarkerManager` schaltet sich darauf auf und meldet sich in `dispose()` wieder ab.
+- Nur solange ein sichtbares Modell sich bewegt (Gehen, Schlag, Überblendung), ruft der Manager `mapViewer.redraw()` auf. Das ist der vorhandene Mechanismus für hohe Bildrate.
+- Stehen alle Spieler, bleibt der Viewer bei seinen normalen etwa 20 fps; Idle läuft darin mit.
+- Es gibt keine eigene Animationsschleife und keine Timer. Ein Frame-Delta wird auf höchstens 0,25 s begrenzt, zum Beispiel nach einem Hintergrund-Tab.
+
+**Zurücksetzen:**
+- Teleport, Respawn und Weltwechsel (`isDiscontinuous`) setzen den Animator zurück: Er springt auf die Zielpose, ohne Gliedmaßenschwung und ohne Schlag.
+- Entfernen, erneutes Hinzufügen und Kartenwechsel erzeugen einen neuen Marker mit neuem Animator. Die alten Marker werden mit `dispose()` freigegeben.
+- Jeder Spieler hat einen eigenen Animator.
+
+**Einschränkungen:**
+- Die Gehgeschwindigkeit kommt aus der vom Server abgeleiteten `velocity`, die alle 250 ms abgetastet wird. Ein Start oder Stopp wird daher bis zu etwa 250 ms später sichtbar.
+- Sprung, Schwimmen, Gleiten und Fliegen sind Näherungen und keine Vanilla-Posen.
+- Die Schlaganimation zeigt nur den Armschwung. Gehaltene Gegenstände, Bogen, Schild und Essen werden nicht dargestellt.
+
+### 7.4 Tests zu Schritt 4
+
+**Automatisiert ausgeführt**
+
+| Test | Ergebnis |
+|---|---|
+| Lokal `javac` + JUnit: Paket `live` (`PlayerMotionTrackerTest`, `LivePlayersJsonTest` inkl. `testSwing`, neu `SwingTrackerTest`) | **25/25** |
+| `npm test` | **43/43** (neu: `PlayerAnimator.test.mjs` mit 11 Tests: Idle→Gehen→Idle, Gehen→Sprinten→Gehen, Bildratenunabhängigkeit bei 20/30/60/144/240 fps, Gehen→Schleichen→Gehen stetig, Idle→Schlag→Idle rechts/links, Gehen→Sprung→Landung, Fliegen/Schwimmen, Reset, fehlende Zustände, mehrere Spieler. Dazu `swing`-Parsing und `applyPose` mit Classic/Slim-Pivots ohne neue Meshes.) |
+| ESLint auf allen geänderten/neuen JS-Dateien | ok |
+| `npm run build` | ok |
+| Browser-E2E `animation-e2e.mjs` (neu, Original-Webclient-Build, zwei Karten Overworld/Nether) | **18/18, 3/3 Läufe**: Overworld→Nether und zurück mit Standard- und eigenem Skin ohne Neuladen; automatischer Kartenwechsel über „Spieler folgen“; schnelles Hin- und Herwechseln; Entfernen und erneutes Hinzufügen; keine doppelten Modelle, Sets oder Marker; Skin-Cache begrenzt; alle Animationsübergänge über Knochenwinkel im Browser; Dimensionswechsel beim Gehen; Classic↔Slim beim Gehen; mehrere Spieler; `redraw` nur bei Bewegung; Kamera unverändert; keine Seitenfehler |
+| Browser-E2E `player-e2e.mjs` | **22/22**. Angepasst: Die Slim-Arm-Probe liegt jetzt im Koordinatensystem des Armknochens, weil die Idle-Bewegung (Vanilla, bis 0,1 rad) den Arm sonst über den festen Modellpunkt schiebt. |
+| Regression `regression-e2e.mjs` (Original `mc1.21.1` vs. `bluemap-live`, ohne Spieler) | **0 abweichende Pixel** |
+
+**Nicht ausgeführt**
+
+| Test | Grund |
+|---|---|
+| `./gradlew spotlessCheck test` und `release` (insbesondere Fabric-Kompilierung von `handSwinging`, `handSwingTicks`, `preferredHand` und die Änderung in `Plugin.java`) | lokal nicht möglich (Netzwerk-Policy); erst mit einem CI-Lauf nach dem Push |
+| `LivePlayersDataSupplierTest` lokal | braucht den vollständigen Klassenpfad (Lombok); nur im CI |
+| Pixelvergleich der animierten Posen | nicht umgesetzt; geprüft sind Knochenwinkel und -positionen im Browser |
+| Alles in Minecraft | keine Minecraft-Umgebung; manuelle Tests E15–E25 in `singleplayer-test.md` |

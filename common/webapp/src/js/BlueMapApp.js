@@ -408,7 +408,8 @@ export class BlueMapApp {
             map.data.mapDataRoot + "/assets/playerheads/",
             this.events,
             map.data.mapDataRoot + "/assets/playerskins/",
-            map.data.texturesUrl + "?" + this.mapViewer.tileCacheHash
+            map.data.texturesUrl + "?" + this.mapViewer.tileCacheHash,
+            this.mapViewer.redraw
         );
         this.playerMarkerManager.setAutoUpdateInterval(0);
         return this.playerMarkerManager.update()

@@ -1,0 +1,290 @@
+/*
+ * This file is part of BlueMap, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) Blue (Lukas Rieger) <https://bluecolored.de>
+ * Copyright (c) contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+/*
+ * Time-based animation of the player-model from the live player-state (no three.js, so it can be unit-tested with node).
+ *
+ * The animator only calculates a pose (rotations and pivot-offsets of the bones), the PlayerModel applies it.
+ * The pose-object is allocated once and reused for every frame.
+ *
+ * Walking, idle, sneaking and the arm-swing follow the vanilla BipedEntityModel / LimbAnimator (1.21),
+ * converted from ticks to seconds. Vanilla model-space is y-down and z-backwards: rotations around x are taken over,
+ * rotations around y and z and offsets along y and z are negated. The poses in the air, while swimming/gliding and
+ * while flying are approximations (see docs/bluemap-live/phase-3.md).
+ */
+
+const TICKS_PER_SECOND = 20;
+const PI = Math.PI;
+
+/** vanilla: LimbAnimator.updateLimbs(min(distancePerTick * 4, 1), 0.4) */
+const LIMB_SPEED_FACTOR = 4 / TICKS_PER_SECOND;
+const LIMB_SMOOTHING = 0.6; // remaining difference per tick
+const LIMB_FREQUENCY = 0.6662;
+
+/** vanilla: 6 ticks */
+export const SWING_DURATION = 0.3;
+
+/** time-constants (seconds) for blending between poses */
+const SNEAK_BLEND_TIME = 0.05;
+const AIR_BLEND_TIME = 0.1;
+const LEAN_BLEND_TIME = 0.15;
+const FLY_BLEND_TIME = 0.2;
+
+/** vanilla PlayerEntityRenderer: a sneaking player is rendered 2 / 16 blocks lower */
+const SNEAK_ROOT_OFFSET = -2 / 16;
+
+/** the center of the model in blocks (32px * 0.9375 / 16 / 2), the swimming/gliding model is rotated around it */
+const MODEL_CENTER = 0.9375;
+/** the height (blocks) of the center of a swimming player (vanilla hitbox height 0.6) */
+const SWIM_CENTER = 0.3;
+
+/** a blend-weight closer than this to its target counts as settled */
+const SETTLED = 0.001;
+
+export const ANIMATED_PARTS = ["head", "body", "rightArm", "leftArm", "rightLeg", "leftLeg"];
+
+const approach = (value, target, dt, time) => target + (value - target) * Math.exp(-dt / time);
+
+function createPose() {
+    const pose = {
+        parts: {},
+        /** offset and rotation (around x) of the whole model, in blocks / radians */
+        rootY: 0,
+        rootZ: 0,
+        rootPitch: 0,
+    };
+    for (const name of ANIMATED_PARTS) {
+        // rotation in radians, position-offset to the base-pivot in pixels
+        pose.parts[name] = {rx: 0, ry: 0, rz: 0, px: 0, py: 0, pz: 0};
+    }
+    return pose;
+}
+
+function resetPose(pose) {
+    for (const name of ANIMATED_PARTS) {
+        const p = pose.parts[name];
+        p.rx = p.ry = p.rz = p.px = p.py = p.pz = 0;
+    }
+    pose.rootY = pose.rootZ = pose.rootPitch = 0;
+}
+
+export class PlayerAnimator {
+
+    constructor() {
+        this.pose = createPose();
+
+        // target-state, set from the live-data
+        this.targetLimbSpeed = 0;
+        this.sneaking = false;
+        this.inAir = false;
+        this.fallSpeed = 0;
+        this.leaning = false;
+        this.flying = false;
+        this.fallFlying = false;
+        this.lastSwingCount = null;
+
+        this.reset();
+    }
+
+    /**
+     * Resets the animation-state (e.g. after a teleport, respawn or world-change).
+     * The next step jumps directly to the target pose instead of blending.
+     * The swing-counter is kept, so the reset itself never starts a swing.
+     */
+    reset() {
+        this.limbSpeed = 0;
+        this.limbPos = 0;
+        this.age = 0;
+
+        this.sneakWeight = 0;
+        this.airWeight = 0;
+        this.leanWeight = 0;
+        this.flyWeight = 0;
+
+        this.swingTime = -1; // seconds since the swing started, -1 if not swinging
+        this.swingLeft = false;
+
+        this.snap = true;
+    }
+
+    /**
+     * Updates the target state from the live player-data. Missing values are treated as "standing on the ground".
+     * @param player {import("../LivePlayerData").LivePlayer}
+     */
+    setTarget(player) {
+        const state = player.state;
+        const velocity = player.velocity;
+
+        const horizontalSpeed = velocity ? Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z) : 0;
+        this.targetLimbSpeed = Math.min(horizontalSpeed * LIMB_SPEED_FACTOR, 1);
+
+        this.sneaking = !!(state && state.sneaking);
+        this.flying = !!(state && state.flying);
+        this.fallFlying = !!(state && state.fallFlying);
+        this.leaning = !!(state && (state.swimming || state.fallFlying));
+        this.inAir = !!(state && !state.onGround && !this.flying && !this.leaning);
+        this.fallSpeed = velocity && velocity.y < 0 ? Math.min(-velocity.y / 20, 1) : 0;
+
+        const swing = player.swing;
+        if (swing) {
+            // the first known counter only sets the reference, it is no new swing
+            if (this.lastSwingCount !== null && swing.count !== this.lastSwingCount) {
+                this.swingTime = 0;
+                this.swingLeft = swing.arm === "left";
+            }
+            this.lastSwingCount = swing.count;
+        }
+    }
+
+    /**
+     * Advances the animation.
+     * @param dt {number} - time since the last step in seconds
+     * @param headPitch {number} - the current head-pitch in radians (positive = looking down)
+     * @returns {boolean} true if the model is moving (the caller should render with a high frame-rate)
+     */
+    step(dt, headPitch = 0) {
+        if (!(dt >= 0)) dt = 0;
+        const snap = this.snap;
+        this.snap = false;
+
+        // limbs (vanilla LimbAnimator, continuous in time)
+        const ticks = dt * TICKS_PER_SECOND;
+        this.limbSpeed = snap ? this.targetLimbSpeed :
+            this.targetLimbSpeed + (this.limbSpeed - this.targetLimbSpeed) * Math.pow(LIMB_SMOOTHING, ticks);
+        if (this.limbSpeed < 1e-4 && this.targetLimbSpeed === 0) this.limbSpeed = 0;
+        this.limbPos = (this.limbPos + this.limbSpeed * ticks) % (2 * PI / LIMB_FREQUENCY * 1000);
+        this.age = (this.age + ticks) % 100000;
+
+        // blend-weights
+        const blend = (weight, on, time) => snap ? (on ? 1 : 0) : approach(weight, on ? 1 : 0, dt, time);
+        this.sneakWeight = blend(this.sneakWeight, this.sneaking, SNEAK_BLEND_TIME);
+        this.airWeight = blend(this.airWeight, this.inAir, AIR_BLEND_TIME);
+        this.leanWeight = blend(this.leanWeight, this.leaning, LEAN_BLEND_TIME);
+        this.flyWeight = blend(this.flyWeight, this.flying || this.fallFlying, FLY_BLEND_TIME);
+
+        // swing
+        if (this.swingTime >= 0) {
+            this.swingTime += dt;
+            if (this.swingTime >= SWING_DURATION) this.swingTime = -1;
+        }
+
+        this.calculatePose(headPitch);
+
+        return this.limbSpeed > 0 ||
+            this.swingTime >= 0 ||
+            Math.abs(this.sneakWeight - (this.sneaking ? 1 : 0)) > SETTLED ||
+            Math.abs(this.airWeight - (this.inAir ? 1 : 0)) > SETTLED ||
+            Math.abs(this.leanWeight - (this.leaning ? 1 : 0)) > SETTLED ||
+            Math.abs(this.flyWeight - (this.flying || this.fallFlying ? 1 : 0)) > SETTLED;
+    }
+
+    /** @private */
+    calculatePose(headPitch) {
+        const pose = this.pose;
+        resetPose(pose);
+        const {head, body, rightArm, leftArm, rightLeg, leftLeg} = pose.parts;
+
+        // walking (vanilla BipedEntityModel.setAngles), damped while flying/gliding
+        const speed = this.limbSpeed * (1 - 0.7 * this.flyWeight);
+        const phase = this.limbPos * LIMB_FREQUENCY;
+        rightArm.rx = Math.cos(phase + PI) * speed;
+        leftArm.rx = Math.cos(phase) * speed;
+        rightLeg.rx = Math.cos(phase) * 1.4 * speed;
+        leftLeg.rx = Math.cos(phase + PI) * 1.4 * speed;
+
+        // idle arm-movement (vanilla CrossbowPosing.swingArms), the vanilla roll is negated
+        const idleRoll = Math.cos(this.age * 0.09) * 0.05 + 0.05;
+        const idlePitch = Math.sin(this.age * 0.067) * 0.05;
+        rightArm.rz -= idleRoll;
+        leftArm.rz += idleRoll;
+        rightArm.rx += idlePitch;
+        leftArm.rx -= idlePitch;
+
+        // in the air (approximation, vanilla has no jump-pose): arms slightly spread, more while falling
+        const air = this.airWeight;
+        if (air > 0) {
+            const spread = (0.15 + 0.35 * this.fallSpeed) * air;
+            rightArm.rz -= spread;
+            leftArm.rz += spread;
+            rightLeg.rx -= 0.15 * air;
+            leftLeg.rx += 0.1 * air;
+        }
+
+        // arm-swing (vanilla BipedEntityModel.animateArms)
+        if (this.swingTime >= 0) {
+            const progress = Math.min(this.swingTime / SWING_DURATION, 1);
+            let bodyYaw = Math.sin(Math.sqrt(progress) * 2 * PI) * 0.2;
+            if (this.swingLeft) bodyYaw = -bodyYaw;
+
+            body.ry = -bodyYaw;
+            rightArm.px = 5 - Math.cos(bodyYaw) * 5;
+            rightArm.pz = -Math.sin(bodyYaw) * 5;
+            leftArm.px = Math.cos(bodyYaw) * 5 - 5;
+            leftArm.pz = Math.sin(bodyYaw) * 5;
+            rightArm.ry -= bodyYaw;
+            leftArm.ry -= bodyYaw;
+            leftArm.rx += bodyYaw;
+
+            let f = 1 - progress;
+            f *= f;
+            f *= f;
+            f = 1 - f;
+            const g = Math.sin(f * PI);
+            const h = Math.sin(progress * PI) * -(headPitch - 0.7) * 0.75;
+            const arm = this.swingLeft ? leftArm : rightArm;
+            arm.rx -= g * 1.2 + h;
+            arm.ry -= bodyYaw * 2;
+            arm.rz += Math.sin(progress * PI) * 0.4;
+        }
+
+        // sneaking (vanilla BipedEntityModel.setAngles), blended
+        const sneak = this.sneakWeight;
+        if (sneak > 0) {
+            body.rx += 0.5 * sneak;
+            rightArm.rx += 0.4 * sneak;
+            leftArm.rx += 0.4 * sneak;
+            head.py -= 4.2 * sneak;
+            body.py -= 3.2 * sneak;
+            rightArm.py -= 3.2 * sneak;
+            leftArm.py -= 3.2 * sneak;
+            rightLeg.py -= 0.2 * sneak;
+            leftLeg.py -= 0.2 * sneak;
+            rightLeg.pz -= 4 * sneak;
+            leftLeg.pz -= 4 * sneak;
+            pose.rootY += SNEAK_ROOT_OFFSET * sneak;
+        }
+
+        // swimming / gliding (approximation): the model leans forward into the horizontal around its center
+        const lean = this.leanWeight;
+        if (lean > 0) {
+            const angle = lean * PI / 2;
+            const centerY = MODEL_CENTER + (SWIM_CENTER - MODEL_CENTER) * lean;
+            pose.rootPitch = angle;
+            pose.rootY += centerY - MODEL_CENTER * Math.cos(angle);
+            pose.rootZ = -MODEL_CENTER * Math.sin(angle);
+        }
+    }
+
+}

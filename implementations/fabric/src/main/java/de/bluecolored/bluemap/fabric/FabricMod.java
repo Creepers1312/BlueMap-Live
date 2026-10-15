@@ -138,7 +138,10 @@ public class FabricMod implements ModInitializer, Server {
         });
 
         ServerTickEvents.END_SERVER_TICK.register((MinecraftServer server) -> {
-            if (server == this.serverInstance) this.updateSomePlayers();
+            if (server == this.serverInstance) {
+                this.trackSwings(server);
+                this.updateSomePlayers();
+            }
         });
 
         this.eventForwarder.init();
@@ -272,6 +275,19 @@ public class FabricMod implements ModInitializer, Server {
 
             if (playerUpdateIndex < onlinePlayerCount) {
                 onlinePlayerList.get(playerUpdateIndex).update();
+            }
+        }
+    }
+
+    /**
+     * Checks all online players for new arm-swings (a few field-reads per player).
+     * This is done every tick, because a swing only lasts a few ticks and could be missed between two samples.
+     * Only call this method on the server-thread.
+     */
+    private void trackSwings(MinecraftServer server) {
+        for (ServerPlayerEntity playerInstance : server.getPlayerManager().getPlayerList()) {
+            if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+                player.trackSwing(playerInstance);
             }
         }
     }

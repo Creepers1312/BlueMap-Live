@@ -129,6 +129,14 @@ public final class LivePlayersJson {
                 json.endObject();
             }
 
+            SwingState swing = state.swing();
+            if (swing != null) {
+                json.name("swing").beginObject();
+                json.name("count").value(swing.count());
+                json.name("arm").value(swing.leftArm() ? "left" : "right");
+                json.endObject();
+            }
+
             MovementState movement = state.movement();
             if (movement != null) {
                 json.name("state").beginObject();

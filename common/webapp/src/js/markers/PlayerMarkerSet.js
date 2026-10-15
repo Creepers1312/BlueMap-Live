@@ -53,6 +53,21 @@ export class PlayerMarkerSet extends MarkerSet {
         this.updateInterval = DEFAULT_UPDATE_INTERVAL;
     }
 
+    /**
+     * Binds this set to the urls and the skin-cache of a (new) player-marker-manager, e.g. after a map-switch.
+     * Player-markers created afterwards use the new skin-cache. Responses of the previous map are no longer
+     * compared to the new ones (their serverTimes are unrelated).
+     * @param playerheadsUrl {string}
+     * @param skinCache {import("./player/PlayerSkinCache").PlayerSkinCache | null}
+     * @param playerskinsUrl {string | null}
+     */
+    bindSource(playerheadsUrl, skinCache, playerskinsUrl) {
+        this.data.playerheadsUrl = playerheadsUrl;
+        this.skinCache = skinCache;
+        this.playerskinsUrl = playerskinsUrl;
+        this.lastServerTime = null;
+    }
+
     updateFromPlayerData(data) {
         let response = parsePlayersResponse(data);
         if (!response) {

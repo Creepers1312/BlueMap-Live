@@ -172,6 +172,23 @@ public class LivePlayersJsonTest {
     }
 
     @Test
+    public void testSwing() throws IOException {
+        LivePlayerState withSwing = new LivePlayerState(Vector3d.ZERO, Vector3d.ZERO, 0, Vector3d.ZERO, 0, 0, null, new SwingState(7, true));
+        JsonObject p = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, withSwing)))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+        assertEquals(7, p.getAsJsonObject("swing").get("count").getAsInt());
+        assertEquals("left", p.getAsJsonObject("swing").get("arm").getAsString());
+
+        p = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, state(null))))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+        assertFalse(p.has("swing"), "unknown swing-state is omitted");
+
+        p = writeAndParse(false, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, withSwing)))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+        assertFalse(p.has("swing"), "only with extended data");
+    }
+
+    @Test
     public void testNoPlayers() throws IOException {
         JsonObject root = writeAndParse(true, List.of());
         assertEquals(0, root.getAsJsonArray("players").size());

@@ -28,6 +28,7 @@ import com.flowpowered.math.vector.Vector3d;
 import de.bluecolored.bluemap.common.live.LivePlayerState;
 import de.bluecolored.bluemap.common.live.MovementState;
 import de.bluecolored.bluemap.common.live.PlayerMotionTracker;
+import de.bluecolored.bluemap.common.live.SwingTracker;
 import de.bluecolored.bluemap.common.plugin.text.Text;
 import de.bluecolored.bluemap.common.serverinterface.Gamemode;
 import de.bluecolored.bluemap.common.serverinterface.Player;
@@ -36,6 +37,8 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.Arm;
+import net.minecraft.util.Hand;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.LightType;
@@ -59,6 +62,7 @@ public class FabricPlayer extends Player {
 
     // only accessed on the server-thread
     private final PlayerMotionTracker motionTracker;
+    private final SwingTracker swingTracker;
 
     // written on the server-thread, read from other threads (e.g. webserver)
     private volatile State state;
@@ -80,6 +84,7 @@ public class FabricPlayer extends Player {
         this.uuid = player.getUuid();
         this.mod = mod;
         this.motionTracker = new PlayerMotionTracker();
+        this.swingTracker = new SwingTracker();
 
         update(player);
     }
@@ -155,6 +160,17 @@ public class FabricPlayer extends Player {
     }
 
     /**
+     * Checks for a new arm-swing (attack/use) of the player. Called every tick, so no swing is missed.
+     * Only call on server thread!
+     */
+    public void trackSwing(ServerPlayerEntity player) {
+        Hand hand = player.preferredHand != null ? player.preferredHand : Hand.MAIN_HAND;
+        boolean mainArmLeft = player.getMainArm() == Arm.LEFT;
+        boolean leftArm = hand == Hand.MAIN_HAND ? mainArmLeft : !mainArmLeft;
+        swingTracker.update(player.handSwinging, player.handSwingTicks, leftArm);
+    }
+
+    /**
      * Only call on server thread!
      */
     public void update() {
@@ -215,7 +231,8 @@ public class FabricPlayer extends Player {
                         motion.velocity(),
                         motion.generation(),
                         now,
-                        movement
+                        movement,
+                        swingTracker.getState()
                 )
         );
     }

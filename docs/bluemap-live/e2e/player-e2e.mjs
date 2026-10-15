@@ -423,22 +423,23 @@ await step("skin (classic): top view", async () => {
     checkQuadrants(await screenshotPixels("09-skin-top"), points);
 });
 
-/** screen-position of a point at x (pixels, model space) on the front of the arms, at half arm height */
-const projectModelPoint = (uuid, px, py, pz) => page.evaluate(([uuid, px, py, pz]) => {
+/** screen-position of a point (pixels) in the space of a bone (relative to its joint, so it follows the animation) */
+const projectBonePoint = (uuid, bone, px, py, pz) => page.evaluate(([uuid, bone, px, py, pz]) => {
     const mv = window.bluemap.mapViewer, marker = mv.markers.markerSets.get("bm-players").markers.get("bm-player-" + uuid);
     marker.updateMatrixWorld(true);
     mv.camera.updateMatrixWorld();
     const rect = mv.renderer.domElement.getBoundingClientRect();
     const V = window.BlueMap.Three.Vector3;
-    const ndc = marker.model.root.localToWorld(new V(px, py, pz)).project(mv.camera);
+    const ndc = marker.model.parts[bone].localToWorld(new V(px, py, pz)).project(mv.camera);
     return {x: rect.left + (ndc.x + 1) / 2 * rect.width, y: rect.top + (1 - ndc.y) / 2 * rect.height};
-}, [uuid, px, py, pz]);
+}, [uuid, bone, px, py, pz]);
 
 await step("skin (slim): 3 px arms, the rest of the body unchanged", async () => {
     await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, skin: "classic"});
     await viewPlayerC(1.45);
-    // x = -7.5 px: inside the classic right arm (-8..-4), outside the slim one (-7..-4)
-    const probe = await projectModelPoint(C, -7.5, 16, 2.05);
+    // 2.5 px outside of the shoulder-joint: inside the classic right arm (joint -3..+1), outside the slim one (-2..+1)
+    // (in the space of the arm-bone, so the idle-animation of the arm does not matter)
+    let probe = await projectBonePoint(C, "rightArm", -2.5, -6, 2.05);
     let png = await screenshotPixels("10-classic-arm");
     const armColors = [0, 1, 2, 3].map(q => skinColor(0, "rightArm", "front", q));
     assert.ok(armColors.some(c => colorClose(png.pixel(probe.x, probe.y), c)), "classic arm covers x = -7.5");
@@ -446,6 +447,7 @@ await step("skin (slim): 3 px arms, the rest of the body unchanged", async () =>
     await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, skin: "slim"});
     await page.waitForFunction(uuid => window.bluemap.playerMarkerManager.getPlayerMarkerSet(false).getPlayerMarker(uuid).model.displayedVariant === "slim", C, {timeout: 10000});
     await sleep(1200);
+    probe = await projectBonePoint(C, "rightArm", -2.5, -6, 2.05);
     png = await screenshotPixels("11-slim-front");
     assert.ok(!armColors.some(c => colorClose(png.pixel(probe.x, probe.y), c)), "slim arm does not cover x = -7.5");
     const points = await projectQuadrants(C, PARTS.map(part => [part, "front"]));

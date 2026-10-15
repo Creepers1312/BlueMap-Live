@@ -19,6 +19,7 @@ import com.sun.net.httpserver.HttpServer;
 import de.bluecolored.bluemap.common.live.LivePlayerState;
 import de.bluecolored.bluemap.common.live.LivePlayersJson;
 import de.bluecolored.bluemap.common.live.MovementState;
+import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.live.PlayerMotionTracker;
 import de.bluecolored.bluemap.core.map.hires.ArrayTileModel;
 import de.bluecolored.bluemap.core.map.hires.PRBMWriter;
@@ -40,6 +41,12 @@ public class LiveE2EServer {
 
     private static final String MAP_WORLD = "minecraft:overworld";
 
+    /** map-id -> the dimension the map shows (like the auto-generated map-configs of a world) */
+    private static final Map<String, String> MAPS = Map.of(
+            "world", "minecraft:overworld",
+            "world_the_nether", "minecraft:the_nether"
+    );
+
     private static final class SimPlayer {
         final String uuid;
         final String name;
@@ -47,6 +54,8 @@ public class LiveE2EServer {
         String world = MAP_WORLD;
         LivePlayerState state;
         String skin = "none"; // none | classic | slim | broken
+        int swingCount = 0;
+        boolean swingLeft = false;
 
         SimPlayer(String uuid, String name) {
             this.uuid = uuid;
@@ -81,18 +90,32 @@ public class LiveE2EServer {
     private synchronized void handle(HttpExchange ex) throws IOException {
         try {
             String path = ex.getRequestURI().getPath();
-            switch (path) {
-                case "/settings.json" -> send(ex, 200, "application/json", rootSettings().getBytes(StandardCharsets.UTF_8));
-                case "/maps/world/settings.json" -> send(ex, 200, "application/json", mapSettings().getBytes(StandardCharsets.UTF_8));
-                case "/maps/world/textures.json" -> send(ex, 200, "application/json", textures().getBytes(StandardCharsets.UTF_8));
-                case "/maps/world/tiles/0/x0/z0.prbm" -> send(ex, 200, "application/octet-stream", tile);
-                case "/maps/world/live/players.json" -> handlePlayers(ex);
-                case "/maps/world/live/markers.json" -> send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
-                case "/control" -> handleControl(ex);
-                default -> {
-                    if (path.startsWith("/maps/world/assets/playerskins/") && path.endsWith(".png")) handleSkin(ex, path);
-                    else serveStatic(ex, path);
+            if (path.equals("/settings.json")) {
+                send(ex, 200, "application/json", rootSettings().getBytes(StandardCharsets.UTF_8));
+            } else if (path.equals("/control")) {
+                handleControl(ex);
+            } else if (path.startsWith("/maps/")) {
+                String rest = path.substring("/maps/".length());
+                int slash = rest.indexOf('/');
+                String mapId = slash < 0 ? rest : rest.substring(0, slash);
+                String file = slash < 0 ? "" : rest.substring(slash + 1);
+                if (!MAPS.containsKey(mapId)) {
+                    send(ex, 404, "text/plain", "no map".getBytes(StandardCharsets.UTF_8));
+                    return;
                 }
+                switch (file) {
+                    case "settings.json" -> send(ex, 200, "application/json", mapSettings(mapId).getBytes(StandardCharsets.UTF_8));
+                    case "textures.json" -> send(ex, 200, "application/json", textures().getBytes(StandardCharsets.UTF_8));
+                    case "tiles/0/x0/z0.prbm" -> send(ex, 200, "application/octet-stream", tile);
+                    case "live/players.json" -> handlePlayers(ex, mapId);
+                    case "live/markers.json" -> send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+                    default -> {
+                        if (file.startsWith("assets/playerskins/") && file.endsWith(".png")) handleSkin(ex, file);
+                        else send(ex, 404, "text/plain", "not found".getBytes(StandardCharsets.UTF_8));
+                    }
+                }
+            } else {
+                serveStatic(ex, path);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -102,14 +125,16 @@ public class LiveE2EServer {
 
     // --- live data ---
 
-    private void handlePlayers(HttpExchange ex) throws IOException {
+    private void handlePlayers(HttpExchange ex, String mapId) throws IOException {
         if (endpointDown) {
             send(ex, 503, "text/plain", "down".getBytes(StandardCharsets.UTF_8));
             return;
         }
 
         String body;
-        if (serveStaleOnce && history.size() >= 2) {
+        if (!mapId.equals("world")) {
+            body = currentJson(MAPS.get(mapId));
+        } else if (serveStaleOnce && history.size() >= 2) {
             // the response of the second to last sample (older serverTime and older positions),
             // like it could come from a cache or a slow proxy: must be ignored by the client
             Iterator<String> it = history.descendingIterator();
@@ -118,12 +143,13 @@ public class LiveE2EServer {
             serveStaleOnce = false;
             staleServed++;
         } else {
-            body = currentJson();
+            body = currentJson(MAP_WORLD);
         }
         send(ex, 200, "application/json", body.getBytes(StandardCharsets.UTF_8));
     }
 
-    private String currentJson() throws IOException {
+    /** like LivePlayersDataSupplier: players in another dimension than the map are "foreign" */
+    private String currentJson(String mapWorld) throws IOException {
         List<LivePlayersJson.Entry> entries = new ArrayList<>();
         for (SimPlayer p : online.values()) {
             LivePlayersJson.Skin skin = switch (p.skin) {
@@ -132,7 +158,7 @@ public class LiveE2EServer {
                 case "broken" -> new LivePlayersJson.Skin("classic", "0b"); // announced, but the image is missing (404)
                 default -> null;
             };
-            entries.add(new LivePlayersJson.Entry(p.uuid, p.name, !p.world.equals(MAP_WORLD), p.world, p.state, skin));
+            entries.add(new LivePlayersJson.Entry(p.uuid, p.name, !p.world.equals(mapWorld), p.world, p.state, skin));
         }
         StringWriter out = new StringWriter();
         try (JsonWriter json = new JsonWriter(out)) {
@@ -143,6 +169,9 @@ public class LiveE2EServer {
 
     /**
      * One server-sample: /control?uuid=..&name=..&x=..&y=..&z=..&pitch=..&yaw=..&bodyYaw=..&world=..&respawn=1
+     * Movement-flags (default: standing on the ground): &sneaking=1&sprinting=1&ground=0&swimming=1&flying=1&fallFlying=1
+     * Velocity override (instead of the one derived from the samples): &vx=..&vy=..&vz=..
+     * Arm-swing (increments the swing-counter): &swing=right|left
      * Other commands: /control?leave=uuid, /control?stale=1, /control?down=1|0, /control?status=1
      */
     private void handleControl(HttpExchange ex) throws IOException {
@@ -171,6 +200,10 @@ public class LiveE2EServer {
             if (q.containsKey("world")) p.world = q.get("world");
             if (q.containsKey("skin")) p.skin = q.get("skin");
             if ("1".equals(q.get("respawn"))) p.tracker.markDiscontinuity();
+            if (q.containsKey("swing")) {
+                p.swingCount++;
+                p.swingLeft = q.get("swing").equals("left");
+            }
 
             Vector3d position = new Vector3d(d(q, "x"), d(q, "y"), d(q, "z"));
             long now = System.currentTimeMillis();
@@ -179,17 +212,26 @@ public class LiveE2EServer {
                     position,
                     new Vector3d(d(q, "pitch"), d(q, "yaw"), 0),
                     q.containsKey("bodyYaw") ? d(q, "bodyYaw") : d(q, "yaw"),
-                    motion.velocity(),
+                    q.containsKey("vx") || q.containsKey("vy") || q.containsKey("vz") ?
+                            new Vector3d(d(q, "vx"), d(q, "vy"), d(q, "vz")) : motion.velocity(),
                     motion.generation(),
                     now,
-                    new MovementState(false, false, true, false, false, false)
+                    new MovementState(
+                            flag(q, "sneaking"), flag(q, "sprinting"), !"0".equals(q.get("ground")),
+                            flag(q, "swimming"), flag(q, "flying"), flag(q, "fallFlying")
+                    ),
+                    new SwingState(p.swingCount, p.swingLeft)
             );
         }
 
-        String json = currentJson();
+        String json = currentJson(MAP_WORLD);
         history.addLast(json);
         while (history.size() > 8) history.removeFirst();
         send(ex, 200, "application/json", json.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static boolean flag(Map<String, String> q, String key) {
+        return "1".equals(q.get(key));
     }
 
     private static double d(Map<String, String> q, String key) {
@@ -215,8 +257,13 @@ public class LiveE2EServer {
             {"version":"live-e2e","useCookies":false,"defaultToFlatView":false,"resolutionDefault":1.0,
              "minZoomDistance":5,"maxZoomDistance":100000,"hiresSliderMax":500,"hiresSliderDefault":100,"hiresSliderMin":0,
              "lowresSliderMax":7000,"lowresSliderDefault":2000,"lowresSliderMin":500,
-             "mapDataRoot":"maps","liveDataRoot":"maps","maps":["world"],"scripts":[],"styles":[]}
+             "mapDataRoot":"maps","liveDataRoot":"maps","maps":["world","world_the_nether"],"scripts":[],"styles":[]}
             """;
+    }
+
+    private static String mapSettings(String mapId) {
+        return mapSettings().replace("\"name\":\"Live E2E\"", "\"name\":\"Live E2E (" + mapId + ")\"")
+                .replace("\"sorting\":0", "\"sorting\":" + (mapId.equals("world") ? 0 : 1));
     }
 
     private static String mapSettings() {
@@ -287,8 +334,8 @@ public class LiveE2EServer {
         return img;
     }
 
-    private void handleSkin(HttpExchange ex, String path) throws IOException {
-        String uuid = path.substring("/maps/world/assets/playerskins/".length(), path.length() - 4);
+    private void handleSkin(HttpExchange ex, String file) throws IOException {
+        String uuid = file.substring("assets/playerskins/".length(), file.length() - 4);
         SimPlayer p = online.get(uuid);
         if (p == null || !(p.skin.equals("classic") || p.skin.equals("slim"))) {
             send(ex, 404, "text/plain", "no skin".getBytes(StandardCharsets.UTF_8));

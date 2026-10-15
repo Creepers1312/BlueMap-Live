@@ -29,6 +29,7 @@ import {MathUtils} from "three";
 import {angleDelta, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse} from "./LivePlayerData";
 import {PlayerModel} from "./player/PlayerModel";
 import {PlayerSkinCache} from "./player/PlayerSkinCache";
+import {PlayerAnimator} from "./player/PlayerAnimator";
 
 /** Height of the head-marker above the players feet */
 const PLAYER_HEIGHT = 1.8;
@@ -94,6 +95,9 @@ export class PlayerMarker extends Marker {
         this.lastPlayerData = null;
         this.displayed = {x: 0, y: 0, z: 0, bodyYaw: 0, headYaw: 0, pitch: 0};
         this.movementAnimation = null;
+
+        // limb-animations, stepped by the PlayerMarkerManager in the render-loop of the map-viewer
+        this.animator = new PlayerAnimator();
     }
 
     /**
@@ -138,6 +142,9 @@ export class PlayerMarker extends Marker {
 
         // ignore position-updates that are older than the current state
         if (!previous || !isStaleResponse(previous.time, markerData.time)) {
+            // teleport, respawn, world-change: the animation starts fresh as well
+            if (isDiscontinuous(previous, markerData)) this.animator.reset();
+            this.animator.setTarget(markerData);
             this.updateMovement(previous, markerData, updateInterval);
             this.lastPlayerData = markerData;
         }
@@ -229,6 +236,17 @@ export class PlayerMarker extends Marker {
         this.model.rotation.y = MathUtils.degToRad(-state.bodyYaw);
         this.headPivot.rotation.y = MathUtils.degToRad(-(state.headYaw - state.bodyYaw));
         this.headPivot.rotation.x = MathUtils.degToRad(state.pitch);
+    }
+
+    /**
+     * Advances the limb-animation and applies it to the model. Called once per rendered frame.
+     * @param dt {number} - seconds since the last frame
+     * @returns {boolean} true if the model is currently moving and should be rendered with a high frame-rate
+     */
+    stepAnimation(dt) {
+        const active = this.animator.step(dt, MathUtils.degToRad(this.displayed.pitch));
+        this.model.applyPose(this.animator.pose);
+        return active;
     }
 
     dispose() {

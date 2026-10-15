@@ -25,7 +25,7 @@
 
 import {Group, Mesh} from "three";
 import {getPlayerModelGeometries} from "./PlayerModelGeometry.js";
-import {PART_NAMES, PIXEL_SCALE} from "./PlayerModelLayout.js";
+import {PART_NAMES, PIXEL_SCALE, playerModelLayout} from "./PlayerModelLayout.js";
 
 /**
  * Creates a mesh that is ignored by raycasting, so the model never intercepts the normal map-interactions (clicks)
@@ -76,10 +76,15 @@ export class PlayerModel extends Group {
         for (const name of PART_NAMES) {
             const bone = new Group();
             bone.name = name;
-            if (name === "head") bone.rotation.order = "YXZ";
+            // the head is rotated by the look-direction, the other parts like vanilla model-parts (roll, yaw, pitch)
+            bone.rotation.order = name === "head" ? "YXZ" : "ZYX";
             this.parts[name] = bone;
             this.root.add(bone);
         }
+
+        /** the joint-positions of the displayed variant, poses are applied relative to them */
+        this.basePivots = {};
+        this.setBasePivots("classic");
 
         this.onSkinStateChanged = () => this.updateDisplayedSkin();
         this.skinCache.defaultSkinListeners.add(this.onSkinStateChanged);
@@ -144,13 +149,13 @@ export class PlayerModel extends Group {
      * @private
      */
     buildParts(variant, skin) {
+        this.setBasePivots(variant);
         const geometries = getPlayerModelGeometries(variant);
         for (const name of PART_NAMES) {
             const bone = this.parts[name];
             bone.clear();
 
             const {layout, base, overlay} = geometries.get(name);
-            bone.position.set(layout.pivot[0], layout.pivot[1], layout.pivot[2]);
 
             const baseMesh = nonInteractiveMesh(base, skin.baseMaterial);
             const overlayMesh = nonInteractiveMesh(overlay, skin.overlayMaterial);
@@ -160,6 +165,33 @@ export class PlayerModel extends Group {
             overlayMesh.position.copy(baseMesh.position);
             bone.add(baseMesh, overlayMesh);
         }
+    }
+
+    /** @private */
+    setBasePivots(variant) {
+        for (const layout of playerModelLayout(variant)) {
+            this.basePivots[layout.name] = layout.pivot;
+            this.parts[layout.name].position.set(layout.pivot[0], layout.pivot[1], layout.pivot[2]);
+        }
+    }
+
+    /**
+     * Applies an animation-pose (see PlayerAnimator). Only changes the transforms of the existing bones.
+     * The rotation of the head is not changed, it is the look-direction and set by the player-marker.
+     * @param pose {{parts: Object<string, {rx: number, ry: number, rz: number, px: number, py: number, pz: number}>,
+     *  rootY: number, rootZ: number, rootPitch: number}}
+     */
+    applyPose(pose) {
+        for (const name of PART_NAMES) {
+            const part = pose.parts[name];
+            if (!part) continue;
+            const bone = this.parts[name];
+            const pivot = this.basePivots[name];
+            bone.position.set(pivot[0] + part.px, pivot[1] + part.py, pivot[2] + part.pz);
+            if (name !== "head") bone.rotation.set(part.rx, part.ry, part.rz);
+        }
+        this.root.position.set(0, pose.rootY, pose.rootZ);
+        this.root.rotation.x = pose.rootPitch;
     }
 
     /** @private */

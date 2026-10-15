@@ -345,3 +345,34 @@ test("default skin is found in textures.json", () => {
     assert.equal(PlayerSkinCache.findDefaultSkin([{resourcePath: "minecraft:entity/player/slim/steve", texture: "javascript:alert(1)"}]), null);
     assert.equal(PlayerSkinCache.findDefaultSkin(null), null);
 });
+
+test("applyPose moves and rotates only the existing bones, the head rotation stays the look-direction", async () => {
+    const loader = controllableLoader();
+    const cache = new PlayerSkinCache(loader);
+    const model = new PlayerModel(cache);
+    model.setSkin("skins/slim.png", "slim");
+    loader.resolve("skins/slim.png");
+    await flush();
+
+    const childrenBefore = PART_NAMES.map(name => model.parts[name].children.slice());
+    model.parts.head.rotation.set(0.3, 0.2, 0);
+
+    const pose = {parts: {}, rootY: -0.125, rootZ: 0, rootPitch: 0};
+    for (const name of PART_NAMES) pose.parts[name] = {rx: 0.1, ry: 0.2, rz: 0.3, px: 0, py: -1, pz: 2};
+    model.applyPose(pose);
+
+    assert.deepEqual(model.parts.head.rotation.toArray().slice(0, 3), [0.3, 0.2, 0], "head rotation untouched");
+    assert.deepEqual(model.parts.head.position.toArray(), [0, 23, 2]);
+    assert.deepEqual(model.parts.rightArm.position.toArray(), [-5, 20.5, 2], "relative to the slim pivot");
+    assert.deepEqual(model.parts.rightArm.rotation.toArray().slice(0, 4), [0.1, 0.2, 0.3, "ZYX"]);
+    assert.equal(model.root.position.y, -0.125);
+    PART_NAMES.forEach((name, i) => assert.deepEqual(model.parts[name].children, childrenBefore[i], "no new meshes"));
+
+    // a later variant-change keeps the bones and uses the new pivots
+    model.setSkin("skins/classic.png", "classic");
+    loader.resolve("skins/classic.png");
+    await flush();
+    model.applyPose(pose);
+    assert.deepEqual(model.parts.rightArm.position.toArray(), [-5, 21, 2]);
+    model.dispose();
+});
