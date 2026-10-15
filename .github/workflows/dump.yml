@@ -1,0 +1,36 @@
+name: Model dump
+on:
+  push:
+    branches: [ "bluemap-live-model-dump" ]
+jobs:
+  dump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+      - name: Dump models
+        run: ./gradlew :fabric:dumpEntityModels --stacktrace
+      - name: Decompile sources
+        continue-on-error: true
+        run: |
+          ./gradlew :fabric:genSourcesWithVineflower --stacktrace || ./gradlew :fabric:genSources --stacktrace
+          mkdir -p src-out
+          find ~/.gradle implementations/fabric/.gradle . -name "minecraft-*sources.jar" 2>/dev/null | sort -u | tee jars.txt
+          J=$(grep -m1 merged jars.txt || head -1 jars.txt)
+          cd src-out && unzip -q "$J" 'net/minecraft/client/render/entity/*' 'net/minecraft/client/model/*' 'net/minecraft/entity/*' || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model-dump
+          path: implementations/fabric/build/model-dump/
+          retention-days: 2
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mc-sources
+          path: src-out/
+          retention-days: 1
