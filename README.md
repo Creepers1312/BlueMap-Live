@@ -14,7 +14,7 @@
 |---|---|---|
 | 1 | Analyse und Architektur | fertig – [`docs/bluemap-live/analysis.md`](docs/bluemap-live/analysis.md) |
 | 2 | End-to-End-Prototyp: erweiterte Live-Spielerdaten + **vorläufiges** 3D-Objekt im Webclient | implementiert, teilweise getestet, **noch nicht mit Gradle gebaut und nicht auf einem echten Server geprüft** – [`docs/bluemap-live/phase-2.md`](docs/bluemap-live/phase-2.md) |
-| 3 | Echte Spielermodelle mit Skin und Animationen | geplant |
+| 3 | Echte Spielermodelle mit Skin und Animationen | teilweise: vollständige Skins + 3D-Modell mit UV-Mapping implementiert und getestet, Animationen offen – [`docs/bluemap-live/phase-3.md`](docs/bluemap-live/phase-3.md) |
 | 4–5 | Live-Blockänderungen (zuverlässig, dann inkrementell) | geplant |
 | 6 | Stabilisierung und Dokumentation | geplant |
 
