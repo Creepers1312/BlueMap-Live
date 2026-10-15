@@ -64,6 +64,21 @@ public abstract class Player {
         );
     }
 
+    /**
+     * Returns the world and the live-state of this player as one consistent snapshot,
+     * so that e.g. a world-change can never be combined with a position from the previous world.
+     * <p>Implementations that sample asynchronously should override this together with {@link #getLiveState()}.</p>
+     */
+    public LiveSnapshot getLiveSnapshot() {
+        return new LiveSnapshot(getWorld(), getLiveState());
+    }
+
+    /**
+     * @param world the world the player was in when the state was sampled
+     * @param state the live-state of the player
+     */
+    public record LiveSnapshot(ServerWorld world, LivePlayerState state) {}
+
     public abstract int getSkyLight();
 
     public abstract int getBlockLight();

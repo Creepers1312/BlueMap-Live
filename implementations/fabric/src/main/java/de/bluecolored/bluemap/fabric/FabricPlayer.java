@@ -115,6 +115,12 @@ public class FabricPlayer extends Player {
     }
 
     @Override
+    public LiveSnapshot getLiveSnapshot() {
+        State state = this.state; // read once, so world and live-state belong together
+        return new LiveSnapshot(state.world(), state.live());
+    }
+
+    @Override
     public int getSkyLight() {
         return state.skyLight();
     }

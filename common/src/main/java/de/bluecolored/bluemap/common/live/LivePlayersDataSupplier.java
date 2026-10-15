@@ -74,7 +74,8 @@ public class LivePlayersDataSupplier implements Supplier<String> {
         List<LivePlayersJson.Entry> entries = new ArrayList<>();
         if (config.isLivePlayerMarkers()) {
             for (Player player : this.server.getOnlinePlayers()) {
-                ServerWorld playerWorld = player.getWorld();
+                Player.LiveSnapshot snapshot = player.getLiveSnapshot();
+                ServerWorld playerWorld = snapshot.world();
                 boolean isCorrectWorld = playerWorld != null && playerWorld.equals(serverWorld);
 
                 if (config.isHideInvisible() && player.isInvisible()) continue;
@@ -93,7 +94,7 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                         player.getName().toPlainString(),
                         !isCorrectWorld,
                         playerWorld != null ? playerWorld.getDimension().getFormatted() : null,
-                        player.getLiveState()
+                        snapshot.state()
                 ));
             }
         }
