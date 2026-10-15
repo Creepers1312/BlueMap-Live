@@ -39,6 +39,8 @@ import java.util.List;
  * @param equipment the held items, or null if it holds nothing
  * @param variant the texture-variant of the entity (e.g. the mooshroom-type), or null
  * @param size the size of slimes and magma cubes, 0 for other entities
+ * @param width the width of the hitbox in blocks (for a placeholder if the webapp has no model)
+ * @param height the height of the hitbox in blocks
  * @param flags further states that change the model or its animation (e.g. <code>attacking</code>,
  *              <code>sheared</code>, <code>saddled</code>), sorted
  */
@@ -51,6 +53,8 @@ public record LiveMobState(
         @Nullable Equipment equipment,
         @Nullable String variant,
         int size,
+        double width,
+        double height,
         List<String> flags
 ) {
 

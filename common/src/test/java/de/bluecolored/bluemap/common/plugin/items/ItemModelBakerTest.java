@@ -90,6 +90,15 @@ public class ItemModelBakerTest {
             textures.put("minecraft:block/stone", square(16, 0, 0, 16, 16));
             textures.put("minecraft:entity/shield_base_nopattern", square(64, 0, 0, 64, 64));
             textures.put("minecraft:entity/projectiles/arrow", square(32, 0, 0, 16, 10));
+            textures.put("minecraft:entity/zombie/zombie", square(64, 0, 0, 64, 64));
+            textures.put("minecraft:entity/villager/villager", square(64, 0, 0, 64, 64));
+            textures.put("minecraft:entity/villager/type/plains", square(64, 0, 0, 8, 8));
+            textures.put("minecraft:entity/villager/profession/farmer", square(64, 0, 0, 8, 8));
+        }
+
+        @Override
+        public java.util.List<String> textureKeys(String folder) {
+            return textures.keySet().stream().filter(key -> key.startsWith(folder)).sorted().toList();
         }
 
         @Override
@@ -236,7 +245,7 @@ public class ItemModelBakerTest {
         assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "item/bow"));
         assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "block/stone"));
         assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "entity/shield_base_nopattern"));
-        assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "entity/zombie/zombie"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "entity/zombie/zombie")); // mob-textures
         assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "gui/widgets"));
         assertTrue(ItemResourceIndex.isItemRelevantTexture("mymod", "anything/else"));
     }
@@ -252,9 +261,31 @@ public class ItemModelBakerTest {
 
         // spectral-arrow texture missing in this pack, unknown entities: no model
         assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:spectral_arrow")).getAsJsonObject().getAsJsonArray("models").size());
-        assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:zombie")).getAsJsonObject().getAsJsonArray("models").size());
+        assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:allay")).getAsJsonObject().getAsJsonArray("models").size());
         assertEquals("entities/minecraft/arrow.json", ItemAssetUpdater.entityAssetName("minecraft:arrow"));
         assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "entity/projectiles/arrow"));
+    }
+
+    @Test
+    public void testMobAssets() throws IOException {
+        ItemModelBaker baker = new ItemModelBaker(new TestResources());
+
+        // the textures by their key, missing textures (drowned) are left out
+        JsonObject zombie = JsonParser.parseString(baker.bakeEntity("minecraft:zombie")).getAsJsonObject();
+        assertEquals("minecraft:zombie", zombie.get("entity").getAsString());
+        JsonObject textures = zombie.getAsJsonObject("textures");
+        assertEquals(1, textures.size());
+        assertTrue(textures.get("minecraft:entity/zombie/zombie").getAsString().startsWith("data:image/png;base64,"));
+        assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:drowned")).getAsJsonObject()
+                .getAsJsonObject("textures").size());
+
+        // folders: all villager-textures
+        JsonObject villager = JsonParser.parseString(baker.bakeEntity("minecraft:villager")).getAsJsonObject();
+        assertEquals(java.util.Set.of("minecraft:entity/villager/villager", "minecraft:entity/villager/type/plains",
+                "minecraft:entity/villager/profession/farmer"), villager.getAsJsonObject("textures").keySet());
+
+        assertTrue(ItemModelBaker.isSupportedEntity("minecraft:sheep"));
+        assertFalse(ItemModelBaker.isSupportedEntity("minecraft:allay"));
     }
 
 }

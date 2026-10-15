@@ -85,6 +85,8 @@ public final class LiveEntitiesJson {
         if (mob.baby()) json.name("baby").value(true);
         if (mob.variant() != null) json.name("variant").value(mob.variant());
         if (mob.size() > 0) json.name("size").value(mob.size());
+        json.name("width").value(finite(mob.width()));
+        json.name("height").value(finite(mob.height()));
         if (!mob.flags().isEmpty()) {
             json.name("flags").beginArray();
             for (String flag : mob.flags()) json.value(flag);

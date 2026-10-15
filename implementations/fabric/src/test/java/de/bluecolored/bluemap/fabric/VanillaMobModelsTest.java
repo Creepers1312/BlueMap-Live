@@ -60,6 +60,9 @@ public class VanillaMobModelsTest {
         Map<String, Object> layers = new HashMap<>();
         List<String> report = new ArrayList<>();
         try {
+            // the registries (used by some model-classes) need the bootstrap, like the vanilla data-generator
+            Class.forName("net.minecraft.SharedConstants").getMethod("createGameVersion").invoke(null);
+            Class.forName("net.minecraft.Bootstrap").getMethod("initialize").invoke(null);
             Map<?, ?> models = (Map<?, ?>) Class.forName("net.minecraft.client.render.entity.model.EntityModels")
                     .getMethod("getModels").invoke(null);
             for (Map.Entry<?, ?> entry : models.entrySet()) layers.put(entry.getKey().toString(), entry.getValue());

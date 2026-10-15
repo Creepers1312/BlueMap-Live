@@ -67,6 +67,10 @@ public class ItemModelBaker {
         @Nullable String modelJson(String key);
         /** the texture-image (key e.g. <code>minecraft:item/bow</code>), only the first frame of animated textures, null if there is none */
         @Nullable BufferedImage texture(String key);
+        /** the keys of all textures in a folder (e.g. <code>minecraft:entity/villager/</code>, including sub-folders), sorted */
+        default List<String> textureKeys(String folder) {
+            return List.of();
+        }
     }
 
     public static final int FORMAT_VERSION = 1;
@@ -136,7 +140,39 @@ public class ItemModelBaker {
     );
 
     static boolean isSupportedEntity(String entityType) {
-        return ENTITY_MODELS.containsKey(entityType);
+        return ENTITY_MODELS.containsKey(entityType) || MobTextures.TEXTURES.containsKey(entityType);
+    }
+
+    /** protection against huge folders (a resource-pack with very many villager-textures) */
+    static final int MAX_MOB_TEXTURES = 128;
+
+    /**
+     * Bakes the asset of a mob whose (vanilla) model the webapp has: only its textures from the resource-pack,
+     * by their key (the webapp chooses the variant). Textures that do not exist are left out.
+     */
+    String bakeMob(String entityType) throws IOException {
+        Map<String, String> dataUrls = new java.util.TreeMap<>();
+        Textures textures = new Textures();
+        for (String entry : MobTextures.TEXTURES.getOrDefault(entityType, List.of())) {
+            List<String> keys = entry.endsWith("/") ? resources.textureKeys(entry) : List.of(entry);
+            for (String key : keys) {
+                if (dataUrls.size() >= MAX_MOB_TEXTURES) break;
+                int index = textures.add(key, resources);
+                if (index >= 0) dataUrls.put(key, textures.dataUrls.get(index));
+            }
+        }
+
+        StringWriter out = new StringWriter();
+        try (JsonWriter json = new JsonWriter(out)) {
+            json.beginObject();
+            json.name("format").value(FORMAT_VERSION);
+            json.name("entity").value(entityType);
+            json.name("textures").beginObject();
+            for (Map.Entry<String, String> texture : dataUrls.entrySet()) json.name(texture.getKey()).value(texture.getValue());
+            json.endObject();
+            json.endObject();
+        }
+        return out.toString();
     }
 
     /**
@@ -146,6 +182,7 @@ public class ItemModelBaker {
      */
     public String bakeEntity(String entityType) throws IOException {
         Key.parse(entityType);
+        if (MobTextures.TEXTURES.containsKey(entityType)) return bakeMob(entityType);
         Textures textures = new Textures();
         List<BakedModel> models = new ArrayList<>();
         String[] model = ENTITY_MODELS.get(entityType);

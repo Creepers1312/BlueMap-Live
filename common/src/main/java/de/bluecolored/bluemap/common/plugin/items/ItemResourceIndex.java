@@ -36,6 +36,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -51,7 +52,7 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
     /** texture-folders of the minecraft namespace that are never used by item-models */
     private static final Set<String> SKIPPED_TEXTURE_FOLDERS = Set.of(
             "gui", "environment", "painting", "particle", "font", "map", "mob_effect", "trims", "colormap",
-            "effect", "models", "misc", "entity"
+            "effect", "models", "misc"
     );
 
     private final Map<String, String> models = new HashMap<>();
@@ -122,7 +123,7 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
 
     static boolean isItemRelevantTexture(String namespace, String value) {
         if (!namespace.equals("minecraft")) return true;
-        if (value.startsWith("entity/shield") || value.startsWith("entity/projectiles/")) return true;
+        if (value.startsWith("entity/")) return true; // shield, projectiles and the mob-textures
         int slash = value.indexOf('/');
         return slash < 0 || !SKIPPED_TEXTURE_FOLDERS.contains(value.substring(0, slash));
     }
@@ -150,9 +151,9 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
             if (image == null) return null;
 
-            // animated textures are vertical strips of square frames: use the first frame
+            // animated textures are vertical strips of square frames: use the first frame (entity-textures are never animated)
             int w = image.getWidth(), h = image.getHeight();
-            if (h > w && h % w == 0) image = image.getSubimage(0, 0, w, w);
+            if (h > w && h % w == 0 && !key.contains(":entity/")) image = image.getSubimage(0, 0, w, w);
 
             // always 32-bit ARGB, so the alpha-channel can be read the same way for all images
             BufferedImage argb = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);
@@ -162,6 +163,11 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
             Logger.global.logDebug("Failed to read texture '" + key + "': " + ex);
             return null;
         }
+    }
+
+    @Override
+    public List<String> textureKeys(String folder) {
+        return textures.keySet().stream().filter(key -> key.startsWith(folder)).sorted().toList();
     }
 
     public int getModelCount() {

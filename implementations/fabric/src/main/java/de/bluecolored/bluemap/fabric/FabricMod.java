@@ -57,6 +57,7 @@ import net.minecraft.SharedConstants;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.FlyingItemEntity;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
@@ -348,9 +349,10 @@ public class FabricMod implements ModInitializer, Server {
         }
     }
 
-    /** the entity-types that are shown on the map so far (dropped items, thrown items, arrows and tridents) */
+    /** the entity-types that are shown on the map (dropped items, thrown items, arrows, tridents and mobs) */
     private static boolean isLiveEntity(Entity entity) {
-        return entity instanceof ItemEntity || entity instanceof FlyingItemEntity || entity instanceof PersistentProjectileEntity;
+        return entity instanceof ItemEntity || entity instanceof FlyingItemEntity || entity instanceof PersistentProjectileEntity ||
+                FabricMobs.isLiveMob(entity);
     }
 
     /** a protection against huge entity-amounts (e.g. farms), the data-supplier applies the configured limit */
@@ -425,7 +427,8 @@ public class FabricMod implements ModInitializer, Server {
                 new Vector3d(velocity.x * 20, velocity.y * 20, velocity.z * 20), // blocks per tick -> per second
                 now,
                 item,
-                onGround
+                onGround,
+                entity instanceof LivingEntity living ? FabricMobs.sample(living) : null
         );
     }
 

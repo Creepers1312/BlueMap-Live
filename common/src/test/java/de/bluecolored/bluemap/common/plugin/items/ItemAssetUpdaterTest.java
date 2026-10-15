@@ -95,9 +95,11 @@ public class ItemAssetUpdaterTest {
         MapStorage map = new FileMapStorage(temp.resolve("world"), Compression.NONE, false);
         ItemAssetUpdater updater = new ItemAssetUpdater(() -> List.of(map), ItemModelBakerTest.TestResources::new, Runnable::run);
         updater.requestEntity("minecraft:arrow").join();
-        updater.requestEntity("minecraft:zombie").join(); // no own model -> nothing written
+        updater.requestEntity("minecraft:zombie").join(); // mob: its textures
+        updater.requestEntity("minecraft:allay").join(); // no model in the webapp -> nothing written
         assertTrue(Files.isRegularFile(temp.resolve("world/assets/entities/minecraft/arrow.json")));
-        assertFalse(Files.exists(temp.resolve("world/assets/entities/minecraft/zombie.json")));
+        assertTrue(Files.isRegularFile(temp.resolve("world/assets/entities/minecraft/zombie.json")));
+        assertFalse(Files.exists(temp.resolve("world/assets/entities/minecraft/allay.json")));
     }
 
 }
