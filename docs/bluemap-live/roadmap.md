@@ -12,7 +12,11 @@ Die Aufwands- und Leistungsangaben unten sind **Schätzungen**, nicht gemessen.
 
 ---
 
-## 0.1.0-alpha – erste Version (bereit zum Taggen)
+## 0.1.0-alpha – erste Version (veröffentlicht)
+
+**Pre-release:** <https://github.com/Creepers1312/BlueMap-Live/releases/tag/v0.1.0-alpha>
+- Tag `v0.1.0-alpha` auf Commit `0adb5db6`, also ohne die Entities aus 0.2.0.
+- Die JAR `bluemap-0.1.0-alpha-fabric.jar` hat der CI angehängt; der Tag-Build war erfolgreich.
 
 **Inhalt:**
 - Live-Spieler als 3D-Modell mit Skin
@@ -24,11 +28,6 @@ Die Aufwands- und Leistungsangaben unten sind **Schätzungen**, nicht gemessen.
 - Name „BlueMap Live“, Mod-ID `bluemap_live`
 
 Release-Notes: `releases/v0.1.0-alpha.md`.
-
-**Offen bis zum Tag:**
-- Release auf GitHub anlegen (macht der Nutzer, die Sitzung darf keine Tags und Releases anlegen).
-- Prüfen, ob der CI die JAR anhängt.
-- Kurz bestätigen, dass in der Mod-Liste „BlueMap Live“ steht (I18).
 
 ---
 
