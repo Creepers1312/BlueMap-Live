@@ -35,6 +35,8 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -45,14 +47,23 @@ public class LivePlayersDataSupplier implements Supplier<String> {
     private final PluginConfig config;
     private final World world;
     private final Predicate<UUID> playerFilter;
+    private final int updateIntervalMillis;
 
     private transient @Nullable ServerWorld serverWorld;
 
     public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter) {
+        this(server, config, world, playerFilter, config.getLivePlayerUpdateInterval());
+    }
+
+    /**
+     * @param updateIntervalMillis the interval that is announced to clients, in which they should poll for new data
+     */
+    public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter, int updateIntervalMillis) {
         this.server = server;
         this.config = config;
         this.world = world;
         this.playerFilter = playerFilter;
+        this.updateIntervalMillis = updateIntervalMillis;
     }
 
     @Override
@@ -60,50 +71,43 @@ public class LivePlayersDataSupplier implements Supplier<String> {
         if (serverWorld == null)
             serverWorld = server.getServerWorld(world).orElse(null);
 
+        List<LivePlayersJson.Entry> entries = new ArrayList<>();
+        if (config.isLivePlayerMarkers()) {
+            for (Player player : this.server.getOnlinePlayers()) {
+                ServerWorld playerWorld = player.getWorld();
+                boolean isCorrectWorld = playerWorld != null && playerWorld.equals(serverWorld);
+
+                if (config.isHideInvisible() && player.isInvisible()) continue;
+                if (config.isHideVanished() && player.isVanished()) continue;
+                if (config.isHideSneaking() && player.isSneaking()) continue;
+                if (config.getHiddenGameModes().contains(player.getGamemode().getId())) continue;
+                if (config.isHideDifferentWorld() && !isCorrectWorld) continue;
+                if (
+                        player.getSkyLight() < config.getHideBelowSkyLight() &&
+                        player.getBlockLight() < config.getHideBelowBlockLight()
+                ) continue;
+                if (!this.playerFilter.test(player.getUuid())) continue;
+
+                entries.add(new LivePlayersJson.Entry(
+                        player.getUuid().toString(),
+                        player.getName().toPlainString(),
+                        !isCorrectWorld,
+                        playerWorld != null ? playerWorld.getDimension().getFormatted() : null,
+                        player.getLiveState()
+                ));
+            }
+        }
+
         try (StringWriter jsonString = new StringWriter();
             JsonWriter json = new JsonWriter(jsonString)) {
 
-            json.beginObject();
-            json.name("players").beginArray();
-
-            if (config.isLivePlayerMarkers()) {
-                for (Player player : this.server.getOnlinePlayers()) {
-                    boolean isCorrectWorld = player.getWorld().equals(serverWorld);
-
-                    if (config.isHideInvisible() && player.isInvisible()) continue;
-                    if (config.isHideVanished() && player.isVanished()) continue;
-                    if (config.isHideSneaking() && player.isSneaking()) continue;
-                    if (config.getHiddenGameModes().contains(player.getGamemode().getId())) continue;
-                    if (config.isHideDifferentWorld() && !isCorrectWorld) continue;
-                    if (
-                            player.getSkyLight() < config.getHideBelowSkyLight() &&
-                            player.getBlockLight() < config.getHideBelowBlockLight()
-                    ) continue;
-                    if (!this.playerFilter.test(player.getUuid())) continue;
-
-                    json.beginObject();
-                    json.name("uuid").value(player.getUuid().toString());
-                    json.name("name").value(player.getName().toPlainString());
-                    json.name("foreign").value(!isCorrectWorld);
-
-                    json.name("position").beginObject();
-                    json.name("x").value(player.getPosition().getX());
-                    json.name("y").value(player.getPosition().getY());
-                    json.name("z").value(player.getPosition().getZ());
-                    json.endObject();
-
-                    json.name("rotation").beginObject();
-                    json.name("pitch").value(player.getRotation().getX());
-                    json.name("yaw").value(player.getRotation().getY());
-                    json.name("roll").value(player.getRotation().getZ());
-                    json.endObject();
-
-                    json.endObject();
-                }
-            }
-
-            json.endArray();
-            json.endObject();
+            LivePlayersJson.write(
+                    json,
+                    System.currentTimeMillis(),
+                    updateIntervalMillis,
+                    config.isLivePlayerExtendedData(),
+                    entries
+            );
 
             json.flush();
             return jsonString.toString();

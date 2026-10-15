@@ -550,7 +550,8 @@ public class Plugin implements ServerEventListener {
                     serverInterface,
                     getBlueMap().getConfig().getPluginConfig(),
                     map.getWorld(),
-                    Predicate.not(pluginState::isPlayerHidden)
+                    Predicate.not(pluginState::isPlayerHidden),
+                    (int) Math.min(Integer.MAX_VALUE, TimeUnit.SECONDS.toMillis(getBlueMap().getConfig().getPluginConfig().getWritePlayersInterval()))
             );
             try (
                     OutputStream out = map.getStorage().players().write();

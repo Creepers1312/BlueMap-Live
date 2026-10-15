@@ -26,6 +26,7 @@ package de.bluecolored.bluemap.fabric;
 
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import de.bluecolored.bluecommands.brigadier.BrigadierBridge;
+import de.bluecolored.bluemap.common.BlueMapService;
 import de.bluecolored.bluemap.common.commands.BrigadierExecutionHandler;
 import de.bluecolored.bluemap.common.commands.Commands;
 import de.bluecolored.bluemap.common.plugin.Plugin;
@@ -37,6 +38,8 @@ import de.bluecolored.bluemap.core.logger.Logger;
 import de.bluecolored.bluemap.core.util.Caches;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -125,6 +128,15 @@ public class FabricMod implements ModInitializer, Server {
             this.onPlayerLeave(server, handler.getPlayer());
         });
 
+        // respawns and world-changes are discontinuous position-changes, update those players immediately
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            this.onPlayerDiscontinuity(newPlayer);
+        });
+
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> {
+            this.onPlayerDiscontinuity(player);
+        });
+
         ServerTickEvents.END_SERVER_TICK.register((MinecraftServer server) -> {
             if (server == this.serverInstance) this.updateSomePlayers();
         });
@@ -210,6 +222,18 @@ public class FabricMod implements ModInitializer, Server {
         }
     }
 
+    /**
+     * Called (on the server-thread) when a players position changed discontinuously, e.g. on respawn or world-change.
+     */
+    public void onPlayerDiscontinuity(ServerPlayerEntity playerInstance) {
+        if (this.serverInstance != playerInstance.getServer()) return;
+
+        if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+            player.markDiscontinuity();
+            player.update(playerInstance);
+        }
+    }
+
     public MinecraftServer getServer() {
         return this.serverInstance;
     }
@@ -225,23 +249,37 @@ public class FabricMod implements ModInitializer, Server {
 
     /**
      * Only update some of the online players each tick to minimize performance impact on the server-thread.
+     * The players are spread over the configured live-player-update-interval, so each player is updated once per interval.
      * Only call this method on the server-thread.
      */
     private void updateSomePlayers() {
         int onlinePlayerCount = onlinePlayerList.size();
         if (onlinePlayerCount == 0) return;
 
-        int playersToBeUpdated = onlinePlayerCount / 20; //with 20 tps, each player is updated once a second
-        if (playersToBeUpdated == 0) playersToBeUpdated = 1;
+        int intervalTicks = getPlayerUpdateIntervalTicks();
+        int playersToBeUpdated = Math.ceilDiv(onlinePlayerCount, intervalTicks);
+        int cycleLength = Math.max(intervalTicks, onlinePlayerCount);
 
         for (int i = 0; i < playersToBeUpdated; i++) {
             playerUpdateIndex++;
-            if (playerUpdateIndex >= 20 && playerUpdateIndex >= onlinePlayerCount) playerUpdateIndex = 0;
+            if (playerUpdateIndex >= cycleLength) playerUpdateIndex = 0;
 
             if (playerUpdateIndex < onlinePlayerCount) {
                 onlinePlayerList.get(playerUpdateIndex).update();
             }
         }
+    }
+
+    /**
+     * The configured live-player-update-interval in ticks (50ms), or 20 ticks (the previous fixed interval) if
+     * the config is not (yet) available.
+     */
+    private int getPlayerUpdateIntervalTicks() {
+        BlueMapService blueMap = pluginInstance.getBlueMap();
+        if (blueMap == null) return 20;
+
+        int intervalMillis = blueMap.getConfig().getPluginConfig().getLivePlayerUpdateInterval();
+        return Math.max(1, Math.round(intervalMillis / 50f));
     }
 
 }

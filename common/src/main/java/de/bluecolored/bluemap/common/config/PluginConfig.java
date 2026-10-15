@@ -37,6 +37,8 @@ import java.util.List;
 public class PluginConfig {
 
     private boolean livePlayerMarkers = true;
+    private int livePlayerUpdateInterval = 250;
+    private boolean livePlayerExtendedData = true;
 
     private List<String> hiddenGameModes = new ArrayList<>();
     private boolean hideVanished = true;
@@ -55,6 +57,14 @@ public class PluginConfig {
 
     private int updateCooldown = 60;
     private int fullUpdateInterval = 1440;
+
+    /**
+     * The interval in milliseconds in which player-data is sampled on the server and refreshed for the webapp.
+     * Clamped to 50 (one tick) .. 10000.
+     */
+    public int getLivePlayerUpdateInterval() {
+        return Math.max(50, Math.min(10000, livePlayerUpdateInterval));
+    }
 
     public Duration getUpdateCooldown() {
         return Duration.ofSeconds(updateCooldown);

@@ -43,7 +43,8 @@ public class MapRequestHandler extends RoutingRequestHandler {
     public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter) {
         this(map.getStorage(),
                 new LivePlayersDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter),
-                new LiveMarkersDataSupplier(map.getMarkerSets()));
+                new LiveMarkersDataSupplier(map.getMarkerSets()),
+                pluginConfig.getLivePlayerUpdateInterval());
     }
 
     public MapRequestHandler(MapStorage mapStorage) {
@@ -53,12 +54,19 @@ public class MapRequestHandler extends RoutingRequestHandler {
     public MapRequestHandler(MapStorage mapStorage,
                              @Nullable Supplier<String> livePlayersDataSupplier,
                              @Nullable Supplier<String> liveMarkerDataSupplier) {
+        this(mapStorage, livePlayersDataSupplier, liveMarkerDataSupplier, 1000);
+    }
+
+    public MapRequestHandler(MapStorage mapStorage,
+                             @Nullable Supplier<String> livePlayersDataSupplier,
+                             @Nullable Supplier<String> liveMarkerDataSupplier,
+                             long livePlayersRateLimitMillis) {
 
         register(".*", new MapStorageRequestHandler(mapStorage));
 
         if (livePlayersDataSupplier != null) {
             register("live/players\\.json", "", new JsonDataRequestHandler(
-                    new CachedRateLimitDataSupplier(livePlayersDataSupplier,1000)
+                    new CachedRateLimitDataSupplier(livePlayersDataSupplier, livePlayersRateLimitMillis)
             ));
         }
 
