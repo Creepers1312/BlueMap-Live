@@ -182,7 +182,9 @@ Rückmeldung aus Minecraft 1.21.1, Einzelspieler, CI-Artefakt von `b4e64b4c`, be
 - Armbrust mit beidhändiger Pose (I7, teilweise).
 - Bogen in der Hand (I6, Spannen nicht gezeigt).
 
-Noch offen: der direkte Vergleich mit der F5-Ansicht, Linkshänder (I4) und die übrigen Prüfungen.
+Bestätigt mit dem CI-Artefakt von `1bcc51ee`: I17. Nah ist das Kopfbild ausgeblendet; ab einer bestimmten Entfernung erscheint es wieder.
+
+Noch offen: der direkte Vergleich mit der F5-Ansicht, Linkshänder (I4), die Mod-Liste (I18) und die übrigen Prüfungen.
 
 Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `players.json` (§4) muss beim Spieler `"equipment"` stehen.
 
