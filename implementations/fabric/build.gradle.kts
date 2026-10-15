@@ -118,3 +118,15 @@ curseforgeBlueMap {
         addGameVersion(it)
     }
 }
+
+// --- temporary (model-dump branch only): dump vanilla entity-model data ---
+val dump: SourceSet = sourceSets.create("dump") {
+    compileClasspath += sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().runtimeClasspath + output
+}
+tasks.register<JavaExec>("dumpEntityModels") {
+    dependsOn(tasks.named("dumpClasses"))
+    classpath = dump.runtimeClasspath
+    mainClass = "ModelDump"
+    args(layout.buildDirectory.dir("model-dump").get().asFile.absolutePath)
+}
