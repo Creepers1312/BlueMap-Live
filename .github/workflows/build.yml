@@ -39,8 +39,10 @@ jobs:
         if: failure()
         run: |
           for f in $(grep -l -E "<failure|<error" */build/test-results/test/*.xml implementations/*/build/test-results/test/*.xml 2>/dev/null); do
-            grep -A25 -E "<failure|<error" "$f" | grep -v "^\s*at org.junit\|^\s*at java.base\|^\s*at org.gradle\|^\s*at worker" | head -30 | \
+            grep -E "message=|Caused by|Exception:|Error:" "$f" | sort -u | head -30 | \
               sed 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' | sed "s|^|::error title=$(basename $f)::|"; echo
+            grep -E "ERROR|WARN|Exception|Incompatible|requires|Mod resolution" "$f" | head -30 | \
+              sed 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' | sed "s|^|::error title=log $(basename $f)::|"; echo
           done
           grep -E "FAILED|initializationError" test-output.txt | grep -v buildSrc | head -10 | sed 's/^/::warning title=gradle::/' || true
 
