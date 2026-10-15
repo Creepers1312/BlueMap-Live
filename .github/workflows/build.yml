@@ -29,11 +29,17 @@ jobs:
           java-version: 21
           cache: 'gradle'
       - name: Tests
-        run: ./gradlew spotlessCheck test --stacktrace
+        run: ./gradlew spotlessCheck test --stacktrace 2>&1 | tee test-output.txt; exit ${PIPESTATUS[0]}
       # BlueMap Live: the differences of the webapp mob-models to vanilla (if any) as annotations
       - name: Vanilla model check
         if: always()
         run: cat implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
+      # BlueMap Live: the reason of a failed test-run as annotation (the failing tasks and tests)
+      - name: Test failures
+        if: failure()
+        run: |
+          grep -E "FAILED|What went wrong|Execution failed|Exception|expected|> Task .*FAILED" test-output.txt | head -40 | \
+            sed 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' | sed 's/^/::error title=test-failures::/'; echo
 
   build:
     name: "Build"

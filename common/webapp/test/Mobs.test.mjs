@@ -8,7 +8,7 @@ import {buildPartGeometry, cuboidQuads} from "../src/js/markers/mob/MobModelGeom
 import {createSkinBoxGeometry} from "../src/js/markers/player/PlayerModelGeometry.js";
 import {ANIMATIONS, createTransform, meleeAttack} from "../src/js/markers/mob/MobAnimations.js";
 import {
-    deathAngle, isLayerShown, layerTextures, limbTarget, MOB_TYPES, sheepWoolColor, slimeScale, VANILLA_MODELS,
+    creeperSwelling, deathAngle, isLayerShown, layerTextures, limbTarget, MOB_TYPES, sheepWoolColor, slimeScale, VANILLA_MODELS,
     villagerTextures,
 } from "../src/js/markers/mob/MobTypes.js";
 import {MobAssetCache} from "../src/js/markers/mob/MobAssetCache.js";
@@ -184,6 +184,9 @@ test("mob-types: textures, variants, colors and renderer-values", () => {
     assert.equal(limbTarget(0.1), 0.4);
     assert.equal(limbTarget(1), 1);
     assert.equal(placeholderLabel("minecraft:magma_cube"), "Magma Cube");
+    assert.deepEqual(creeperSwelling(0), {horizontal: 1, vertical: 1});
+    const swollen = creeperSwelling(1);
+    assert.ok(swollen.horizontal > 1.39 && swollen.horizontal < 1.42 && swollen.vertical > 1.08 && swollen.vertical < 1.12, JSON.stringify(swollen));
 });
 
 test("mob-data is parsed and validated, living entities are mobs or placeholders", () => {

@@ -30,7 +30,7 @@ import {
 } from "./LiveEntityData.js";
 import {angleDelta, interpolationDuration} from "./LivePlayerData.js";
 import {MobModel} from "./mob/MobModel.js";
-import {limbTarget, MOB_TYPES} from "./mob/MobTypes.js";
+import {CREEPER_FUSE_TICKS, limbTarget, MOB_TYPES} from "./mob/MobTypes.js";
 import {PlaceholderModel} from "./mob/PlaceholderModel.js";
 
 /** beyond this camera-distance (blocks) entities are not shown */
@@ -121,6 +121,7 @@ export class EntityMarker extends Marker {
         this.flapSpeed = 0;
         this.wingDeviation = 0;
         this.tickRemainder = 0;
+        this.fuseTicks = 0;
         this.animationInput = {
             limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0,
             flags: new Set(), mainHand: null, leftHanded: false, wingAngle: 0,
@@ -346,6 +347,8 @@ export class EntityMarker extends Marker {
             if (!entity.onGround && this.flapSpeed < 1) this.flapSpeed = 1;
             this.flapSpeed *= 0.9;
             this.flapProgress += this.flapSpeed * 2;
+            // vanilla CreeperEntity.tick: the fuse runs up while ignited and back down otherwise
+            this.fuseTicks = Math.min(CREEPER_FUSE_TICKS, Math.max(0, this.fuseTicks + (mob.flags.has("fusing") ? 1 : -1)));
         }
 
         const input = this.animationInput;
@@ -360,10 +363,12 @@ export class EntityMarker extends Marker {
         input.wingAngle = (Math.sin(this.flapProgress) + 1) * this.wingDeviation;
 
         const hurt = this.hurtTime > 0 || dying;
-        if (this.view && this.view.isMobModel) this.view.animate(input, r.body, this.deathTicks, hurt);
+        const fuse = this.fuseTicks / (CREEPER_FUSE_TICKS - 2);
+        if (this.view && this.view.isMobModel) this.view.animate(input, r.body, this.deathTicks, hurt, fuse);
         else if (this.view && this.view.isPlaceholderModel) this.view.animate(r.body, hurt);
 
-        return this.limbSpeed > 0 || this.progress < 1 || hurt || dying || this.wingDeviation > 0 || mob.flags.has("charged");
+        return this.limbSpeed > 0 || this.progress < 1 || hurt || dying || this.wingDeviation > 0 || mob.flags.has("charged") ||
+            this.fuseTicks > 0;
     }
 
     /** @private */

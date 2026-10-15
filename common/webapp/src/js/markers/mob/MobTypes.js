@@ -60,7 +60,8 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  *     arms?: boolean,                   held items are shown (vanilla HeldItemFeatureRenderer)
  *     slimArms?: boolean,               skeleton-arms (2 px): vanilla SkeletonEntityModel.setArmAngle shifts the item by 1 px
  *     lyingAngle?: number,              vanilla LivingEntityRenderer.getLyingAngle (degrees, default 90)
- *     slime?: boolean                   scaled by the size (vanilla SlimeEntityRenderer)
+ *     slime?: boolean,                  scaled by the size (vanilla SlimeEntityRenderer)
+ *     creeper?: boolean                 swells before the explosion (vanilla CreeperEntityRenderer)
  * }}
  */
 
@@ -115,7 +116,7 @@ export const MOB_TYPES = {
     "minecraft:zombified_piglin": biped("zombified_piglin", "minecraft:zombified_piglin#main", E + "piglin/zombified_piglin", {hidden: PLAYER_HIDDEN}),
 
     "minecraft:creeper": {
-        animation: "creeper",
+        animation: "creeper", creeper: true,
         layers: [
             {model: "minecraft:creeper#main", texture: E + "creeper/creeper"},
             {model: "minecraft:creeper#armor", texture: E + "creeper/creeper_armor", type: "energy", flag: "charged"},
@@ -243,4 +244,20 @@ export function slimeScale(size) {
  */
 export function limbTarget(blocksPerTick) {
     return Math.min(Math.max(blocksPerTick, 0) * 4, 1);
+}
+
+/** vanilla CreeperEntity: the fuse-time in ticks (fuseTime = 30) */
+export const CREEPER_FUSE_TICKS = 30;
+
+/**
+ * vanilla CreeperEntityRenderer.scale: the swelling before the explosion.
+ * @param fuse {number} - vanilla getClientFuseTime (currentFuseTime / (fuseTime - 2))
+ * @returns {{horizontal: number, vertical: number}}
+ */
+export function creeperSwelling(fuse) {
+    const h = 1 + Math.sin(fuse * 100) * fuse * 0.01;
+    let g = Math.min(Math.max(fuse, 0), 1);
+    g *= g;
+    g *= g;
+    return {horizontal: (1 + g * 0.4) * h, vertical: (1 + g * 0.1) / h};
 }

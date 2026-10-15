@@ -228,6 +228,45 @@ public class LivePlayersDataSupplierTest {
     }
 
     @Test
+    public void testMobState() {
+        TestPlayer player = new TestPlayer(overworld, Vector3d.ZERO);
+        player.snapshot = new Player.LiveSnapshot(overworld, state(Vector3d.ZERO, 0));
+        TestServer server = new TestServer(player);
+        LiveMobState zombie = new LiveMobState(90, 120, 7, 0, true,
+                new Equipment(new HeldItem("minecraft:iron_sword"), new HeldItem("minecraft:shield"), true, false),
+                null, 0, 0.6, 1.95, List.of("attacking"));
+        LiveMobState sheep = new LiveMobState(0, 0, 0, 3, false, null, "light_blue", 0, 0.9, 1.3, List.of("sheared"));
+        server.entities = List.of(
+                new LiveEntityState(1, "minecraft:zombie", new Vector3d(2, 0, 0), 0, 10, Vector3d.ZERO, 1000, null, true, zombie),
+                new LiveEntityState(2, "minecraft:sheep", new Vector3d(3, 0, 0), 0, 0, Vector3d.ZERO, 1000, null, true, sheep)
+        );
+
+        List<String> requested = new ArrayList<>();
+        JsonArray list = entities(supplyEntities(new PluginConfig(), server, requested));
+        JsonObject mob = list.get(0).getAsJsonObject().getAsJsonObject("mob");
+        assertEquals(90, mob.get("bodyYaw").getAsDouble());
+        assertEquals(120, mob.get("headYaw").getAsDouble());
+        assertEquals(7, mob.get("hurtTime").getAsInt());
+        assertFalse(mob.has("deathTime"), "only values that differ from the default");
+        assertTrue(mob.get("baby").getAsBoolean());
+        assertEquals("attacking", mob.getAsJsonArray("flags").get(0).getAsString());
+        JsonObject equipment = mob.getAsJsonObject("equipment");
+        assertEquals("minecraft:iron_sword", equipment.getAsJsonObject("mainHand").get("id").getAsString());
+        assertEquals("left", equipment.get("mainArm").getAsString(), "like the players");
+        assertEquals(1.95, mob.get("height").getAsDouble(), 1e-9);
+        assertEquals(List.of("minecraft:iron_sword", "minecraft:shield"), requested, "the item-assets of the held items");
+
+        JsonObject sheepJson = list.get(1).getAsJsonObject().getAsJsonObject("mob");
+        assertEquals("light_blue", sheepJson.get("variant").getAsString());
+        assertEquals(3, sheepJson.get("deathTime").getAsInt());
+        assertFalse(sheepJson.has("equipment"));
+        assertFalse(list.get(1).getAsJsonObject().has("item"));
+
+        // flags are sorted and unique
+        assertEquals(List.of("a", "b"), new LiveMobState(0, 0, 0, 0, false, null, null, 0, 1, 1, List.of("b", "a", "b")).flags());
+    }
+
+    @Test
     public void testEntitiesDoNotRevealHiddenPlayers() {
         TestPlayer hidden = new TestPlayer(overworld, Vector3d.ZERO);
         hidden.invisible = true; // invisible players are hidden by default

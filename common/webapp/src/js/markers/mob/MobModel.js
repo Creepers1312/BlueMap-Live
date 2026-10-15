@@ -25,7 +25,7 @@
 import {Group, MathUtils, Mesh} from "three";
 import {getLayerGeometries} from "./MobModelGeometry.js";
 import {ANIMATIONS, createTransform, resetTransform} from "./MobAnimations.js";
-import {deathAngle, isLayerShown, layerTextures, sheepWoolColor, slimeScale, VANILLA_MODELS} from "./MobTypes.js";
+import {creeperSwelling, deathAngle, isLayerShown, layerTextures, sheepWoolColor, slimeScale, VANILLA_MODELS} from "./MobTypes.js";
 import {ItemView} from "../player/ItemView.js";
 import {itemPredicates} from "../player/PlayerItemPoses.js";
 
@@ -171,6 +171,7 @@ export class MobModel extends Group {
         let scale = type.scale || 1;
         if (mob.baby && type.babyScale) scale *= type.babyScale;
         if (type.slime) scale *= slimeScale(mob.size);
+        this.baseScale = scale;
         this.flip.scale.set(-scale, -scale, scale);
         this.flip.position.y = type.slime ? 0.001 * scale : 0;
     }
@@ -199,8 +200,14 @@ export class MobModel extends Group {
      * @param bodyYaw {number} - degrees (minecraft convention)
      * @param deathTicks {number} - vanilla deathTime (+ tick-progress), 0 if alive
      * @param hurt {boolean} - the red overlay
+     * @param fuse {number} - creeper: vanilla getClientFuseTime (0: not swelling)
      */
-    animate(input, bodyYaw, deathTicks, hurt) {
+    animate(input, bodyYaw, deathTicks, hurt, fuse = 0) {
+        if (this.mobType.creeper && this.baseScale) {
+            const swelling = creeperSwelling(fuse);
+            this.flip.scale.set(-this.baseScale * swelling.horizontal, -this.baseScale * swelling.vertical, this.baseScale * swelling.horizontal);
+        }
+
         for (const path in this.transforms) resetTransform(this.transforms[path], this.partData[path]);
         const animation = ANIMATIONS[this.mobType.animation];
         if (animation) animation(this.transforms, input);
