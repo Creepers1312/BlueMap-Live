@@ -110,6 +110,11 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:item/snowball", square(16, 3, 3, 10, 10, SNOWBALL));
         textures.put("minecraft:item/arrow", diagonal(ARROW));
 
+        // the 32x32 arrow-texture: shaft-strip (16x5 px at 0,0) pink, fletching (5x5 px at 0,5) white
+        BufferedImage arrow = square(32, 0, 0, 16, 5, ARROW);
+        for (int x = 0; x < 5; x++) for (int y = 5; y < 10; y++) arrow.setRGB(x, y, 0xFFFFFFFF);
+        textures.put("minecraft:entity/projectiles/arrow", arrow);
+
         textures.put("minecraft:item/diamond_sword", diagonal(SWORD));
         textures.put("minecraft:item/apple", square(16, 4, 4, 8, 8, APPLE));
         textures.put("minecraft:block/stone", square(16, 0, 0, 16, 16, STONE));

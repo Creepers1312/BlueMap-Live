@@ -41,6 +41,7 @@ import org.jetbrains.annotations.Nullable;
  * @param swing the arm-swing state of the player, or null if unknown on this platform
  * @param equipment the items the player holds, or null if unknown on this platform
  * @param use the item the player is currently using, or null if none (or unknown on this platform)
+ * @param hurtCount increased by one whenever the player gets hurt (wraps around), or null if unknown on this platform
  */
 public record LivePlayerState(
         Vector3d position,
@@ -52,7 +53,8 @@ public record LivePlayerState(
         @Nullable MovementState movement,
         @Nullable SwingState swing,
         @Nullable Equipment equipment,
-        @Nullable ItemUse use
+        @Nullable ItemUse use,
+        @Nullable Integer hurtCount
 ) {
 
     public LivePlayerState(Vector3d position, Vector3d rotation, double bodyYaw, Vector3d velocity, int generation,
@@ -63,6 +65,12 @@ public record LivePlayerState(
     public LivePlayerState(Vector3d position, Vector3d rotation, double bodyYaw, Vector3d velocity, int generation,
                            long time, @Nullable MovementState movement, @Nullable SwingState swing) {
         this(position, rotation, bodyYaw, velocity, generation, time, movement, swing, null, null);
+    }
+
+    public LivePlayerState(Vector3d position, Vector3d rotation, double bodyYaw, Vector3d velocity, int generation,
+                           long time, @Nullable MovementState movement, @Nullable SwingState swing,
+                           @Nullable Equipment equipment, @Nullable ItemUse use) {
+        this(position, rotation, bodyYaw, velocity, generation, time, movement, swing, equipment, use, null);
     }
 
 }

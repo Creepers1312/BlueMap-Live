@@ -59,6 +59,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
     private final Predicate<UUID> playerFilter;
     private final int updateIntervalMillis;
     private final Consumer<String> itemRequester;
+    private final Consumer<String> entityRequester;
 
     private transient @Nullable ServerWorld serverWorld;
 
@@ -67,6 +68,15 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
      */
     public LiveEntitiesDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter,
                                     int updateIntervalMillis, Consumer<String> itemRequester) {
+        this(server, config, world, playerFilter, updateIntervalMillis, itemRequester, type -> {});
+    }
+
+    /**
+     * @param entityRequester called with the type of every listed entity (so the asset of an own entity-model can be provided)
+     */
+    public LiveEntitiesDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter,
+                                    int updateIntervalMillis, Consumer<String> itemRequester, Consumer<String> entityRequester) {
+        this.entityRequester = entityRequester;
         this.server = server;
         this.config = config;
         this.world = world;
@@ -112,6 +122,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                 for (int i = 0; i < listed.size() && i < limit; i++) {
                     LiveEntityState entity = listed.get(i).entity();
                     if (entity.item() != null) itemRequester.accept(entity.item().id());
+                    entityRequester.accept(entity.type());
                     result.add(entity);
                 }
             }

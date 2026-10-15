@@ -61,6 +61,15 @@ public class MapRequestHandler extends RoutingRequestHandler {
      */
     public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter,
                              Function<UUID, LivePlayersJson.Skin> skinLookup, Consumer<String> itemRequester) {
+        this(map, serverInterface, pluginConfig, playerFilter, skinLookup, itemRequester, type -> {});
+    }
+
+    /**
+     * @param entityRequester called with the types of the shown entities (to provide the assets of own entity-models)
+     */
+    public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter,
+                             Function<UUID, LivePlayersJson.Skin> skinLookup, Consumer<String> itemRequester,
+                             Consumer<String> entityRequester) {
         this(map.getStorage(),
                 new LivePlayersDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter,
                         pluginConfig.getLivePlayerUpdateInterval(), skinLookup, itemRequester),
@@ -70,7 +79,7 @@ public class MapRequestHandler extends RoutingRequestHandler {
         // BlueMap Live: the entities around the players, refreshed like the players
         register("live/entities\\.json", "", new JsonDataRequestHandler(new CachedRateLimitDataSupplier(
                 new LiveEntitiesDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter,
-                        pluginConfig.getLivePlayerUpdateInterval(), itemRequester),
+                        pluginConfig.getLivePlayerUpdateInterval(), itemRequester, entityRequester),
                 pluginConfig.getLivePlayerUpdateInterval()
         )));
     }

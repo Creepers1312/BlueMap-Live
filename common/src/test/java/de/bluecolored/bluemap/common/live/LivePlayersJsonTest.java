@@ -257,4 +257,19 @@ public class LivePlayersJsonTest {
         assertFalse(p.has("use"));
     }
 
+    @Test
+    public void testHurtCount() throws IOException {
+        LivePlayerState hurt = new LivePlayerState(Vector3d.ZERO, Vector3d.ZERO, 0, Vector3d.ZERO, 0, 0, null, null, null, null, 3);
+        JsonObject p = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, hurt)))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+        assertEquals(3, p.getAsJsonObject("hurt").get("count").getAsInt());
+
+        p = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, state(null))))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+        assertFalse(p.has("hurt"), "unknown on this platform");
+        p = writeAndParse(false, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, null, hurt)))
+                .getAsJsonArray("players").get(0).getAsJsonObject();
+        assertFalse(p.has("hurt"), "only with extended data");
+    }
+
 }

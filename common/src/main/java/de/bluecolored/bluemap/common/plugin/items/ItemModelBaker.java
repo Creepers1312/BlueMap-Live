@@ -129,6 +129,38 @@ public class ItemModelBaker {
         return write(itemId, textures, models);
     }
 
+    /** entity-models that are built by the webapp (like the vanilla entity-renderers), with their texture */
+    static final Map<String, String[]> ENTITY_MODELS = Map.of(
+            "minecraft:arrow", new String[] {"arrow", "minecraft:entity/projectiles/arrow"},
+            "minecraft:spectral_arrow", new String[] {"arrow", "minecraft:entity/projectiles/spectral_arrow"}
+    );
+
+    static boolean isSupportedEntity(String entityType) {
+        return ENTITY_MODELS.containsKey(entityType);
+    }
+
+    /**
+     * Bakes the asset of an entity whose model the webapp builds itself (e.g. the arrow, vanilla ArrowEntityRenderer):
+     * only the texture from the resource-pack and the model-type. Same format as the item-assets.
+     * @return the json-asset (no models if the entity or its texture is unknown)
+     */
+    public String bakeEntity(String entityType) throws IOException {
+        Key.parse(entityType);
+        Textures textures = new Textures();
+        List<BakedModel> models = new ArrayList<>();
+        String[] model = ENTITY_MODELS.get(entityType);
+        if (model != null) {
+            int texture = textures.add(model[1], resources);
+            if (texture >= 0) {
+                BakedModel baked = new BakedModel();
+                baked.type = model[0];
+                baked.texture = texture;
+                models.add(baked);
+            }
+        }
+        return write(entityType, textures, models);
+    }
+
     // ---- model resolution ----
 
     /** a model with its parent-chain merged */

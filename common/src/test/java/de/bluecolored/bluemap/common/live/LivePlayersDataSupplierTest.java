@@ -202,6 +202,10 @@ public class LivePlayersDataSupplierTest {
         assertEquals("minecraft:item", list.get(1).getAsJsonObject().get("type").getAsString());
         assertEquals("minecraft:diamond", list.get(1).getAsJsonObject().getAsJsonObject("item").get("id").getAsString());
         assertEquals(List.of("minecraft:arrow", "minecraft:diamond"), requested, "item-assets of the listed entities");
+
+        List<String> types = new ArrayList<>();
+        new LiveEntitiesDataSupplier(server, new PluginConfig(), mapWorld, uuid -> true, 250, id -> {}, types::add).get();
+        assertEquals(List.of("minecraft:arrow", "minecraft:item"), types, "entity-types of the listed entities (own entity-models)");
     }
 
     @Test

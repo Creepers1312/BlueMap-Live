@@ -404,6 +404,18 @@ public class FabricMod implements ModInitializer, Server {
 
         Vec3d pos = entity.getPos();
         Vec3d velocity = entity.getVelocity();
+        boolean onGround = entity.isOnGround();
+
+        // a projectile stuck in a block does not move anymore (its velocity is not reset in vanilla):
+        // it is sent as resting (onGround) without velocity, so the webapp does not predict a flight
+        if (entity instanceof PersistentProjectileEntity) {
+            double dx = pos.x - entity.prevX, dy = pos.y - entity.prevY, dz = pos.z - entity.prevZ;
+            if (dx * dx + dy * dy + dz * dz < 1e-8) {
+                onGround = true;
+                velocity = Vec3d.ZERO;
+            }
+        }
+
         return new LiveEntityState(
                 entity.getId(),
                 type,
@@ -413,7 +425,7 @@ public class FabricMod implements ModInitializer, Server {
                 new Vector3d(velocity.x * 20, velocity.y * 20, velocity.z * 20), // blocks per tick -> per second
                 now,
                 item,
-                entity.isOnGround()
+                onGround
         );
     }
 

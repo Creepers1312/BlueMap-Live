@@ -188,25 +188,56 @@ await step("thrown item (snowball) faces the camera, fireballs are bigger", asyn
     await waitForEntity(3, "m.body.scale.x === 3");
 });
 
-await step("arrow points along its flight-direction", async () => {
-    await control({entity: 4, type: "minecraft:arrow", x: 9, y: 65, z: 10.5, item: "minecraft:arrow", vx: 40, vy: 0, vz: 0});
+/** the direction of the vanilla arrow-model (along its +x) in world-space */
+const arrowAxis = id => entityExpr(id, `(() => {
+    m.updateMatrixWorld(true);
+    const V = window.BlueMap.Three.Vector3;
+    const back = m.view.content.localToWorld(new V(0.5, 0.5, 0.5)), front = m.view.content.localToWorld(new V(1.5, 0.5, 0.5));
+    return front.sub(back).normalize().toArray();
+})()`);
+
+await step("arrow: vanilla arrow-model (entity-asset with the pack-texture), rotated along the flight", async () => {
+    await control({entity: 4, type: "minecraft:arrow", x: 9, y: 65, z: 10.5, vx: 40, vy: 0, vz: 0});
     await waitForEntity(4, meshes + " > 0");
-    const direction = await entityExpr(4, `(() => {
-        m.updateMatrixWorld(true);
-        const V = window.BlueMap.Three.Vector3;
-        const tail = m.view.content.localToWorld(new V(0, 0, 0.5)), tip = m.view.content.localToWorld(new V(1, 1, 0.5));
-        return tip.sub(tail).normalize().toArray();
-    })()`);
-    assert.ok(direction[0] > 0.99, `along +x: ${direction}`);
+    const kind = await entityExpr(4, "[m.kind, m.view.itemId, m.view.entry.models[0].type]");
+    assert.deepEqual(kind, ["arrow", "minecraft:arrow", "arrow"]);
+    await control({entity: 4, type: "minecraft:arrow", x: 9, y: 65, z: 10.5, ground: 1, yaw: 90, pitch: 0}); // stuck along +x
+    await waitForEntity(4, "!m.predicting");
+    const axis = await arrowAxis(4);
+    assert.ok(axis[0] > 0.99, `along +x: ${axis}`);
+    await sleep(500);
+    assert.ok(await countColor("34-arrow", await project(4), COLORS.arrow, 80) > 5, "arrow-texture pixels");
+});
+
+await step("flying arrow is predicted smoothly between the samples (no still frames), resting arrows stay", async () => {
+    // fired along +x: 2 blocks per tick, one sample only (like the 250 ms sampling of the server)
+    await control({removeEntity: 4});
+    await page.waitForFunction(() => !window.bluemap.mapViewer.markers.markerSets.get("bm-entities").markers.has("bm-entity-4"), null, {timeout: 10000});
+    await control({entity: 5, type: "minecraft:arrow", x: 0, y: 70, z: 10, vx: 40, vy: 10, vz: 0});
+    await waitForEntity(5, "m.predicting");
+    const xs = await sample(5, 400, "m.position.x");
+    const distinct = new Set(xs.map(x => x.toFixed(3))).size;
+    assert.ok(distinct >= Math.min(6, xs.length - 1), `moves every frame: ${distinct} positions in ${xs.length} frames`);
+    assert.ok(Math.max(...xs) > 3, "flies on between the samples");
+    const axis = await arrowAxis(5);
+    assert.ok(axis[0] > 0.8, `points along the flight: ${axis}`);
+
+    // lands: resting where the server says
+    await control({entity: 5, type: "minecraft:arrow", x: 12, y: 66, z: 10, ground: 1, yaw: 90, pitch: -20});
+    await waitForEntity(5, "!m.predicting");
+    await sleep(800);
+    const rest = await entityExpr(5, "m.position.toArray()");
+    assert.ok(Math.abs(rest[0] - 12) < 1e-3 && Math.abs(rest[1] - 66) < 1e-3, `rests at ${rest}`);
+    await control({removeEntity: 5});
 });
 
 await step("removed entities disappear and release their items, shared items stay", async () => {
-    assert.deepEqual(await itemCacheIds(), ["minecraft:arrow", "minecraft:diamond", "minecraft:snowball"]);
+    assert.deepEqual(await itemCacheIds(), ["minecraft:diamond", "minecraft:snowball"]);
     await control({removeEntity: 2});
     await control({removeEntity: 3});
     await page.waitForFunction(() => !window.bluemap.mapViewer.markers.markerSets.get("bm-entities").markers.has("bm-entity-2"), null, {timeout: 10000});
     await page.waitForFunction(() => !window.bluemap.mapViewer.markers.markerSets.get("bm-entities").markers.has("bm-entity-3"), null, {timeout: 10000});
-    assert.deepEqual(await itemCacheIds(), ["minecraft:arrow", "minecraft:diamond"], "snowball released");
+    assert.deepEqual(await itemCacheIds(), ["minecraft:diamond"], "snowball released");
 });
 
 await step("the entity-set can be hidden like other marker-sets", async () => {

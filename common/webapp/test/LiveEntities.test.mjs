@@ -6,10 +6,10 @@ import assert from "node:assert/strict";
 import {PerspectiveCamera, Vector3} from "three";
 
 import {
-    droppedItemMotion, entityKind, parseEntitiesResponse, parseEntity, projectileDirection,
+    droppedItemMotion, entityKind, parseEntitiesResponse, parseEntity, projectileAngles, projectileDirection, projectilePhysics,
 } from "../src/js/markers/LiveEntityData.js";
 import {EntityMarker} from "../src/js/markers/EntityMarker.js";
-import {ItemAssetCache} from "../src/js/markers/player/ItemAssetCache.js";
+import {buildArrowGeometry, ItemAssetCache} from "../src/js/markers/player/ItemAssetCache.js";
 
 const flush = () => new Promise(r => setTimeout(r, 0));
 
@@ -42,7 +42,8 @@ test("entities are parsed and validated", () => {
 
 test("render-kinds: dropped items, arrow-like projectiles, thrown items, others not (yet)", () => {
     assert.equal(entityKind(parseEntity(raw())), "item");
-    assert.equal(entityKind(parseEntity(raw({type: "minecraft:arrow", item: {id: "minecraft:arrow"}}))), "projectile");
+    assert.equal(entityKind(parseEntity(raw({type: "minecraft:arrow", item: {id: "minecraft:arrow"}}))), "arrow", "vanilla arrow-model");
+    assert.equal(entityKind(parseEntity(raw({type: "minecraft:spectral_arrow", item: null}))), "arrow");
     assert.equal(entityKind(parseEntity(raw({type: "minecraft:trident", item: {id: "minecraft:trident"}}))), "projectile");
     assert.equal(entityKind(parseEntity(raw({type: "minecraft:snowball", item: {id: "minecraft:snowball"}}))), "thrown");
     assert.equal(entityKind(parseEntity(raw({type: "minecraft:zombie", item: null}))), null);
@@ -121,14 +122,83 @@ test("entity-marker: thrown items face the camera, arrows point along their flig
     big.step(0.05, camera);
     assert.equal(big.body.scale.x, 3, "vanilla fireball-scale");
 
-    const arrow = new EntityMarker("bm-entity-3", cache());
-    arrow.updateFromData(parseEntity(raw({type: "minecraft:arrow", item: {id: "minecraft:arrow"}, velocity: {x: 30, y: 0, z: 0}})), 250);
+    // the trident is still the flat item along the flight
+    const trident = new EntityMarker("bm-entity-3", cache());
+    trident.updateFromData(parseEntity(raw({type: "minecraft:trident", item: {id: "minecraft:trident"}, velocity: {x: 30, y: 0, z: 0}, onGround: false})), 250);
     await flush();
-    arrow.step(0.05, camera);
-    arrow.updateMatrixWorld(true);
-    // the item-diagonal (tail (0,0) -> tip (1,1)) points along +x (the flight-direction)
-    const tail = arrow.view.content.localToWorld(new Vector3(0, 0, 0.5));
-    const tip = arrow.view.content.localToWorld(new Vector3(1, 1, 0.5));
-    const along = tip.sub(tail).normalize();
-    assert.ok(along.x > 0.99, `arrow direction ${along.toArray()}`);
+    trident.step(0.01, camera);
+    trident.updateMatrixWorld(true);
+    const tail = trident.view.content.localToWorld(new Vector3(0, 0, 0.5));
+    const tip = trident.view.content.localToWorld(new Vector3(1, 1, 0.5));
+    assert.ok(tip.sub(tail).normalize().x > 0.99, "trident along +x");
+});
+
+const arrowAsset = {format: 1, textures: ["data:image/png;base64,AAAA"], models: [{type: "arrow", texture: 0, display: {}}]};
+const arrowCache = () => new ItemAssetCache("entities/", () => Promise.resolve(arrowAsset), () => Promise.resolve({width: 32, height: 32}));
+
+/** the direction of the arrow-model (vanilla: along +x) in world-space */
+function arrowAxis(marker) {
+    marker.updateMatrixWorld(true);
+    const content = marker.view.content;
+    const back = content.localToWorld(new Vector3(0.5, 0.5, 0.5)), front = content.localToWorld(new Vector3(1.5, 0.5, 0.5));
+    return front.sub(back).normalize();
+}
+
+test("vanilla arrow-model: fletching and four shaft-quads, 0.9 blocks long, pointing along +x", () => {
+    const geometry = buildArrowGeometry();
+    const position = geometry.getAttribute("position");
+    assert.equal(position.count, 6 * 6, "two fletching-quads + four shaft-quads");
+    let minX = Infinity, maxX = -Infinity;
+    for (let i = 0; i < position.count; i++) {
+        minX = Math.min(minX, position.getX(i));
+        maxX = Math.max(maxX, position.getX(i));
+    }
+    assert.ok(Math.abs(minX + 12 * 0.05625) < 1e-6 && Math.abs(maxX - 4 * 0.05625) < 1e-6, `${minX} .. ${maxX}`);
+});
+
+test("arrows: vanilla rotation from the flight-direction, the flight is predicted between samples", async () => {
+    const arrow = new EntityMarker("bm-entity-9", cache(), arrowCache());
+    // fired along +z and upwards: 2 blocks per tick forward, 1 up
+    arrow.updateFromData(parseEntity(raw({type: "minecraft:arrow", item: null, position: {x: 0, y: 64, z: 0}, velocity: {x: 0, y: 20, z: 40}, onGround: false})), 250);
+    await flush();
+    arrow.step(0.001, null);
+    let axis = arrowAxis(arrow);
+    const expected = new Vector3(0, 20, 40).normalize();
+    assert.ok(axis.distanceTo(expected) < 1e-3, `rotated like vanilla (yaw ${projectileAngles(expected).yaw}): ${axis.toArray()}`);
+
+    // 0.25 s = 5 ticks of vanilla physics (drag 0.99, gravity 0.05 per tick)
+    let z = 0, vz = 2, y = 64, vy = 1;
+    for (let i = 0; i < 5; i++) {
+        z += vz; y += vy;
+        vz *= 0.99; vy = vy * 0.99 - 0.05;
+    }
+    for (let i = 0; i < 25; i++) arrow.step(0.01, null);
+    assert.ok(Math.abs(arrow.position.z - z) < 0.05 && Math.abs(arrow.position.y - y) < 0.05,
+        `predicted ${arrow.position.toArray()} expected ${[0, y, z]}`);
+    axis = arrowAxis(arrow);
+    assert.ok(axis.y < expected.y, "the arrow turns down while it falls");
+
+    // the next sample (a bit different) is not a jump: the difference is blended away
+    const before = arrow.position.clone();
+    arrow.updateFromData(parseEntity(raw({type: "minecraft:arrow", item: null, position: {x: 0, y: y + 0.3, z: z - 0.2},
+        velocity: {x: 0, y: vy * 20, z: vz * 20}, time: 1250, onGround: false})), 250);
+    arrow.step(0.001, null);
+    assert.ok(arrow.position.distanceTo(before) < 0.1, "no jump at the new sample");
+
+    // stuck in a block (sent as resting): no flight anymore
+    arrow.updateFromData(parseEntity(raw({type: "minecraft:arrow", item: null, position: {x: 0, y: 66, z: 12},
+        rotation: {yaw: 0, pitch: -30}, onGround: true, time: 1500})), 250);
+    for (let i = 0; i < 100; i++) arrow.step(0.01, null);
+    assert.ok(arrow.position.distanceTo(new Vector3(0, 66, 12)) < 1e-6, "rests where it is stuck");
+    assert.equal(arrow.step(0.01, null), false, "not moving");
+    axis = arrowAxis(arrow);
+    assert.ok(axis.z > 0.8 && axis.y < -0.4, `stuck arrow keeps its rotation: ${axis.toArray()}`);
+
+    arrow.dispose();
+});
+
+test("projectile-physics like vanilla", () => {
+    assert.deepEqual(projectilePhysics("minecraft:arrow"), {gravity: 0.05, drag: 0.99});
+    assert.deepEqual(projectilePhysics("minecraft:snowball"), {gravity: 0.03, drag: 0.99});
+    assert.deepEqual(projectilePhysics("minecraft:fireball"), {gravity: 0, drag: 1});
 });

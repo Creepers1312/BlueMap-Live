@@ -78,6 +78,7 @@ public class FabricPlayer extends Player {
     private ItemStack lastMainHand = ItemStack.EMPTY, lastOffHand = ItemStack.EMPTY;
     private @Nullable HeldItem mainHandItem, offHandItem;
     private Equipment equipment = Equipment.EMPTY;
+    private int hurtCount = 0, lastHurtTime = 0;
 
     // written on the server-thread, read from other threads (e.g. webserver)
     private volatile State state;
@@ -175,7 +176,7 @@ public class FabricPlayer extends Player {
     }
 
     /**
-     * Checks for a new arm-swing (attack/use) of the player. Called every tick, so no swing is missed.
+     * Checks for a new arm-swing (attack/use) and a new hurt of the player. Called every tick, so nothing is missed.
      * Only call on server thread!
      */
     public void trackSwing(ServerPlayerEntity player) {
@@ -183,6 +184,10 @@ public class FabricPlayer extends Player {
         boolean mainArmLeft = player.getMainArm() == Arm.LEFT;
         boolean leftArm = hand == Hand.MAIN_HAND ? mainArmLeft : !mainArmLeft;
         swingTracker.update(player.handSwinging, player.handSwingTicks, leftArm);
+
+        // a new hurt sets hurtTime to maxHurtTime (10 ticks), it counts down every tick
+        if (player.hurtTime > lastHurtTime) hurtCount++;
+        lastHurtTime = player.hurtTime;
     }
 
     /**
@@ -315,7 +320,8 @@ public class FabricPlayer extends Player {
                         movement,
                         swingTracker.getState(),
                         sampleEquipment(player),
-                        sampleItemUse(player)
+                        sampleItemUse(player),
+                        hurtCount
                 )
         );
     }

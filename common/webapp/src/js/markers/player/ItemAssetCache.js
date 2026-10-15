@@ -112,6 +112,43 @@ export function buildShieldGeometries() {
 }
 
 /**
+ * The arrow (vanilla ArrowEntityRenderer / ProjectileEntityRenderer, 1.21.1): a 5x5 px fletching-quad at the back and
+ * four 16x5 px quads around the shaft (each rotated 90° around the arrow-axis), on the 32x32 arrow-texture,
+ * rotated 45° around the axis, scaled by 0.05625 and moved -4 px. The arrow points along +x (vanilla).
+ * Positions in blocks; all quads face outwards on both sides like in vanilla (two quads per plane).
+ * @returns {BufferGeometry}
+ */
+export function buildArrowGeometry() {
+    const quads = [];
+    // fletching at the back (x = -7), both directions
+    const back = [[-7, -2, -2, 0, 0.15625], [-7, -2, 2, 0.15625, 0.15625], [-7, 2, 2, 0.15625, 0.3125], [-7, 2, -2, 0, 0.3125]];
+    quads.push(back, [...back].reverse());
+    // the four shaft-quads, rotated around x by 90°, 180°, 270°, 360°
+    const shaft = [[-8, -2, 0, 0, 0], [8, -2, 0, 0.5, 0], [8, 2, 0, 0.5, 0.15625], [-8, 2, 0, 0, 0.15625]];
+    for (let i = 1; i <= 4; i++) {
+        const a = i * Math.PI / 2, cos = Math.cos(a), sin = Math.sin(a);
+        quads.push(shaft.map(([x, y, z, u, v]) => [x, y * cos - z * sin, y * sin + z * cos, u, v]));
+    }
+
+    const scale = 0.05625, axisCos = Math.cos(Math.PI / 4), axisSin = Math.sin(Math.PI / 4);
+    const positions = [], uvs = [];
+    for (const quad of quads) {
+        for (const corner of [0, 1, 2, 0, 2, 3]) {
+            const [x, y, z, u, v] = quad[corner];
+            // rotate 45° around x, scale, the -4 px translation is applied before the scale (vanilla order)
+            const ry = y * axisCos - z * axisSin, rz = y * axisSin + z * axisCos;
+            positions.push((x - 4) * scale, ry * scale, rz * scale);
+            uvs.push(u, 1 - v); // flipY-texture
+        }
+    }
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
+    geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
+    geometry.computeVertexNormals();
+    return geometry;
+}
+
+/**
  * @typedef ItemModel {{
  *     type: "quads" | "shield",
  *     predicate: object | null,
@@ -288,6 +325,9 @@ export class ItemAssetCache {
             for (const part of buildShieldGeometries()) {
                 result.parts.push({geometry: part.geometry, material: materials.box(model.texture), position: part.position, scale: 1 / 16});
             }
+        } else if (model.type === "arrow" && materials.box(model.texture)) {
+            // vanilla arrow-model, pointing along +x; the item-content offset (-0.5) is compensated
+            result.parts.push({geometry: buildArrowGeometry(), material: materials.box(model.texture), position: [0.5, 0.5, 0.5], scale: 1});
         } else {
             return null;
         }

@@ -89,6 +89,7 @@ public class ItemModelBakerTest {
             textures.put("minecraft:item/bow_pulling_1", square(16, 0, 0, 16, 16));
             textures.put("minecraft:block/stone", square(16, 0, 0, 16, 16));
             textures.put("minecraft:entity/shield_base_nopattern", square(64, 0, 0, 64, 64));
+            textures.put("minecraft:entity/projectiles/arrow", square(32, 0, 0, 16, 10));
         }
 
         @Override
@@ -238,6 +239,22 @@ public class ItemModelBakerTest {
         assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "entity/zombie/zombie"));
         assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "gui/widgets"));
         assertTrue(ItemResourceIndex.isItemRelevantTexture("mymod", "anything/else"));
+    }
+
+    @Test
+    public void testEntityAssets() throws IOException {
+        ItemModelBaker baker = new ItemModelBaker(new TestResources());
+        JsonObject arrow = JsonParser.parseString(baker.bakeEntity("minecraft:arrow")).getAsJsonObject();
+        assertEquals(1, arrow.getAsJsonArray("textures").size());
+        JsonObject model = arrow.getAsJsonArray("models").get(0).getAsJsonObject();
+        assertEquals("arrow", model.get("type").getAsString());
+        assertEquals(0, model.get("texture").getAsInt());
+
+        // spectral-arrow texture missing in this pack, unknown entities: no model
+        assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:spectral_arrow")).getAsJsonObject().getAsJsonArray("models").size());
+        assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:zombie")).getAsJsonObject().getAsJsonArray("models").size());
+        assertEquals("entities/minecraft/arrow.json", ItemAssetUpdater.entityAssetName("minecraft:arrow"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "entity/projectiles/arrow"));
     }
 
 }

@@ -191,3 +191,22 @@ test("animator: reset keeps the items, snaps the arm-pose", () => {
     a.step(1 / 60);
     assert.ok(Math.abs(a.pose.parts.rightArm.rx - (-PI / 10)) < 0.06, "pose without blending after a teleport");
 });
+
+test("animator: hurt-overlay for 0.5 s (vanilla hurtTime) when the hurt-counter changes", () => {
+    const a = new PlayerAnimator();
+    a.setTarget(player({hurt: {count: 4}}));
+    run(a, 0.2);
+    assert.equal(a.pose.hurt, false, "the first known counter is no hurt (joining, re-adding)");
+
+    a.setTarget(player({hurt: {count: 5}}));
+    assert.equal(a.step(1 / 60), true, "active while hurt");
+    assert.equal(a.pose.hurt, true);
+    run(a, 0.4);
+    assert.equal(a.pose.hurt, true);
+    run(a, 0.15);
+    assert.equal(a.pose.hurt, false, "over after 0.5 s");
+
+    a.setTarget(player({}));
+    run(a, 0.2);
+    assert.equal(a.pose.hurt, false, "older servers: no hurt-data");
+});

@@ -149,7 +149,8 @@ export function parseItemUse(value) {
  *     skin: {model: "classic" | "slim", version: string} | null,
  *     swing: {count: number, arm: "left" | "right", kind: string} | null,
  *     equipment: {mainHand: object | null, offHand: object | null, leftHanded: boolean, fishing: boolean} | null,
- *     use: {mainHand: boolean, action: string, ticks: number} | null
+ *     use: {mainHand: boolean, action: string, ticks: number} | null,
+ *     hurt: {count: number} | null
  * }}
  */
 
@@ -195,6 +196,7 @@ export function parsePlayer(raw) {
         swing: parseSwing(raw.swing),
         equipment: parseEquipment(raw.equipment),
         use: parseItemUse(raw.use),
+        hurt: raw.hurt && Number.isInteger(raw.hurt.count) && raw.hurt.count >= 0 ? {count: raw.hurt.count} : null,
     };
 }
 
@@ -252,6 +254,7 @@ function toLegacy(player) {
         swing: null,
         equipment: null,
         use: null,
+        hurt: null,
     };
 }
 

@@ -444,7 +444,8 @@ export class BlueMapApp {
             this.events,
             map.data.mapDataRoot + "/assets/items/",
             this.mapViewer.camera,
-            this.mapViewer.redraw
+            this.mapViewer.redraw,
+            map.data.mapDataRoot + "/assets/entities/"
         );
         manager.setAutoUpdateInterval(0);
         return manager.update()

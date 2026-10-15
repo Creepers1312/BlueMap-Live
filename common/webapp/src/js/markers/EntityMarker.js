@@ -22,10 +22,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {Group, Vector3} from "three";
+import {Group, MathUtils, Vector3} from "three";
 import {Marker} from "./Marker.js";
 import {ItemView} from "./player/ItemView.js";
-import {droppedItemMotion, entityKind, projectileDirection, THROWN_ITEM_SCALES} from "./LiveEntityData.js";
+import {
+    droppedItemMotion, entityKind, projectileAngles, projectileDirection, projectilePhysics, THROWN_ITEM_SCALES,
+} from "./LiveEntityData.js";
 import {interpolationDuration} from "./LivePlayerData.js";
 
 /** beyond this camera-distance (blocks) entities are not shown */
@@ -34,45 +36,65 @@ const ENTITY_MAX_DISTANCE = 300;
 /** moving further than this (blocks) between two updates is not interpolated */
 const MAX_INTERPOLATION_DISTANCE = 16;
 
-/** arrow-like projectiles: the (flat) item is scaled to roughly the length of the vanilla arrow-model */
+/** a flight is predicted at most this long (seconds) after the last sample (e.g. if the updates stop) */
+const MAX_PREDICTION_TIME = 0.75;
+
+/** the difference between the predicted and the sampled position is blended away with this time-constant (seconds) */
+const CORRECTION_TIME = 0.1;
+
+/** flat items oriented along the flight (trident): scaled to roughly the length of the vanilla model */
 const PROJECTILE_SCALE = 0.6;
 
 const FORWARD = new Vector3(0, 0, 1);
-const tempDirection = new Vector3();
-const tempPosition = new Vector3();
+const tempVector = new Vector3();
 
 /**
- * An entity (no player) of the live-data: dropped items, thrown items and arrow-like projectiles (BlueMap Live).
- * It is not listed in the marker-menu and has no html-element, only the 3d-item.
+ * An entity (no player) of the live-data (BlueMap Live): dropped items, thrown items, arrows (vanilla arrow-model)
+ * and other projectiles. It is not listed in the marker-menu and has no html-element.
+ * <p>Flying projectiles and thrown items are predicted between the samples with the vanilla physics (velocity, drag,
+ * gravity per tick), every new sample only corrects the position smoothly. Dropped items are interpolated.</p>
  */
 export class EntityMarker extends Marker {
 
     /**
      * @param markerId {string}
-     * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache}
+     * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache} - item-models
+     * @param entityCache {import("./player/ItemAssetCache").ItemAssetCache | null} - own entity-models (arrow)
      */
-    constructor(markerId, itemCache) {
+    constructor(markerId, itemCache, entityCache = null) {
         super(markerId);
         Object.defineProperty(this, 'isEntityMarker', {value: true});
         this.data.type = "entity";
         this.data.listed = false;
 
         this.itemCache = itemCache;
+        this.entityCache = entityCache;
         this.kind = null;
         this.entityType = null;
         this.body = new Group();
         this.add(this.body);
         this.view = null;
 
-        /** a per-entity offset for the bobbing/rotation of dropped items (vanilla uses a random one) */
         this.motionOffset = 0;
         this.age = 0;
-
         this.lastData = null;
+
+        // interpolation (dropped items, resting projectiles)
         this.from = new Vector3();
         this.to = new Vector3();
         this.progress = 1;
         this.duration = 0;
+
+        // flight-prediction (in ticks)
+        this.predicting = false;
+        this.simPosition = new Vector3();
+        this.simPrevious = new Vector3();
+        this.simVelocity = new Vector3();
+        this.tickProgress = 0;
+        this.sinceSample = 0;
+        this.correction = new Vector3();
+        this.physics = projectilePhysics("");
+
         this.direction = new Vector3(0, 0, 1);
     }
 
@@ -84,42 +106,62 @@ export class EntityMarker extends Marker {
         if (this.kind === null) {
             this.kind = entityKind(entity);
             this.entityType = entity.type;
+            this.physics = projectilePhysics(entity.type);
             this.motionOffset = (entity.id * 2.399963) % (Math.PI * 2);
             this.createView();
         }
 
         const previous = this.lastData;
-        this.to.set(entity.position.x, entity.position.y, entity.position.z);
-        const jump = !previous || this.to.distanceTo(tempPosition.set(previous.position.x, previous.position.y, previous.position.z)) > MAX_INTERPOLATION_DISTANCE;
-        if (jump) {
-            this.from.copy(this.to);
-            this.position.copy(this.to);
+        const first = !previous;
+        tempVector.set(entity.position.x, entity.position.y, entity.position.z);
+        const jump = first || tempVector.distanceTo(this.position) > MAX_INTERPOLATION_DISTANCE;
+        const flying = this.kind !== "item" && !entity.onGround;
+
+        if (flying) {
+            // predict from the new sample, the current difference is blended away (no visible jump)
+            this.correction.copy(jump ? tempVector : this.position).sub(tempVector);
+            // simPrevious is the state at the current tick, simPosition one tick ahead (interpolated in between)
+            this.simPrevious.copy(tempVector);
+            this.simPosition.copy(tempVector);
+            this.simVelocity.set(entity.velocity.x / 20, entity.velocity.y / 20, entity.velocity.z / 20);
+            this.advanceTick();
+            this.tickProgress = 0;
+            this.sinceSample = 0;
+            this.predicting = true;
             this.progress = 1;
-            this.duration = 0;
+            if (jump) this.position.copy(tempVector);
         } else {
-            this.from.copy(this.position);
-            this.progress = 0;
-            this.duration = interpolationDuration(previous, entity, updateInterval) / 1000;
+            this.predicting = false;
+            this.to.copy(tempVector);
+            if (jump) {
+                this.from.copy(tempVector);
+                this.position.copy(tempVector);
+                this.progress = 1;
+                this.duration = 0;
+            } else {
+                this.from.copy(this.position);
+                this.progress = 0;
+                this.duration = interpolationDuration(previous, entity, updateInterval) / 1000;
+            }
         }
 
         const d = projectileDirection(entity);
-        this.direction.set(d.x, d.y, d.z);
+        if (!flying || first) this.direction.set(d.x, d.y, d.z);
 
-        if (this.view) {
-            const item = entity.item;
-            this.view.update(item ? item.id : null, {custom_model_data: item && item.customModelData !== null ? item.customModelData : 0});
-        }
+        this.updateView(entity);
         this.lastData = entity;
     }
 
     /** @private */
     createView() {
         if (!this.kind) return;
-        // arrow-like projectiles have no display-transformation, they are oriented along the flight-direction
-        this.view = new ItemView(this.itemCache, this.kind === "projectile" ? "none" : "ground");
-
-        if (this.kind === "projectile") {
-            // the item-texture runs diagonally (tail bottom-left, tip top-right): rotate it to point along +z
+        if (this.kind === "arrow") {
+            // the vanilla arrow-model (entity-asset), no display-transformation
+            this.view = new ItemView(this.entityCache, "none");
+            this.body.add(this.view);
+        } else if (this.kind === "projectile") {
+            // flat item: the texture runs diagonally (tail bottom-left, tip top-right), rotated to point along +z
+            this.view = new ItemView(this.itemCache, "none");
             const orientation = new Group();
             const diagonal = new Group();
             diagonal.rotation.z = -Math.PI / 4;
@@ -129,12 +171,24 @@ export class EntityMarker extends Marker {
             orientation.add(diagonal);
             this.body.add(orientation);
         } else {
+            this.view = new ItemView(this.itemCache, "ground");
             this.body.add(this.view);
         }
     }
 
+    /** @private */
+    updateView(entity = this.lastData) {
+        if (!this.view || !entity) return;
+        if (this.kind === "arrow") {
+            this.view.update(entity.type, {});
+        } else {
+            const item = entity.item;
+            this.view.update(item ? item.id : null, {custom_model_data: item && item.customModelData !== null ? item.customModelData : 0});
+        }
+    }
+
     /**
-     * Advances the interpolation and the vanilla item-motion.
+     * Advances the prediction / interpolation and the vanilla item-motion.
      * @param dt {number} - seconds
      * @param camera {import("three").Camera | null}
      * @returns {boolean} true if the entity is moving (high frame-rate needed)
@@ -143,16 +197,16 @@ export class EntityMarker extends Marker {
         this.age += dt * 20;
 
         let moving = false;
-        if (this.progress < 1) {
+        if (this.predicting) {
+            moving = this.stepPrediction(dt);
+        } else if (this.progress < 1) {
             this.progress = this.duration > 0 ? Math.min(1, this.progress + dt / this.duration) : 1;
             this.position.lerpVectors(this.from, this.to, this.progress);
             moving = true;
         }
 
-        if (this.view) {
-            // the item may still be loading or update its model (overrides)
-            this.view.update(this.view.itemId, {custom_model_data: this.lastData?.item?.customModelData ?? 0});
-        }
+        // the model may still be loading or change its override
+        this.updateView();
 
         const body = this.body;
         if (this.kind === "item") {
@@ -162,9 +216,12 @@ export class EntityMarker extends Marker {
         } else if (this.kind === "thrown") {
             if (camera) body.quaternion.copy(camera.quaternion);
             body.scale.setScalar(THROWN_ITEM_SCALES[this.entityType] || 1);
+        } else if (this.kind === "arrow") {
+            // vanilla ArrowEntityRenderer: rotate y by (yaw - 90°), then z by pitch; the model points along +x
+            const angles = projectileAngles(this.direction);
+            body.rotation.set(0, MathUtils.degToRad(angles.yaw - 90), MathUtils.degToRad(angles.pitch), "YZX");
         } else if (this.kind === "projectile") {
-            tempDirection.copy(this.direction);
-            body.quaternion.setFromUnitVectors(FORWARD, tempDirection.normalize());
+            body.quaternion.setFromUnitVectors(FORWARD, tempVector.copy(this.direction).normalize());
         }
 
         if (camera) {
@@ -172,6 +229,34 @@ export class EntityMarker extends Marker {
             body.visible = distance <= ENTITY_MAX_DISTANCE;
         }
         return moving;
+    }
+
+    /** @private */
+    stepPrediction(dt) {
+        this.sinceSample += dt;
+        if (this.sinceSample <= MAX_PREDICTION_TIME) {
+            this.tickProgress += dt * 20;
+            for (let i = 0; this.tickProgress >= 1 - 1e-9 && i < 20; i++) {
+                this.simPrevious.copy(this.simPosition);
+                this.advanceTick();
+                this.tickProgress = Math.max(0, this.tickProgress - 1);
+            }
+            this.tickProgress = Math.min(this.tickProgress, 1);
+            // the rotation follows the movement of the current tick (vanilla: the rotation from the current velocity)
+            tempVector.copy(this.simPosition).sub(this.simPrevious);
+            if (tempVector.lengthSq() > 1e-8) this.direction.copy(tempVector).normalize();
+        }
+
+        this.correction.multiplyScalar(Math.exp(-dt / CORRECTION_TIME));
+        this.position.lerpVectors(this.simPrevious, this.simPosition, this.tickProgress).add(this.correction);
+        return this.sinceSample <= MAX_PREDICTION_TIME || this.correction.lengthSq() > 1e-6;
+    }
+
+    /** one tick of the vanilla projectile-physics: move, then drag and gravity @private */
+    advanceTick() {
+        this.simPosition.add(this.simVelocity);
+        this.simVelocity.multiplyScalar(this.physics.drag);
+        this.simVelocity.y -= this.physics.gravity;
     }
 
     dispose() {
@@ -182,4 +267,3 @@ export class EntityMarker extends Marker {
     }
 
 }
-

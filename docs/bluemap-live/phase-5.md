@@ -39,7 +39,15 @@ Stand: 2026-10-15 · Branch `bluemap-live` · Plan: `roadmap.md` (0.2.0-alpha)
 |---|---|---|
 | Gegenstand am Boden | Item-Modell mit der `ground`-Anzeigetransformation des Resource-Packs, gehoben um 0,1 ± 0,1 + 0,25 · Skalierung, langsam drehend | Vanillas `ItemEntityRenderer` (nachgebildet) |
 | Wurfgegenstand | Item-Modell, immer zur Kamera gedreht; Feuerball ×3, kleiner Feuerball ×0,75 | Vanillas `FlyingItemEntityRenderer` (nachgebildet) |
-| Pfeil, Spektralpfeil, Dreizack | **Näherung:** das flache Item, entlang der Flugrichtung gedreht (aus der Geschwindigkeit, steckend aus der Drehung) | Vanilla verwendet eigene Modelle; geplant für später |
+| Pfeil, Spektralpfeil | **Vanilla-Pfeilmodell**: Federende (5×5 px) und vier Schaftflächen (16×5 px) als Kreuz, Textur `entity/projectiles/(spectral_)arrow` aus dem Resource-Pack (als Entity-Asset `assets/entities/minecraft/arrow.json`), gedreht um y (Gierwinkel − 90°) und z (Neigung), Kreuz 45° um die Achse | Vanillas `ArrowEntityRenderer`/`ProjectileEntityRenderer` (nachgebildet) |
+| Dreizack | **Näherung:** das flache Item entlang der Flugrichtung | Vanilla verwendet ein eigenes Modell |
+
+**Flugbahn (Nachtrag nach dem ersten Test in Minecraft):**
+- Ein Pfeil fliegt etwa 60 Blöcke/s, der Server tastet alle 250 ms ab. Mit reiner Interpolation sah man nur 2–3 Standbilder und dann den Pfeil im Boden.
+- Jetzt rechnet der Browser fliegende Geschosse und Wurfgegenstände ab jeder Abtastung mit der Vanilla-Physik weiter: pro Tick Position + Geschwindigkeit, dann Luftwiderstand ×0,99 und Schwerkraft (Pfeil, Dreizack, Trank 0,05; Schneeball, Ei, Enderperle 0,03; Erfahrungsfläschchen 0,07; Feuerbälle und Windkugeln ohne).
+- Zwischen zwei Ticks wird interpoliert. Die Drehung folgt der Bewegung des aktuellen Ticks, der Pfeil neigt sich also im Fallen.
+- Die Abweichung zu einer neuen Abtastung wird mit τ = 0,1 s ausgeglichen, ohne Sprung. Nach 0,75 s ohne neue Abtastung endet die Vorhersage.
+- **Steckende Pfeile:** Der Server erkennt sie daran, dass sie sich seit dem letzten Tick nicht bewegt haben (`prevX/Y/Z`), und sendet sie als ruhend ohne Geschwindigkeit. Dort bleiben sie mit ihrer Drehung liegen.
 
 **Allgemein:**
 - Der Ablauf ist derselbe wie bei den Spielern: `ItemView` (aus den Spieler-Items herausgelöst), gemeinsamer `ItemAssetCache` des Managers mit Referenzzählung, Interpolation zwischen den Abtastungen (Sprünge über 16 Blöcke ohne Interpolation).
@@ -79,7 +87,27 @@ Bestehende `plugin.conf`-Dateien werden nicht geändert. Fehlende Optionen haben
 
 ## 5. Einschränkungen
 
-- **Pfeile und Dreizack** sind nur das flache Item entlang der Flugrichtung, nicht das Vanilla-Modell.
+- **Dreizack:** nur das flache Item entlang der Flugrichtung, nicht das Vanilla-Modell.
+- **Pfeile:** Getränkte Pfeile zeigen die normale Pfeiltextur. Das Wackeln beim Einschlag (`shake`) fehlt.
+- **Vorhersage:** Wasser (anderer Widerstand) und Kollisionen sind nicht nachgebildet. Trifft ein Pfeil zwischen zwei Abtastungen, fliegt er bis zur nächsten Abtastung kurz weiter und wird dann an die Einschlagstelle gezogen.
 - **Mehrere gleiche Items** in einem Stapel werden als ein Modell gezeigt; Vanilla zeichnet bis zu fünf.
-- **Schnelle Geschosse** werden zwischen zwei Abtastungen geradlinig interpoliert, ohne Schwerkraftkurve, und laufen eine Abtastung hinterher.
 - **Leistung:** Die Werte in `roadmap.md` sind Schätzungen; gemessen ist noch nichts.
+
+## 6. Treffer-Blitz (Nachtrag)
+
+- **Server (Fabric):** Pro Tick wird `LivingEntity.hurtTime` des Spielers geprüft. Steigt der Wert, ist das ein neuer Treffer und der Zähler `hurt.count` erhöht sich. `players.json` enthält dann `"hurt": {"count": N}`, nur mit erweiterten Daten.
+- **Webclient:** Ändert sich der Zähler, ist der Körper 0,5 s lang rot eingefärbt (Vanilla: `hurtTime` 10 Ticks, `OverlayTexture` mischt 30 % Rot ein).
+  - Umgesetzt mit geteilten, rot gemischten Kopien der Skin-Materialien.
+  - Gehaltene Items bleiben wie in Vanilla ungefärbt.
+  - Der erste bekannte Zähler (Beitritt, Neuanlage) löst keinen Blitz aus.
+- Den Rückstoß zeigt weiterhin die Position.
+
+## 7. Tests zum Nachtrag (Pfeil, Flugbahn, Treffer)
+
+| Test | Ergebnis |
+|---|---|
+| JUnit lokal | **59/59**: Entity-Asset Pfeil, Schreiben der Entity-Assets, `hurt` im JSON, Anforderung der Entity-Typen |
+| `npm test` | **71/71**: Pfeilmodell (Flächen, Länge), Vanilla-Drehung, Vorhersage gegen nachgerechnete Vanilla-Physik, sanfte Korrektur, steckender Pfeil, Physik-Konstanten; Treffer im Animator und geteilte Treffer-Materialien |
+| Browser-E2E `entities-e2e.mjs` | **10/10**: Pfeil mit Vanilla-Modell und Pack-Textur; fliegender Pfeil bewegt sich in jedem Frame zwischen den Abtastungen; ruhender Pfeil bleibt |
+| Browser-E2E `animation-e2e.mjs` | **19/19**: Treffer-Blitz 0,5 s, anderer Spieler ungefärbt |
+| `items-e2e.mjs`, `player-e2e.mjs`, Regression | 16/16, 22/22, 0 abweichende Pixel |

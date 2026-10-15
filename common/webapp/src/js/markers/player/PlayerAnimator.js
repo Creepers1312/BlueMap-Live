@@ -67,6 +67,9 @@ const ARM_POSE_BLEND_TIME = 0.06;
 /** a use-time that differs more than this (seconds) from the server is corrected (otherwise the own clock runs on) */
 const USE_TIME_TOLERANCE = 0.3;
 
+/** vanilla: hurtTime is 10 ticks */
+export const HURT_DURATION = 0.5;
+
 /** uses whose pose or item-model changes over time (the others are static poses, e.g. blocking with a shield) */
 const ANIMATED_USE_ACTIONS = new Set(["bow", "crossbow", "eat", "drink"]);
 
@@ -84,6 +87,8 @@ function createPose() {
         rootY: 0,
         rootZ: 0,
         rootPitch: 0,
+        /** the red hurt-overlay is shown */
+        hurt: false,
         /** the held items of the right and the left arm and the values of their model-predicates */
         items: {
             right: {item: null, predicates: {}},
@@ -120,6 +125,8 @@ export class PlayerAnimator {
         this.fallFlying = false;
         this.lastSwingCount = null;
         this.swingKind = null;
+        this.lastHurtCount = null;
+        this.hurtTime = 0;
 
         // held / used items
         this.itemState = {
@@ -191,6 +198,13 @@ export class PlayerAnimator {
             this.swingKind = swing.kind;
         }
 
+        // hurt (the first known counter only sets the reference)
+        const hurt = player.hurt;
+        if (hurt) {
+            if (this.lastHurtCount !== null && hurt.count !== this.lastHurtCount) this.hurtTime = HURT_DURATION;
+            this.lastHurtCount = hurt.count;
+        }
+
         const equipment = player.equipment;
         const items = this.itemState;
         items.leftHanded = !!(equipment && equipment.leftHanded);
@@ -245,6 +259,11 @@ export class PlayerAnimator {
             if (this.swingTime >= SWING_DURATION) this.swingTime = -1;
         }
 
+        // hurt-overlay
+        const hurting = this.hurtTime > 0;
+        this.hurtTime = Math.max(0, this.hurtTime - dt);
+        this.pose.hurt = this.hurtTime > 0;
+
         // used item
         if (this.useKey !== null) this.useTime += dt;
         this.itemState.useTicks = this.useTime * TICKS_PER_SECOND;
@@ -256,6 +275,7 @@ export class PlayerAnimator {
 
         return this.limbSpeed > 0 ||
             this.swingTime >= 0 ||
+            hurting ||
             (this.itemState.use !== null && ANIMATED_USE_ACTIONS.has(this.itemState.use.action)) ||
             !this.armOffsetsSettled ||
             Math.abs(this.sneakWeight - (this.sneaking ? 1 : 0)) > SETTLED ||

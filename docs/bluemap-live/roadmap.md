@@ -43,7 +43,10 @@ Release-Notes: `releases/v0.1.0-alpha.md`.
 
 ## 0.2.0-alpha – Entities, Teil 1: Grundlage, Gegenstände, Geschosse
 
-**Stand:** Punkte 1–4 und 6–7 sind umgesetzt und automatisiert getestet (`phase-5.md`). Offen sind der Treffer-Blitz (Punkt 5), das echte Pfeil-Modell und der Test in Minecraft.
+**Stand:**
+- Alle Punkte sind umgesetzt und automatisiert getestet (`phase-5.md`), inklusive Treffer-Blitz und Vanilla-Pfeilmodell mit flüssiger Flugbahn.
+- Nach dem ersten Test in Minecraft verbessert: Pfeilmodell und Flugbahn; der Treffer-Blitz fehlte zuvor.
+- Offen ist die erneute Prüfung in Minecraft (N1–N9).
 
 **Ziel:** Entities im Umkreis um die Spieler werden live angezeigt, zuerst alles, was ohne neue Modelle auskommt.
 

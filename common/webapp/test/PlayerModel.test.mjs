@@ -376,3 +376,35 @@ test("applyPose moves and rotates only the existing bones, the head rotation sta
     assert.deepEqual(model.parts.rightArm.position.toArray(), [-5, 21, 2]);
     model.dispose();
 });
+
+test("hurt-overlay: shared red-mixed materials of the skin, held items stay untinted", async () => {
+    const loader = controllableLoader();
+    const cache = new PlayerSkinCache(loader);
+    const a = new PlayerModel(cache), b = new PlayerModel(cache);
+    a.setSkin("skins/x.png", "classic");
+    b.setSkin("skins/x.png", "classic");
+    loader.resolve("skins/x.png");
+    await flush();
+
+    const normal = a.parts.body.children[0].material;
+    a.setHurt(true);
+    const hurt = a.parts.body.children[0].material;
+    assert.notEqual(hurt, normal);
+    assert.equal(b.parts.body.children[0].material, normal, "the other player is not tinted");
+    b.setHurt(true);
+    assert.equal(b.parts.body.children[0].material, hurt, "hurt-materials are shared per skin");
+
+    // the shader mixes 30% red in (vanilla OverlayTexture)
+    const shader = {fragmentShader: "void main() {\n#include <output_fragment>\n}"};
+    hurt.onBeforeCompile(shader);
+    assert.ok(shader.fragmentShader.includes("mix(gl_FragColor.rgb, vec3(1.0, 0.0, 0.0), 0.30)"));
+
+    a.setHurt(false);
+    assert.equal(a.parts.body.children[0].material, normal);
+
+    let disposed = 0;
+    hurt.addEventListener("dispose", () => disposed++);
+    a.dispose();
+    b.dispose();
+    assert.equal(disposed, 1, "disposed with the skin");
+});

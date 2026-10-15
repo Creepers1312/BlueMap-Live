@@ -58,6 +58,7 @@ public class ItemAssetUpdater {
     private final Executor executor;
 
     private final Set<String> requested = ConcurrentHashMap.newKeySet();
+    private final Set<String> requestedEntities = ConcurrentHashMap.newKeySet();
     private @Nullable ItemModelBaker.Resources resources;
 
     /**
@@ -74,6 +75,39 @@ public class ItemAssetUpdater {
     public static String assetName(String itemId) {
         ItemModelBaker.Key key = ItemModelBaker.Key.parse(itemId);
         return "items/" + key.namespace() + "/" + key.path() + ".json";
+    }
+
+    public static String entityAssetName(String entityType) {
+        ItemModelBaker.Key key = ItemModelBaker.Key.parse(entityType);
+        return "entities/" + key.namespace() + "/" + key.path() + ".json";
+    }
+
+    /**
+     * Makes sure the asset of an entity with an own (webapp-built) model exists, e.g. the arrow.
+     * Entity-types without such a model are ignored.
+     */
+    public CompletableFuture<Void> requestEntity(String entityType) {
+        if (!ItemModelBaker.isSupportedEntity(entityType)) return CompletableFuture.completedFuture(null);
+        if (!requestedEntities.add(entityType)) return CompletableFuture.completedFuture(null);
+
+        return CompletableFuture.runAsync(() -> {
+            try {
+                Collection<MapStorage> mapStorages = storages.get();
+                ItemModelBaker.Resources resources = mapStorages != null ? getResources() : null;
+                if (resources == null) {
+                    requestedEntities.remove(entityType);
+                    return;
+                }
+                byte[] json = new ItemModelBaker(resources).bakeEntity(entityType).getBytes(StandardCharsets.UTF_8);
+                for (MapStorage storage : mapStorages) {
+                    try (OutputStream out = storage.asset(entityAssetName(entityType)).write()) {
+                        out.write(json);
+                    }
+                }
+            } catch (Exception ex) {
+                Logger.global.logWarning("Failed to create the entity-asset for '" + entityType + "': " + ex);
+            }
+        }, executor);
     }
 
     /**

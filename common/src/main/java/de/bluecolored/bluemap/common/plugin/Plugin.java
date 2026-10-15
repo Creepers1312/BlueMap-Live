@@ -215,7 +215,7 @@ public class Plugin implements ServerEventListener {
                         BmMap map = maps.get(id);
                         if (map != null) {
                             mapRequestHandler = new MapRequestHandler(map, serverInterface, pluginConfig, Predicate.not(pluginState::isPlayerHidden), this::getLiveSkin,
-                                    this::requestItemAsset);
+                                    this::requestItemAsset, this::requestEntityAsset);
                         } else {
                             Storage storage = blueMap.getOrLoadStorage(mapConfig.getStorage());
                             mapRequestHandler = new MapRequestHandler(storage.map(id));
@@ -615,6 +615,14 @@ public class Plugin implements ServerEventListener {
     private void requestItemAsset(String itemId) {
         ItemAssetUpdater itemAssetUpdater = this.itemAssetUpdater;
         if (itemAssetUpdater != null) itemAssetUpdater.request(itemId);
+    }
+
+    /**
+     * Makes sure the asset of an entity with an own model (e.g. the arrow) exists.
+     */
+    private void requestEntityAsset(String entityType) {
+        ItemAssetUpdater itemAssetUpdater = this.itemAssetUpdater;
+        if (itemAssetUpdater != null) itemAssetUpdater.requestEntity(entityType);
     }
 
     public synchronized void startWatchingMap(BmMap map) {

@@ -65,6 +65,7 @@ public class LiveE2EServer {
         SwingState.Kind swingKind = SwingState.Kind.SWING;
         String mainHand = null, offHand = null;
         boolean leftHanded = false, charged = false;
+        Integer hurtCount = null;
 
         SimPlayer(String uuid, String name) {
             this.uuid = uuid;
@@ -126,6 +127,7 @@ public class LiveE2EServer {
                     default -> {
                         if (file.startsWith("assets/playerskins/") && file.endsWith(".png")) handleSkin(ex, file);
                         else if (file.startsWith("assets/items/") && file.endsWith(".json")) handleItem(ex, file);
+                        else if (file.startsWith("assets/entities/") && file.endsWith(".json")) handleEntityAsset(ex, file);
                         else send(ex, 404, "text/plain", "not found".getBytes(StandardCharsets.UTF_8));
                     }
                 }
@@ -189,6 +191,7 @@ public class LiveE2EServer {
      * Arm-swing (increments the swing-counter): &swing=right|left&swingKind=attack|mine|use|swing
      * Held items (kept until changed, "none" clears): &main=minecraft:diamond_sword&off=minecraft:shield&leftHanded=1&charged=1
      * Item use (only for this sample): &use=main|off&useAction=bow&useTicks=12
+     * Hurt-counter (kept): &hurt=3
      * Item-assets unavailable (404, like before the server created them): /control?itemsDown=1|0
      * Other commands: /control?leave=uuid, /control?stale=1, /control?down=1|0, /control?status=1
      */
@@ -248,6 +251,7 @@ public class LiveE2EServer {
             if (q.containsKey("off")) p.offHand = q.get("off").equals("none") ? null : q.get("off");
             if (q.containsKey("leftHanded")) p.leftHanded = q.get("leftHanded").equals("1");
             if (q.containsKey("charged")) p.charged = q.get("charged").equals("1");
+            if (q.containsKey("hurt")) p.hurtCount = Integer.parseInt(q.get("hurt"));
             Equipment equipment = new Equipment(
                     p.mainHand != null ? new HeldItem(p.mainHand, false, null, p.charged && p.mainHand.endsWith(":crossbow"), false) : null,
                     p.offHand != null ? new HeldItem(p.offHand) : null,
@@ -274,7 +278,8 @@ public class LiveE2EServer {
                     ),
                     new SwingState(p.swingCount, p.swingLeft, p.swingKind),
                     equipment,
-                    use
+                    use,
+                    p.hurtCount
             );
         }
 
@@ -412,6 +417,14 @@ public class LiveE2EServer {
             itemAssets.put(itemId, json);
         }
         send(ex, 200, "application/json", json);
+    }
+
+    private void handleEntityAsset(HttpExchange ex, String file) throws IOException {
+        String path = file.substring("assets/entities/".length(), file.length() - ".json".length());
+        int slash = path.indexOf('/');
+        String type = path.substring(0, slash) + ":" + path.substring(slash + 1);
+        send(ex, 200, "application/json",
+                new ItemModelBaker(new E2EItemResources()).bakeEntity(type).getBytes(StandardCharsets.UTF_8));
     }
 
     private void handleSkin(HttpExchange ex, String file) throws IOException {

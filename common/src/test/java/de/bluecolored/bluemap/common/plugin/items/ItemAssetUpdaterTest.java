@@ -90,4 +90,14 @@ public class ItemAssetUpdaterTest {
         assertTrue(Files.exists(temp.resolve("world/assets/items/minecraft/apple.json")), "written with the next request");
     }
 
+    @Test
+    public void testEntityAssets() throws Exception {
+        MapStorage map = new FileMapStorage(temp.resolve("world"), Compression.NONE, false);
+        ItemAssetUpdater updater = new ItemAssetUpdater(() -> List.of(map), ItemModelBakerTest.TestResources::new, Runnable::run);
+        updater.requestEntity("minecraft:arrow").join();
+        updater.requestEntity("minecraft:zombie").join(); // no own model -> nothing written
+        assertTrue(Files.isRegularFile(temp.resolve("world/assets/entities/minecraft/arrow.json")));
+        assertFalse(Files.exists(temp.resolve("world/assets/entities/minecraft/zombie.json")));
+    }
+
 }

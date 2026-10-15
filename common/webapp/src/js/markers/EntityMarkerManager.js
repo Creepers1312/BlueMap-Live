@@ -34,8 +34,8 @@ export const ENTITY_MARKER_SET_ID = "bm-entities";
 const MAX_ANIMATION_STEP = 0.25;
 
 /**
- * Shows the entities around the players from live/entities.json (BlueMap Live): dropped items, thrown items and
- * arrow-like projectiles, in an own (toggleable) marker-set "Entities".
+ * Shows the entities around the players from live/entities.json (BlueMap Live): dropped items, thrown items,
+ * arrows and other projectiles, in an own (toggleable) marker-set "Entities".
  * Animated in the existing render-loop of the map-viewer (bluemapRenderFrame), like the player-models.
  */
 export class EntityMarkerManager extends MarkerManager {
@@ -47,10 +47,12 @@ export class EntityMarkerManager extends MarkerManager {
      * @param itemsUrl {string | null} - The url from which the item-models should be loaded
      * @param camera {import("three").Camera | null} - for billboards and the view-distance
      * @param redraw {function() | null} - requests high-fps rendering, called while an entity moves
+     * @param entitiesUrl {string | null} - The url from which own entity-models (arrow) should be loaded
      */
-    constructor(root, fileUrl, events = null, itemsUrl = null, camera = null, redraw = null) {
+    constructor(root, fileUrl, events = null, itemsUrl = null, camera = null, redraw = null, entitiesUrl = null) {
         super(root, fileUrl, events);
         this.itemCache = new ItemAssetCache(itemsUrl);
+        this.entityCache = new ItemAssetCache(entitiesUrl);
         this.camera = camera;
         this.redraw = redraw;
         this.updateInterval = DEFAULT_UPDATE_INTERVAL;
@@ -102,7 +104,7 @@ export class EntityMarkerManager extends MarkerManager {
                 marker = null;
             }
             if (!marker) {
-                marker = new EntityMarker(markerId, this.itemCache);
+                marker = new EntityMarker(markerId, this.itemCache, this.entityCache);
                 set.add(marker);
             }
             marker.updateFromData(entity, this.updateInterval);
@@ -138,6 +140,7 @@ export class EntityMarkerManager extends MarkerManager {
         const set = this.getEntityMarkerSet(false);
         if (set) this.root.remove(set);
         this.itemCache.dispose();
+        this.entityCache.dispose();
     }
 
 }

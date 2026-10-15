@@ -43,6 +43,49 @@ const TYPE_PATTERN = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/;
 /** entity-types that are rendered like arrows (an item oriented along the flight-direction) */
 export const PROJECTILE_TYPES = new Set(["minecraft:arrow", "minecraft:spectral_arrow", "minecraft:trident"]);
 
+/** entity-types with an own model built by the webapp (vanilla ArrowEntityRenderer), loaded as entity-asset */
+export const ARROW_MODEL_TYPES = new Set(["minecraft:arrow", "minecraft:spectral_arrow"]);
+
+/**
+ * Vanilla projectile-physics per tick (1.21.1): the velocity is multiplied by the drag and the gravity is subtracted.
+ * Used to predict the flight between two samples (the server samples only every 250 ms).
+ * @param type {string}
+ * @returns {{gravity: number, drag: number}}
+ */
+export function projectilePhysics(type) {
+    switch (type) {
+        case "minecraft:arrow":
+        case "minecraft:spectral_arrow":
+        case "minecraft:trident":
+        case "minecraft:potion":
+            return {gravity: 0.05, drag: 0.99};
+        case "minecraft:experience_bottle":
+            return {gravity: 0.07, drag: 0.99};
+        case "minecraft:fireball":
+        case "minecraft:small_fireball":
+        case "minecraft:dragon_fireball":
+        case "minecraft:wither_skull":
+        case "minecraft:wind_charge":
+        case "minecraft:breeze_wind_charge":
+            return {gravity: 0, drag: 1};
+        default: // snowball, egg, ender pearl, ...
+            return {gravity: 0.03, drag: 0.99};
+    }
+}
+
+/**
+ * The vanilla projectile-rotation (degrees) for a direction: yaw = atan2(x, z), pitch = atan2(y, horizontal).
+ * @param direction {{x: number, y: number, z: number}}
+ * @returns {{yaw: number, pitch: number}}
+ */
+export function projectileAngles(direction) {
+    const horizontal = Math.hypot(direction.x, direction.z);
+    return {
+        yaw: Math.atan2(direction.x, direction.z) * 180 / Math.PI,
+        pitch: Math.atan2(direction.y, horizontal) * 180 / Math.PI,
+    };
+}
+
 /** vanilla FlyingItemEntityRenderer scales (default 1) */
 export const THROWN_ITEM_SCALES = {"minecraft:fireball": 3, "minecraft:small_fireball": 0.75};
 
@@ -117,9 +160,10 @@ export function parseEntitiesResponse(data) {
 /**
  * How an entity is rendered.
  * @param entity {LiveEntity}
- * @returns {"item" | "projectile" | "thrown" | null} - null: not rendered (yet)
+ * @returns {"item" | "arrow" | "projectile" | "thrown" | null} - null: not rendered (yet)
  */
 export function entityKind(entity) {
+    if (ARROW_MODEL_TYPES.has(entity.type)) return "arrow";
     if (!entity.item) return null;
     if (entity.type === "minecraft:item") return "item";
     if (PROJECTILE_TYPES.has(entity.type)) return "projectile";

@@ -154,6 +154,12 @@ public final class LivePlayersJson {
                 json.endObject();
             }
 
+            if (state.hurtCount() != null) {
+                json.name("hurt").beginObject();
+                json.name("count").value(state.hurtCount());
+                json.endObject();
+            }
+
             ItemUse use = state.use();
             if (use != null) {
                 json.name("use").beginObject();

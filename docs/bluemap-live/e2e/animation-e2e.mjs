@@ -341,6 +341,26 @@ await step("several players animate independently", async () => {
     await playerA();
 });
 
+await step("hurt: red overlay for 0.5 s like vanilla, the held item and other players untinted", async () => {
+    await playerD({hurt: 1});
+    await playerA({hurt: 7});
+    await waitForMarker(D, "m.animator.lastHurtCount === 1");
+    const isHurt = uuid => page.evaluate(uuid => {
+        const m = window.bluemap.playerMarkerManager.getPlayerMarker(uuid);
+        return m.model.hurt;
+    }, uuid);
+    assert.equal(await isHurt(D), false, "the first known counter is no hurt");
+    await playerD({hurt: 2});
+    await waitForMarker(D, "m.model.hurt");
+    assert.equal(await isHurt(A), false, "other player untinted");
+    const hurtMaterial = await page.evaluate(uuid => {
+        const m = window.bluemap.playerMarkerManager.getPlayerMarker(uuid);
+        return m.model.parts.body.children[0].material.customProgramCacheKey?.() ?? null;
+    }, D);
+    assert.equal(hurtMaterial, "bluemap-live-hurt");
+    await waitForMarker(D, "!m.model.hurt", 3000);
+});
+
 await step("animations use the existing render-loop: high fps only while a model moves", async () => {
     const countFrames = ms => page.evaluate(ms => new Promise(resolve => {
         let frames = 0;

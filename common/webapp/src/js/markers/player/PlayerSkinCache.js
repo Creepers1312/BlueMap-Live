@@ -49,6 +49,26 @@ export const DEFAULT_SKIN_RESOURCES = [
  * Loads skin-textures and shares them (and their materials) between all players that use the same skin-url.
  * Textures are reference-counted and disposed when no player uses them anymore.
  */
+/** vanilla: a hurt entity is rendered with 30% red (OverlayTexture: red with alpha 0xB2, mixed into the color) */
+export const HURT_TINT = 0.3;
+
+/**
+ * A copy of a skin-material that is mixed with red like vanilla's hurt-overlay (shared like the material itself).
+ * @param material {MeshBasicMaterial}
+ * @returns {MeshBasicMaterial}
+ */
+export function createHurtMaterial(material) {
+    const hurt = material.clone();
+    hurt.onBeforeCompile = shader => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <output_fragment>",
+            `#include <output_fragment>\n\tgl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.0, 0.0), ${HURT_TINT.toFixed(2)});`
+        );
+    };
+    hurt.customProgramCacheKey = () => "bluemap-live-hurt";
+    return hurt;
+}
+
 export class PlayerSkinCache {
 
     /**
@@ -203,11 +223,31 @@ export class PlayerSkinCache {
         entry.listeners.forEach(listener => listener(entry));
     }
 
+    /**
+     * The hurt-materials (red mixed in) of a skin, created when first needed.
+     * @param entry {SkinEntry}
+     * @returns {{baseMaterial: MeshBasicMaterial, overlayMaterial: MeshBasicMaterial}}
+     */
+    hurtMaterials(entry) {
+        if (!entry.hurt) {
+            entry.hurt = {
+                baseMaterial: createHurtMaterial(entry.baseMaterial),
+                overlayMaterial: createHurtMaterial(entry.overlayMaterial),
+            };
+        }
+        return entry.hurt;
+    }
+
     /** @private */
     disposeEntry(entry) {
         entry.texture.dispose();
         entry.baseMaterial.dispose();
         entry.overlayMaterial.dispose();
+        if (entry.hurt) {
+            entry.hurt.baseMaterial.dispose();
+            entry.hurt.overlayMaterial.dispose();
+            entry.hurt = null;
+        }
     }
 
     /**

@@ -122,7 +122,7 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
 
     static boolean isItemRelevantTexture(String namespace, String value) {
         if (!namespace.equals("minecraft")) return true;
-        if (value.startsWith("entity/shield")) return true;
+        if (value.startsWith("entity/shield") || value.startsWith("entity/projectiles/")) return true;
         int slash = value.indexOf('/');
         return slash < 0 || !SKIPPED_TEXTURE_FOLDERS.contains(value.substring(0, slash));
     }

@@ -95,6 +95,9 @@ export class PlayerModel extends Group {
         this.onSkinStateChanged = () => this.updateDisplayedSkin();
         this.skinCache.defaultSkinListeners.add(this.onSkinStateChanged);
 
+        /** vanilla hurt-overlay (red) is shown */
+        this.hurt = false;
+
         /** true if a skin (the players or the default skin) is displayed */
         this.hasSkin = false;
         this.visible = false; // until a skin can be displayed
@@ -143,8 +146,10 @@ export class PlayerModel extends Group {
             return;
         }
 
-        if (variant !== this.displayedVariant) this.buildParts(variant, skin);
-        else if (skin !== this.displayedSkin) this.applyMaterials(skin);
+        if (variant !== this.displayedVariant) {
+            this.buildParts(variant, skin);
+            if (this.hurt) this.applyMaterials(skin);
+        } else if (skin !== this.displayedSkin) this.applyMaterials(skin);
 
         this.displayedSkin = skin;
         this.displayedVariant = variant;
@@ -203,6 +208,7 @@ export class PlayerModel extends Group {
             this.updateItemSlot(this.itemSlots.right, pose.items.right);
             this.updateItemSlot(this.itemSlots.left, pose.items.left);
         }
+        this.setHurt(!!pose.hurt);
     }
 
     /**
@@ -250,12 +256,24 @@ export class PlayerModel extends Group {
         slot.update(state && state.item ? state.item.id : null, state ? state.predicates : {});
     }
 
+    /**
+     * Shows or hides the red hurt-overlay (vanilla: while the entity is hurt), the held items are not tinted.
+     * @param hurt {boolean}
+     */
+    setHurt(hurt) {
+        if (hurt === this.hurt) return;
+        this.hurt = hurt;
+        if (this.displayedSkin) this.applyMaterials(this.displayedSkin);
+    }
+
     /** @private */
     applyMaterials(skin) {
+        const materials = this.hurt ? this.skinCache.hurtMaterials(skin) : skin;
         for (const name of PART_NAMES) {
             const [baseMesh, overlayMesh] = this.parts[name].children;
-            baseMesh.material = skin.baseMaterial;
-            overlayMesh.material = skin.overlayMaterial;
+            if (!baseMesh) continue;
+            baseMesh.material = materials.baseMaterial;
+            overlayMesh.material = materials.overlayMaterial;
         }
     }
 
