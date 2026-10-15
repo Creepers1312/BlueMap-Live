@@ -20,6 +20,8 @@
 
 Noch **nicht für den produktiven Einsatz** gedacht.
 
+Test in einer Einzelspielerwelt: [`docs/bluemap-live/singleplayer-test.md`](docs/bluemap-live/singleplayer-test.md)
+
 ### Branches
 
 - `mc1.21.1` – unveränderter Stand des Original-BlueMap-Branches (Basis)
