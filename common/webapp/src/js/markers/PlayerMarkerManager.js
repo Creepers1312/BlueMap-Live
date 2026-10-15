@@ -25,6 +25,7 @@
 import { PlayerMarkerSet } from "./PlayerMarkerSet";
 import { MarkerManager } from "./MarkerManager";
 import { DEFAULT_UPDATE_INTERVAL } from "./LivePlayerData";
+import { PlayerSkinCache } from "./player/PlayerSkinCache";
 
 export const PLAYER_MARKER_SET_ID = "bm-players";
 
@@ -36,11 +37,17 @@ export class PlayerMarkerManager extends MarkerManager {
      * @param fileUrl {string} - The marker file from which this manager updates its markers
      * @param playerheadsUrl {string} - The url from which playerhead images should be loaded
      * @param events {EventTarget}
+     * @param playerskinsUrl {string | null} - The url from which the full player-skins should be loaded
+     * @param texturesUrl {string | null} - The textures.json of the map (contains the default skin)
      */
-    constructor(root, fileUrl, playerheadsUrl, events = null) {
+    constructor(root, fileUrl, playerheadsUrl, events = null, playerskinsUrl = null, texturesUrl = null) {
         super(root, fileUrl, events);
 
         this.playerheadsUrl = playerheadsUrl;
+        this.playerskinsUrl = playerskinsUrl;
+
+        this.skinCache = new PlayerSkinCache();
+        if (texturesUrl) this.skinCache.loadDefaultSkinFromTextures(texturesUrl);
     }
 
     /**
@@ -64,7 +71,7 @@ export class PlayerMarkerManager extends MarkerManager {
         let playerMarkerSet = /** @type {PlayerMarkerSet} */ this.root.markerSets.get(PLAYER_MARKER_SET_ID);
 
         if (!playerMarkerSet && create) {
-            playerMarkerSet = new PlayerMarkerSet(PLAYER_MARKER_SET_ID, this.playerheadsUrl);
+            playerMarkerSet = new PlayerMarkerSet(PLAYER_MARKER_SET_ID, this.playerheadsUrl, null, this.skinCache, this.playerskinsUrl);
             this.root.add(playerMarkerSet);
         }
 
@@ -89,6 +96,11 @@ export class PlayerMarkerManager extends MarkerManager {
 
     clear() {
         this.getPlayerMarkerSet(false)?.clear();
+    }
+
+    dispose() {
+        super.dispose();
+        this.skinCache.dispose();
     }
 
 }

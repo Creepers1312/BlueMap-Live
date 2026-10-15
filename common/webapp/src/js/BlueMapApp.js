@@ -406,7 +406,9 @@ export class BlueMapApp {
             this.mapViewer.markers,
             map.data.liveDataRoot + "/live/players.json",
             map.data.mapDataRoot + "/assets/playerheads/",
-            this.events
+            this.events,
+            map.data.mapDataRoot + "/assets/playerskins/",
+            map.data.texturesUrl + "?" + this.mapViewer.tileCacheHash
         );
         this.playerMarkerManager.setAutoUpdateInterval(0);
         return this.playerMarkerManager.update()

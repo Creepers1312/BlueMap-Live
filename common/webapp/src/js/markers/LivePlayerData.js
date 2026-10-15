@@ -51,6 +51,22 @@ const parseVector = value => {
 
 const STATE_KEYS = ["sneaking", "sprinting", "onGround", "swimming", "flying", "fallFlying"];
 
+const SKIN_VERSION_PATTERN = /^[0-9a-f]{1,64}$/;
+
+/**
+ * @param value {any}
+ * @returns {{model: "classic" | "slim", version: string} | null} - null if there is no valid skin-info
+ *  (an unknown model falls back to "classic", an invalid version means no skin)
+ */
+export function parseSkin(value) {
+    if (!value || typeof value !== "object") return null;
+    if (typeof value.version !== "string" || !SKIN_VERSION_PATTERN.test(value.version)) return null;
+    return {
+        model: value.model === "slim" ? "slim" : "classic",
+        version: value.version,
+    };
+}
+
 /**
  * @typedef LivePlayer {{
  *     uuid: string,
@@ -63,7 +79,8 @@ const STATE_KEYS = ["sneaking", "sprinting", "onGround", "swimming", "flying", "
  *     generation: number | null,
  *     time: number | null,
  *     velocity: {x: number, y: number, z: number} | null,
- *     state: object | null
+ *     state: object | null,
+ *     skin: {model: "classic" | "slim", version: string} | null
  * }}
  */
 
@@ -105,6 +122,7 @@ export function parsePlayer(raw) {
         time: isFiniteNumber(raw.time) ? raw.time : null,
         velocity: parseVector(raw.velocity),
         state,
+        skin: parseSkin(raw.skin),
     };
 }
 
@@ -158,6 +176,7 @@ function toLegacy(player) {
         time: null,
         velocity: null,
         state: null,
+        skin: null,
     };
 }
 

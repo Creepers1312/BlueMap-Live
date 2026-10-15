@@ -30,13 +30,24 @@ import {DEFAULT_UPDATE_INTERVAL, isStaleResponse, parsePlayersResponse, resolveU
 
 export class PlayerMarkerSet extends MarkerSet {
 
-    constructor(id, playerheadsUrl, data = null) {
+    /**
+     * @param id {string}
+     * @param playerheadsUrl {string}
+     * @param data {object | null}
+     * @param skinCache {import("./player/PlayerSkinCache").PlayerSkinCache | null}
+     * @param playerskinsUrl {string | null}
+     */
+    constructor(id, playerheadsUrl, data = null, skinCache = null, playerskinsUrl = null) {
         super(id, data);
         this.data.label = "Player";
         this.data.toggleable = true;
         this.data.defaultHide = false;
 
         this.data.playerheadsUrl = playerheadsUrl;
+
+        // not part of the (reactive) data
+        this.skinCache = skinCache;
+        this.playerskinsUrl = playerskinsUrl;
 
         this.lastServerTime = null;
         this.updateInterval = DEFAULT_UPDATE_INTERVAL;
@@ -93,7 +104,7 @@ export class PlayerMarkerSet extends MarkerSet {
         // create new if not existent of wrong type
         if (!marker || !marker.isPlayerMarker) {
             if (marker) this.remove(marker);
-            marker = new PlayerMarker(markerId, playerUuid, `${this.data.playerheadsUrl}${playerUuid}.png`);
+            marker = new PlayerMarker(markerId, playerUuid, `${this.data.playerheadsUrl}${playerUuid}.png`, this.skinCache, this.playerskinsUrl);
             this.add(marker);
         }
 

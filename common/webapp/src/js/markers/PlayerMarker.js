@@ -25,43 +25,19 @@
 import {Marker} from "./Marker";
 import {CSS2DObject} from "../util/CSS2DRenderer";
 import {animate, htmlToElement} from "../util/Utils";
-import {BoxGeometry, Group, MathUtils, Mesh, MeshBasicMaterial} from "three";
+import {MathUtils} from "three";
 import {angleDelta, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse} from "./LivePlayerData";
+import {PlayerModel} from "./player/PlayerModel";
+import {PlayerSkinCache} from "./player/PlayerSkinCache";
 
-/** Height of the head-marker above the players feet (also the height of the placeholder-model) */
+/** Height of the head-marker above the players feet */
 const PLAYER_HEIGHT = 1.8;
 
 /** Beyond this camera-distance only the head/name marker is shown, the 3d-model is hidden */
 const MODEL_MAX_DISTANCE = 1000;
 
-/**
- * Geometries and materials of the temporary placeholder-model.
- * They are shared between all player-markers and are never disposed.
- * (BlueMap Live phase 2: technical prototype, NOT the final player-model)
- */
-let placeholderResources = null;
-function getPlaceholderResources() {
-    if (!placeholderResources) {
-        placeholderResources = {
-            bodyGeometry: new BoxGeometry(0.5, 1.3, 0.3).translate(0, 0.65, 0),
-            headGeometry: new BoxGeometry(0.5, 0.5, 0.5).translate(0, 0.25, 0),
-            faceGeometry: new BoxGeometry(0.3, 0.1, 0.05).translate(0, 0.3, 0.27),
-            bodyMaterial: new MeshBasicMaterial({color: 0x3b6fd1}),
-            headMaterial: new MeshBasicMaterial({color: 0xd9a066}),
-            faceMaterial: new MeshBasicMaterial({color: 0x222222}),
-        };
-    }
-    return placeholderResources;
-}
-
-/**
- * Creates a mesh that is ignored by raycasting, so the model never intercepts the normal map-interactions (clicks)
- */
-function placeholderMesh(geometry, material) {
-    const mesh = new Mesh(geometry, material);
-    mesh.raycast = () => {};
-    return mesh;
-}
+/** used if no skin-cache is provided */
+let fallbackSkinCache = null;
 
 export class PlayerMarker extends Marker {
 
@@ -69,8 +45,10 @@ export class PlayerMarker extends Marker {
      * @param markerId {string}
      * @param playerUuid {string}
      * @param playerHead {string}
+     * @param skinCache {PlayerSkinCache | null} - shared skin-textures
+     * @param playerskinsUrl {string | null} - the url-prefix of the full skins (assets/playerskins/)
      */
-    constructor(markerId, playerUuid, playerHead = "assets/steve.png") {
+    constructor(markerId, playerUuid, playerHead = "assets/steve.png", skinCache = null, playerskinsUrl = null) {
         super(markerId);
         Object.defineProperty(this, 'isPlayerMarker', {value: true});
         this.data.type = "player";
@@ -104,37 +82,18 @@ export class PlayerMarker extends Marker {
 
         this.add(this.elementObject);
 
-        // temporary 3d placeholder-model, rendered in the normal marker-scene (same camera & depth-buffer as the map)
-        this.model = this.createPlaceholderModel();
+        // 3d player-model, rendered in the normal marker-scene (same camera & depth-buffer as the map)
+        if (!skinCache) skinCache = fallbackSkinCache || (fallbackSkinCache = new PlayerSkinCache());
+        this.playerskinsUrl = playerskinsUrl;
+        this.model = new PlayerModel(skinCache);
+        this.model.position.y = -PLAYER_HEIGHT; // the marker itself sits at head-height, the model origin is at the feet
+        this.headPivot = this.model.parts.head;
         this.add(this.model);
 
         /** @type {import("./LivePlayerData").LivePlayer | null} */
         this.lastPlayerData = null;
         this.displayed = {x: 0, y: 0, z: 0, bodyYaw: 0, headYaw: 0, pitch: 0};
         this.movementAnimation = null;
-    }
-
-    /**
-     * @private
-     * @returns {Group}
-     */
-    createPlaceholderModel() {
-        const res = getPlaceholderResources();
-
-        const model = new Group();
-        model.name = "bm-player-placeholder-model";
-        model.position.y = -PLAYER_HEIGHT; // the marker itself sits at head-height
-
-        model.add(placeholderMesh(res.bodyGeometry, res.bodyMaterial));
-
-        this.headPivot = new Group();
-        this.headPivot.position.y = 1.3; // neck
-        this.headPivot.rotation.order = "YXZ";
-        this.headPivot.add(placeholderMesh(res.headGeometry, res.headMaterial));
-        this.headPivot.add(placeholderMesh(res.faceGeometry, res.faceMaterial));
-        model.add(this.headPivot);
-
-        return model;
     }
 
     /**
@@ -157,7 +116,7 @@ export class PlayerMarker extends Marker {
 
         this.element.setAttribute("distance-data", value);
 
-        this.model.visible = distance <= MODEL_MAX_DISTANCE;
+        this.model.visible = this.model.hasSkin && distance <= MODEL_MAX_DISTANCE;
     }
 
     /**
@@ -183,6 +142,8 @@ export class PlayerMarker extends Marker {
             this.lastPlayerData = markerData;
         }
 
+        this.updateSkin(markerData.skin);
+
         // update name
         let name = markerData.name || this.data.playerUuid;
         this.data.name = name;
@@ -191,6 +152,17 @@ export class PlayerMarker extends Marker {
 
         // update world
         this.data.foreign = markerData.foreign;
+    }
+
+    /**
+     * @private
+     * @param skin {{model: string, version: string} | null}
+     */
+    updateSkin(skin) {
+        const url = skin && this.playerskinsUrl ?
+            `${this.playerskinsUrl}${this.data.playerUuid}.png?v=${skin.version}` :
+            null;
+        this.model.setSkin(url, skin ? skin.model : "classic");
     }
 
     /**
@@ -267,7 +239,8 @@ export class PlayerMarker extends Marker {
             this.movementAnimation = null;
         }
 
-        // the placeholder geometries/materials are shared and therefore not disposed here
+        // releases the skin, the shared geometries and materials are not disposed here
+        this.model.dispose();
         this.remove(this.model);
 
         let element = this.elementObject.element;
