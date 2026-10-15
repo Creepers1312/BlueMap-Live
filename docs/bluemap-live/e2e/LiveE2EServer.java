@@ -46,6 +46,7 @@ public class LiveE2EServer {
         final PlayerMotionTracker tracker = new PlayerMotionTracker();
         String world = MAP_WORLD;
         LivePlayerState state;
+        String skin = "none"; // none | classic | slim | broken
 
         SimPlayer(String uuid, String name) {
             this.uuid = uuid;
@@ -88,7 +89,10 @@ public class LiveE2EServer {
                 case "/maps/world/live/players.json" -> handlePlayers(ex);
                 case "/maps/world/live/markers.json" -> send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
                 case "/control" -> handleControl(ex);
-                default -> serveStatic(ex, path);
+                default -> {
+                    if (path.startsWith("/maps/world/assets/playerskins/") && path.endsWith(".png")) handleSkin(ex, path);
+                    else serveStatic(ex, path);
+                }
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -122,7 +126,13 @@ public class LiveE2EServer {
     private String currentJson() throws IOException {
         List<LivePlayersJson.Entry> entries = new ArrayList<>();
         for (SimPlayer p : online.values()) {
-            entries.add(new LivePlayersJson.Entry(p.uuid, p.name, !p.world.equals(MAP_WORLD), p.world, p.state));
+            LivePlayersJson.Skin skin = switch (p.skin) {
+                case "classic" -> new LivePlayersJson.Skin("classic", "0c");
+                case "slim" -> new LivePlayersJson.Skin("slim", "05");
+                case "broken" -> new LivePlayersJson.Skin("classic", "0b"); // announced, but the image is missing (404)
+                default -> null;
+            };
+            entries.add(new LivePlayersJson.Entry(p.uuid, p.name, !p.world.equals(MAP_WORLD), p.world, p.state, skin));
         }
         StringWriter out = new StringWriter();
         try (JsonWriter json = new JsonWriter(out)) {
@@ -159,6 +169,7 @@ public class LiveE2EServer {
             String uuid = q.get("uuid");
             SimPlayer p = online.computeIfAbsent(uuid, u -> new SimPlayer(u, q.getOrDefault("name", "Player")));
             if (q.containsKey("world")) p.world = q.get("world");
+            if (q.containsKey("skin")) p.skin = q.get("skin");
             if ("1".equals(q.get("respawn"))) p.tracker.markDiscontinuity();
 
             Vector3d position = new Vector3d(d(q, "x"), d(q, "y"), d(q, "z"));
@@ -218,6 +229,82 @@ public class LiveE2EServer {
             """;
     }
 
+    // --- skins ---
+
+    private static final int[][] PART_UV = { {0, 0}, {16, 16}, {40, 16}, {32, 48}, {0, 16}, {16, 48} };
+    private static final int[][] OVERLAY_UV = { {32, 0}, {16, 32}, {40, 32}, {48, 48}, {0, 32}, {0, 48} };
+
+    /** face-rectangles {x, y, w, h} in the order right, left, top, bottom, front, back (standard box-uv layout) */
+    private static int[][] boxRects(int u, int v, int w, int h, int d) {
+        return new int[][] {
+                { u, v + d, d, h },
+                { u + d + w, v + d, d, h },
+                { u + d, v, w, d },
+                { u + d + w, v, w, d },
+                { u + d, v + d, w, h },
+                { u + d + w + d, v + d, w, h },
+        };
+    }
+
+    private static int[] partSize(int part, boolean slim) {
+        return switch (part) {
+            case 0 -> new int[] {8, 8, 8};
+            case 1 -> new int[] {8, 12, 4};
+            case 2, 3 -> new int[] {slim ? 3 : 4, 12, 4};
+            default -> new int[] {4, 12, 4};
+        };
+    }
+
+    /** unique color per (layer, part, face, quadrant) – the same formula is used in player-e2e.mjs */
+    static int skinColor(int layer, int part, int face, int quadrant) {
+        int id = ((layer * 6 + part) * 6 + face) * 4 + quadrant;
+        int r = 30 + (id % 8) * 30, g = 30 + ((id / 8) % 8) * 30, b = 30 + (id / 64) * 45;
+        return 0xFF000000 | (r << 16) | (g << 8) | b;
+    }
+
+    /**
+     * A synthetic skin: every face of the base layer is split into 4 quadrants (top-left, top-right, bottom-left,
+     * bottom-right of the face-rectangle) with unique colors. The second layer is transparent, except the left half
+     * of the hat-front.
+     */
+    private static BufferedImage colorCodedSkin(boolean slim) {
+        BufferedImage img = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        for (int part = 0; part < 6; part++) {
+            int[] size = partSize(part, slim);
+            int[][] rects = boxRects(PART_UV[part][0], PART_UV[part][1], size[0], size[1], size[2]);
+            for (int face = 0; face < 6; face++) {
+                int[] r = rects[face];
+                for (int y = 0; y < r[3]; y++) for (int x = 0; x < r[2]; x++) {
+                    int quadrant = (y < r[3] / 2 ? 0 : 2) + (x < r[2] / 2 ? 0 : 1);
+                    img.setRGB(r[0] + x, r[1] + y, skinColor(0, part, face, quadrant));
+                }
+            }
+        }
+        int[] hatFront = boxRects(OVERLAY_UV[0][0], OVERLAY_UV[0][1], 8, 8, 8)[4];
+        for (int y = 0; y < hatFront[3]; y++) for (int x = 0; x < hatFront[2] / 2; x++) {
+            img.setRGB(hatFront[0] + x, hatFront[1] + y, skinColor(1, 0, 4, 0));
+        }
+        return img;
+    }
+
+    private void handleSkin(HttpExchange ex, String path) throws IOException {
+        String uuid = path.substring("/maps/world/assets/playerskins/".length(), path.length() - 4);
+        SimPlayer p = online.get(uuid);
+        if (p == null || !(p.skin.equals("classic") || p.skin.equals("slim"))) {
+            send(ex, 404, "text/plain", "no skin".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        ByteArrayOutputStream png = new ByteArrayOutputStream();
+        ImageIO.write(colorCodedSkin(p.skin.equals("slim")), "png", png);
+        send(ex, 200, "image/png", png.toByteArray());
+    }
+
+    private static String dataUrl(BufferedImage img) throws IOException {
+        ByteArrayOutputStream png = new ByteArrayOutputStream();
+        ImageIO.write(img, "png", png);
+        return "data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray());
+    }
+
     private static String textures() throws IOException {
         // one 16x16 checkered texture
         BufferedImage img = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
@@ -228,7 +315,14 @@ public class LiveE2EServer {
         ByteArrayOutputStream png = new ByteArrayOutputStream();
         ImageIO.write(img, "png", png);
         String data = "data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray());
-        return "[{\"resourcePath\":\"test:block/grass\",\"color\":[0.4,0.6,0.3,1],\"halfTransparent\":false,\"texture\":\"" + data + "\"}]";
+        // synthetic stand-in for the default skin of the resource-pack (uniform gray, NOT the mojang texture)
+        BufferedImage steve = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        for (int x = 0; x < 64; x++) for (int y = 0; y < 32; y++) steve.setRGB(x, y, 0xFF808080);
+        for (int x = 0; x < 64; x++) for (int y = 48; y < 64; y++) if (x >= 16 && x < 48) steve.setRGB(x, y, 0xFF808080);
+        for (int x = 0; x < 64; x++) for (int y = 16; y < 32; y++) if (x >= 32 && x < 40) steve.setRGB(x, y, 0);
+
+        return "[{\"resourcePath\":\"test:block/grass\",\"color\":[0.4,0.6,0.3,1],\"halfTransparent\":false,\"texture\":\"" + data + "\"}," +
+                "{\"resourcePath\":\"minecraft:entity/player/slim/steve\",\"color\":[0.5,0.5,0.5,1],\"halfTransparent\":false,\"texture\":\"" + dataUrl(steve) + "\"}]";
     }
 
     /** A 32x32 ground plane at y=64 with a 4x6x4 pillar (local 14..18), written with BlueMaps own PRBMWriter */
