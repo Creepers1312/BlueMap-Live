@@ -20,6 +20,8 @@ Der Workflow `.github/workflows/build.yml` (unverändert aus BlueMap übernommen
 | Tests | `./gradlew spotlessCheck test --stacktrace` | **erfolgreich** (beide Läufe) |
 | Deploy Docker Build | Push nach `ghcr.io/creepers1312/bluemap-live` | fehlgeschlagen: `denied: installation not allowed to Create organization package`; nicht codebezogen. Der Job läuft seit dem nachfolgenden CI-Commit nur noch im Original-Repository (`if: github.repository == 'BlueMap-Minecraft/BlueMap'`). |
 
+Auf Commit `893451b` (Snapshot-Konsistenz + `LivePlayersDataSupplierTest`, Docker-Job auf das Original-Repo beschränkt) erneut: **Build erfolgreich, Tests erfolgreich** (Push- und PR-Lauf), Docker übersprungen.
+
 Einschränkung: Die Job-Protokolle sind aus dieser Umgebung nicht abrufbar (Actions-Log-API über den Proxy gesperrt). Belegt ist das Job-Ergebnis, nicht die Anzahl der ausgeführten Tests. Der Gradle-Build mit Fabric/Loom bestätigt, dass `FabricMod`, `FabricPlayer` und die geänderten `common`-Klassen gegen Minecraft 1.21, Yarn `1.21+build.1` und Fabric API `0.100.1+1.21` kompilieren. Spotless bestätigt Format und Lizenz-Header.
 
 ---
