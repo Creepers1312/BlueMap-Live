@@ -1,3 +1,35 @@
+# BlueMap Live
+
+> **Dies ist ein Fork von [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap)** (Branch `mc1.21.1`) mit dem Ziel,
+> die originale BlueMap-Karte um **Live-Inhalte** zu ergänzen – ohne die Karte, ihre Texturen, den Webclient oder die Navigation zu ersetzen.
+
+**Ziel:** Minecraft Java Edition **1.21.1** mit **Fabric**
+
+- echte 3D-Spielermodelle mit Skin, Live-Position, Blickrichtung und Animationen (siehe auch [BlueMap#95](https://github.com/BlueMap-Minecraft/BlueMap/issues/95))
+- Live-Blockänderungen ohne komplettes Neu-Rendern der Welt
+
+### Stand
+
+| Phase | Inhalt | Status |
+|---|---|---|
+| 1 | Analyse und Architektur | fertig – [`docs/bluemap-live/analysis.md`](docs/bluemap-live/analysis.md) |
+| 2 | End-to-End-Prototyp: erweiterte Live-Spielerdaten + **vorläufiges** 3D-Objekt im Webclient | implementiert, teilweise getestet, **noch nicht mit Gradle gebaut und nicht auf einem echten Server geprüft** – [`docs/bluemap-live/phase-2.md`](docs/bluemap-live/phase-2.md) |
+| 3 | Echte Spielermodelle mit Skin und Animationen | geplant |
+| 4–5 | Live-Blockänderungen (zuverlässig, dann inkrementell) | geplant |
+| 6 | Stabilisierung und Dokumentation | geplant |
+
+Noch **nicht für den produktiven Einsatz** gedacht.
+
+### Branches
+
+- `mc1.21.1` – unveränderter Stand des Original-BlueMap-Branches (Basis)
+- `bluemap-live` – Entwicklungsstand von BlueMap Live
+
+Lizenz und Urheberschaft von BlueMap bleiben unverändert (MIT, siehe [LICENSE](LICENSE)).
+Alles unterhalb dieser Linie ist die originale BlueMap-README.
+
+---
+
 [![title-banner](https://bluecolored.de/paste/BluemapBanner.png)](https://bluemap.bluecolored.de/)
 
 <div align="center">
