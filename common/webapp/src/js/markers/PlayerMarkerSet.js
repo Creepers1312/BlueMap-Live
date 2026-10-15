@@ -26,6 +26,7 @@
 import {MarkerSet} from "./MarkerSet";
 import {alert} from "../util/Utils";
 import {PlayerMarker} from "./PlayerMarker";
+import {DEFAULT_UPDATE_INTERVAL, isStaleResponse, parsePlayersResponse, resolveUpdateInterval} from "./LivePlayerData";
 
 export class PlayerMarkerSet extends MarkerSet {
 
@@ -36,19 +37,33 @@ export class PlayerMarkerSet extends MarkerSet {
         this.data.defaultHide = false;
 
         this.data.playerheadsUrl = playerheadsUrl;
+
+        this.lastServerTime = null;
+        this.updateInterval = DEFAULT_UPDATE_INTERVAL;
     }
 
     updateFromPlayerData(data) {
-        if (!Array.isArray(data.players)) {
+        let response = parsePlayersResponse(data);
+        if (!response) {
             this.clear();
             return false;
+        }
+
+        // ignore responses that are older than the last one we processed (e.g. from a cache)
+        if (isStaleResponse(this.lastServerTime, response.serverTime)) return true;
+        if (response.serverTime !== null) this.lastServerTime = response.serverTime;
+
+        this.updateInterval = resolveUpdateInterval(response.updateInterval);
+
+        if (response.invalid > 0) {
+            alert(this.events, `${response.invalid} invalid player-entries in live player data have been ignored.`, "fine");
         }
 
         /** @type Set<Marker> */
         let updatedPlayerMarkers = new Set();
 
         // update
-        data.players.forEach(playerData => {
+        response.players.forEach(playerData => {
             try {
                 let playerMarker = this.updatePlayerMarkerFromData(playerData);
                 updatedPlayerMarkers.add(playerMarker);
@@ -83,7 +98,7 @@ export class PlayerMarkerSet extends MarkerSet {
         }
 
         // update
-        marker.updateFromData(markerData);
+        marker.updateFromData(markerData, this.updateInterval);
 
         // hide if from different world
         marker.visible = !markerData.foreign;

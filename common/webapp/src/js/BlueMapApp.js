@@ -411,7 +411,7 @@ export class BlueMapApp {
         this.playerMarkerManager.setAutoUpdateInterval(0);
         return this.playerMarkerManager.update()
             .then(() => {
-                this.playerMarkerManager.setAutoUpdateInterval(1000);
+                this.playerMarkerManager.setAutoUpdateInterval(this.playerMarkerManager.updateInterval);
             })
             .catch(e => {
                 alert(this.events, e, "warning");

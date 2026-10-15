@@ -24,6 +24,7 @@
  */
 import { PlayerMarkerSet } from "./PlayerMarkerSet";
 import { MarkerManager } from "./MarkerManager";
+import { DEFAULT_UPDATE_INTERVAL } from "./LivePlayerData";
 
 export const PLAYER_MARKER_SET_ID = "bm-players";
 
@@ -76,6 +77,14 @@ export class PlayerMarkerManager extends MarkerManager {
      */
     getPlayerMarker(playerUuid) {
         return this.getPlayerMarkerSet().getPlayerMarker(playerUuid)
+    }
+
+    /**
+     * The polling interval (ms) announced by the server in the last received data
+     * @returns {number}
+     */
+    get updateInterval() {
+        return this.getPlayerMarkerSet(false)?.updateInterval ?? DEFAULT_UPDATE_INTERVAL;
     }
 
     clear() {
