@@ -1,6 +1,6 @@
 # BlueMap Live – Test in einer Einzelspielerwelt (Minecraft 1.21.1, Fabric)
 
-Stand: 2026-10-15 · Branch `bluemap-live` · Commit `cc4a7e2`
+Stand: 2026-10-15 · Branch `bluemap-live` · Commit `8d33402`
 
 > **Status:** Die Unterstützung des integrierten Servers ergibt sich aus der Code-Analyse (siehe §1). Sie ist **nicht** in einem echten Minecraft-Client getestet; in dieser Umgebung gibt es weder Minecraft noch Zugriff auf die Mojang- und Fabric-Server. Alle Prüfpunkte in §6 sind **offen**.
 
@@ -58,9 +58,9 @@ Für dedizierte Server ändert sich nichts.
 
 ## 3. Benötigtes JAR
 
-**CI-Lauf:** Workflow „CI“, **Push**-Lauf auf `cc4a7e2` (enthält die Bind-Änderung): <https://github.com/Creepers1312/BlueMap-Live/actions/runs/38772068598>, Build- und Test-Job erfolgreich.
+**CI-Lauf:** Workflow „CI“, **Push**-Lauf auf `8d33402` (enthält die lokale Bindung aus `cc4a7e2` und den deaktivierten Metrics-Standard): <https://github.com/Creepers1312/BlueMap-Live/actions/runs/38774450401>, Build- und Test-Job erfolgreich.
 
-**Artefakt:** `artifacts` (ID 11991189023, 41 155 545 Bytes, gültig bis 2027-01-13). Es enthält den Inhalt von `build/release/`, also die JARs **aller** Plattformen.
+**Artefakt:** `artifacts` (ID 11993121918, 41 155 651 Bytes, gültig bis 2027-01-13). Es enthält den Inhalt von `build/release/`, also die JARs **aller** Plattformen. Ältere Artefakte, z. B. von `cc4a7e2`, enthalten den Metrics-Standard `false` noch nicht.
 
 **Davon wird genau ein JAR benötigt: das mit der Endung `-fabric.jar`.**
 
@@ -89,7 +89,7 @@ Voraussetzungen:
 4. Minecraft mit dem Fabric-Profil starten, eine Einzelspielerwelt **mit „Cheats erlauben: An“** erstellen oder öffnen. Bei einer bestehenden Welt geht auch „Für LAN öffnen“ mit Cheats, dann aber nicht im Netz freigeben.
 5. Beim ersten Start meldet BlueMap fehlende Ressourcen (§5). Spiel offen lassen und `.minecraft/config/bluemap/core.conf` bearbeiten:
    - `accept-download: true`. Damit bestätigst du die Minecraft-EULA, und BlueMap lädt die Client-Ressourcen von Mojang herunter.
-   - **Empfohlen:** `metrics: false`. Standardmäßig schickt BlueMap eine kurze Meldung (Plattform, Version, MC-Version) an `https://metrics.bluecolored.de/bluemap/`, den Server des BlueMap-Autors. Für einen privaten Test sinnvoll abzuschalten.
+   - `metrics: false` ist in BlueMap Live **Standard** (§9). Prüfen, dass der Eintrag so in der neu erzeugten Datei steht. Eine `core.conf` aus einer früheren BlueMap-Installation wird **nicht** geändert und kann noch `metrics: true` enthalten; dann manuell auf `false` setzen.
 6. Im Spiel `/bluemap reload` ausführen.
 7. Mit `/bluemap status` prüfen, bis die Render-Aufgaben fertig sind; zwischendurch einmal **ESC** drücken, damit das Spiel die Chunks speichert.
 8. Im Browser auf **demselben Rechner** öffnen: **<http://127.0.0.1:8100/>**
@@ -171,10 +171,35 @@ Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phas
 
 | Test | Ergebnis |
 |---|---|
-| GitHub Actions auf `cc4a7e2`: `spotlessCheck test`, `release` | erfolgreich (Push- und PR-Lauf) |
-| Lokal JUnit ohne Gradle (`live`, `skins`, `WebserverConfigTest`) | 37/37 |
+| GitHub Actions auf `cc4a7e2` und `8d33402`: `spotlessCheck test`, `release` | erfolgreich (jeweils Push- und PR-Lauf); auf `8d33402` inklusive `MetricsDefaultTest` |
+| Lokal JUnit ohne Gradle (`live`, `skins`, `WebserverConfigTest`) | 37/37 (`MetricsDefaultTest` braucht Lombok und den vollständigen Klassenpfad und läuft nur im CI) |
 | `npm test` | 30/30 |
 | ESLint auf allen geänderten/neuen JS-Dateien | ok. Auf ganz `src/js` gibt es 3 Befunde in unveränderten Original-Dateien (`PopupMarker.js`, `PRBMLoader.js`, `Utils.js`), identisch auf `mc1.21.1`, nicht angefasst. |
 | `npm run build` | ok |
 | Browser-E2E `player-e2e.mjs` | 22/22 |
 | **Echter Minecraft-Client/-Server, echte Mojang-Skins** | **nicht ausgeführt** (keine Minecraft-Umgebung; `piston-meta.mojang.com`, `libraries.minecraft.net`, `maven.fabricmc.net`, `sessionserver.mojang.com` nicht erreichbar) |
+
+---
+
+## 9. Telemetrie (Metrics) und verbleibende Verbindungen zum Originalprojekt
+
+**Änderung (BlueMap Live):** Die Nutzungsmeldungen an `https://metrics.bluecolored.de/bluemap/` (Plattform, Version, Minecraft-Version; alle 30 Minuten, siehe `Plugin`) sind jetzt **standardmäßig deaktiviert**:
+- `CoreConfig.metrics` hat den Standardwert `false`.
+- Die Vorlage `core.conf` schreibt `metrics: false` mit einem Hinweis, dass man die Meldungen mit `true` weiterhin aktivieren kann.
+
+**Bestehende Konfigurationen [geprüft im Code]:** `BlueMapConfigManager.loadCoreConfig` erzeugt `core.conf` aus der Vorlage **nur, wenn die Datei noch nicht existiert**. Eine vorhandene Datei wird unverändert geladen und nie zurückgeschrieben. Folgen:
+- Eine `core.conf` mit `metrics: true` (z. B. aus einer früheren Original-BlueMap-Installation im selben Ordner) **bleibt aktiv**, bis man sie selbst auf `false` setzt.
+- Ein explizites `metrics: false` bleibt ebenfalls erhalten.
+- Fehlt der Eintrag, gilt der neue Standard `false`.
+- Auf Sponge entscheidet weiterhin die Sponge-eigene Einstellung (`Server#isMetricsEnabled`).
+
+**Tests:** `MetricsDefaultTest` prüft Neuinstallation (echter `BlueMapConfigManager`-Builder, erzeugte Datei enthält `metrics: false`), Neuinstallation ohne Metrics-Abschnitt, explizites `true`/`false` und fehlenden Eintrag. Außerdem prüft er, dass eine bestehende Datei nicht verändert wird.
+
+**Weitere Verbindungen zum Originalprojekt, die bewusst unverändert bleiben:**
+
+| Wo | Was | Betrifft den Fabric-Test? |
+|---|---|---|
+| Paper/Spigot (`BukkitPlugin`) | bStats-Metrics mit der Plugin-ID 5912 des Original-BlueMap (`new Metrics(this, 5912)`), abschaltbar über die bStats-Konfiguration des Servers | nein |
+| Ressourcen-Download | lädt das Minecraft-Client-Jar von Mojang (`piston-meta.mojang.com`), nicht vom BlueMap-Projekt | – |
+| Skins | `sessionserver.mojang.com` / `textures.minecraft.net` (Mojang), abschaltbar mit `skin-download: false` | ja (Mojang, nicht BlueMap) |
+| `README.md` (originaler Teil) | Badge-Bilder von `img.shields.io` und `metrics.bluecolored.de`; werden nur beim Anzeigen der README auf GitHub geladen, nicht von der Mod | nein |
