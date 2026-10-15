@@ -134,7 +134,7 @@ public class VanillaMobModelsTest {
             if (line.startsWith("error::")) line = line.substring(5);
             lines.add("::" + types[Math.min(i / 10, 2)] + " title=vanilla-model-check" + line.replace("%", "%25").replace("\r", "").replace("\n", " "));
         }
-        Path out = Path.of("build", "vanilla-model-check.txt");
+        Path out = Path.of(System.getProperty("bluemap.modelCheckReport", "build/vanilla-model-check.txt"));
         Files.createDirectories(out.getParent());
         Files.write(out, lines, StandardCharsets.UTF_8);
     }

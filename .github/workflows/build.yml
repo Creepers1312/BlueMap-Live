@@ -38,7 +38,7 @@ jobs:
       - name: Test failures
         if: failure()
         run: |
-          grep -E "FAILED|What went wrong|Execution failed|Exception|expected|> Task .*FAILED" test-output.txt | head -40 | \
+          grep -E -A3 "FAILED|Exception|Error|expected" test-output.txt | grep -v "^\s*at org.gradle\|^\s*at java.base\|^\s*at worker" | head -60 | \
             sed 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' | sed 's/^/::error title=test-failures::/'; echo
 
   build:

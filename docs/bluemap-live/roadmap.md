@@ -46,7 +46,9 @@ Release-Notes: `releases/v0.1.0-alpha.md`.
 **Stand:**
 - Alle Punkte sind umgesetzt und automatisiert getestet (`phase-5.md`), inklusive Treffer-Blitz und Vanilla-Pfeilmodell mit flüssiger Flugbahn.
 - Nach dem ersten Test in Minecraft verbessert: Pfeilmodell und Flugbahn; der Treffer-Blitz fehlte zuvor.
-- Offen ist die erneute Prüfung in Minecraft (N1–N9).
+- Fehler behoben (bei der Arbeit an 0.3.0 gefunden): Das Neuladen von `markers.json` alle 10 s hat das Entity-Set entfernt.
+- Offen ist die erneute Prüfung in Minecraft (N1–N10).
+- **Veröffentlichung:** Auf Wunsch des Nutzers wird 0.2.0 zusammen mit 0.3.0 veröffentlicht (nach der Prüfung in Minecraft).
 
 **Ziel:** Entities im Umkreis um die Spieler werden live angezeigt, zuerst alles, was ohne neue Modelle auskommt.
 
@@ -86,6 +88,12 @@ Release-Notes: `releases/v0.1.0-alpha.md`.
 ---
 
 ## 0.3.0-alpha – Entities, Teil 2: Mobs
+
+**Stand:**
+- Umgesetzt und automatisiert getestet (`phase-6.md`): alle drei Familien unten, dazu Zombiedorfbewohner und Piglin-Barbar.
+- Unbekannte Lebewesen erscheinen als Platzhalter.
+- Die Modelldaten prüft das CI gegen Minecraft 1.21.
+- Offen: Prüfung in Minecraft (O1–O12).
 
 **Ziel:** Die häufigsten Mobs mit Vanilla-Modell, Textur aus dem Resource-Pack und Laufanimation.
 

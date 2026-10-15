@@ -128,5 +128,12 @@ dependencies {
 }
 tasks.test {
     systemProperty("bluemap.mobModels", rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json").absolutePath)
+    systemProperty("bluemap.modelCheckReport", layout.buildDirectory.file("vanilla-model-check.txt").get().asFile.absolutePath)
     inputs.file(rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json"))
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showStackTraces = true
+    }
 }
