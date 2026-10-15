@@ -163,6 +163,14 @@ await step("dropped item: item-model with the ground-transformation, bobbing and
     assert.equal(await entityExpr(1, "m.data.listed"), false, "not listed in the marker-menu");
 });
 
+await step("markers.json-updates (every 10 s) keep the entity-set and its markers", async () => {
+    await page.evaluate(() => window.__entityBefore = window.bluemap.mapViewer.markers.markerSets.get("bm-entities").markers.get("bm-entity-1"));
+    await page.evaluate(() => window.bluemap.markerFileManager.update());
+    await sleep(300);
+    const same = await page.evaluate(() => window.bluemap.mapViewer.markers.markerSets.get("bm-entities")?.markers.get("bm-entity-1") === window.__entityBefore);
+    assert.equal(same, true, "the same marker (not removed and recreated)");
+});
+
 await step("moving entity is interpolated, a far jump is not", async () => {
     await control({entity: 1, type: "minecraft:item", x: 9.5, y: 64, z: 10, item: "minecraft:diamond"});
     const xs = await sample(1, 800, "m.position.x");

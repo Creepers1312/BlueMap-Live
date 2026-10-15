@@ -24,6 +24,10 @@
  */
 import { MarkerManager } from "./MarkerManager";
 import { PLAYER_MARKER_SET_ID } from "./PlayerMarkerManager";
+import { ENTITY_MARKER_SET_ID } from "./EntityMarkerManager";
+
+// BlueMap Live: the live entity-set is managed by the EntityMarkerManager, it must not be removed by markers.json updates
+const IGNORED_MARKER_SETS = [PLAYER_MARKER_SET_ID, ENTITY_MARKER_SET_ID, "bm-popup-set"];
 
 export class NormalMarkerManager extends MarkerManager {
 
@@ -44,12 +48,12 @@ export class NormalMarkerManager extends MarkerManager {
      * @returns {boolean}
      */
     updateFromData(markerData) {
-        this.root.updateMarkerSetsFromData(markerData, [PLAYER_MARKER_SET_ID, "bm-popup-set"]);
+        this.root.updateMarkerSetsFromData(markerData, IGNORED_MARKER_SETS);
         return true;
     }
 
     clear() {
-        this.root.updateMarkerSetsFromData({}, [PLAYER_MARKER_SET_ID, "bm-popup-set"]);
+        this.root.updateMarkerSetsFromData({}, IGNORED_MARKER_SETS);
     }
 
 }
