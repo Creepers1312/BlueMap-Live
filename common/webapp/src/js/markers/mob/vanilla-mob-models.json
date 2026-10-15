@@ -89,7 +89,7 @@
   "right_front_leg":{"pivot":[-2,18,-4],"cuboids":[{"uv":[0,16],"box":[-2,0,-2,4,6,4],"dilation":2}]},
   "left_front_leg":{"pivot":[2,18,-4],"cuboids":[{"uv":[0,16],"box":[-2,0,-2,4,6,4],"dilation":2}]}
  }},
- "minecraft:pig#main":{"texture":[64, 64],"parts":{
+ "minecraft:pig#main":{"texture":[64, 32],"parts":{
   "head":{"pivot":[0,12,-6],"cuboids":[{"uv":[0,0],"box":[-4,-4,-8,8,8,8]},{"uv":[16,16],"box":[-2,0,-9,4,3,1]}]},
   "body":{"pivot":[0,11,2],"rotation":[1.5707964,0,0],"cuboids":[{"uv":[28,8],"box":[-5,-10,-7,10,16,8]}]},
   "right_hind_leg":{"pivot":[-3,18,7],"cuboids":[{"uv":[0,16],"box":[-2,0,-2,4,6,4]}]},
@@ -97,7 +97,7 @@
   "right_front_leg":{"pivot":[-3,18,-5],"cuboids":[{"uv":[0,16],"box":[-2,0,-2,4,6,4]}]},
   "left_front_leg":{"pivot":[3,18,-5],"cuboids":[{"uv":[0,16],"box":[-2,0,-2,4,6,4]}]}
  }},
- "minecraft:pig#saddle":{"texture":[64, 64],"parts":{
+ "minecraft:pig#saddle":{"texture":[64, 32],"parts":{
   "head":{"pivot":[0,12,-6],"cuboids":[{"uv":[0,0],"box":[-4,-4,-8,8,8,8],"dilation":0.5},{"uv":[16,16],"box":[-2,0,-9,4,3,1],"dilation":0.5}]},
   "body":{"pivot":[0,11,2],"rotation":[1.5707964,0,0],"cuboids":[{"uv":[28,8],"box":[-5,-10,-7,10,16,8],"dilation":0.5}]},
   "right_hind_leg":{"pivot":[-3,18,7],"cuboids":[{"uv":[0,16],"box":[-2,0,-2,4,6,4],"dilation":0.5}]},

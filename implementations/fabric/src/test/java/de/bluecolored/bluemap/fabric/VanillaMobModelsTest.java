@@ -186,7 +186,7 @@ public class VanillaMobModelsTest {
         LAYERS.put("minecraft:slime#main", () -> call(MODEL + "SlimeEntityModel", "getInnerTexturedModelData"));
         LAYERS.put("minecraft:slime#outer", () -> call(MODEL + "SlimeEntityModel", "getOuterTexturedModelData"));
         LAYERS.put("minecraft:villager#main", () -> of(call(MODEL + "VillagerResemblingModel", "getModelData"), 64, 64));
-        LAYERS.put("minecraft:zombie_villager#main", () -> call(MODEL + "ZombieVillagerEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:zombie_villager#main", () -> call(MODEL + "ZombieVillagerEntityModel", "getTexturedModelData"));
         LAYERS.put("minecraft:piglin#main", piglin);
         LAYERS.put("minecraft:zombified_piglin#main", piglin);
         LAYERS.put("minecraft:piglin_brute#main", piglin);
