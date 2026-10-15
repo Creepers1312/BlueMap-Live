@@ -28,6 +28,7 @@ import {EntityMarker} from "./EntityMarker";
 import {entityKind, parseEntitiesResponse} from "./LiveEntityData";
 import {DEFAULT_UPDATE_INTERVAL, isStaleResponse} from "./LivePlayerData";
 import {ItemAssetCache} from "./player/ItemAssetCache";
+import {MobAssetCache} from "./mob/MobAssetCache";
 
 export const ENTITY_MARKER_SET_ID = "bm-entities";
 
@@ -35,7 +36,7 @@ const MAX_ANIMATION_STEP = 0.25;
 
 /**
  * Shows the entities around the players from live/entities.json (BlueMap Live): dropped items, thrown items,
- * arrows and other projectiles, in an own (toggleable) marker-set "Entities".
+ * arrows and other projectiles and mobs, in an own (toggleable) marker-set "Entities".
  * Animated in the existing render-loop of the map-viewer (bluemapRenderFrame), like the player-models.
  */
 export class EntityMarkerManager extends MarkerManager {
@@ -53,6 +54,7 @@ export class EntityMarkerManager extends MarkerManager {
         super(root, fileUrl, events);
         this.itemCache = new ItemAssetCache(itemsUrl);
         this.entityCache = new ItemAssetCache(entitiesUrl);
+        this.mobCache = new MobAssetCache(entitiesUrl);
         this.camera = camera;
         this.redraw = redraw;
         this.updateInterval = DEFAULT_UPDATE_INTERVAL;
@@ -104,7 +106,7 @@ export class EntityMarkerManager extends MarkerManager {
                 marker = null;
             }
             if (!marker) {
-                marker = new EntityMarker(markerId, this.itemCache, this.entityCache);
+                marker = new EntityMarker(markerId, this.itemCache, this.entityCache, this.mobCache);
                 set.add(marker);
             }
             marker.updateFromData(entity, this.updateInterval);
@@ -141,6 +143,7 @@ export class EntityMarkerManager extends MarkerManager {
         if (set) this.root.remove(set);
         this.itemCache.dispose();
         this.entityCache.dispose();
+        this.mobCache.dispose();
     }
 
 }

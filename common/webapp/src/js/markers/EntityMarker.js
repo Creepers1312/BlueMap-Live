@@ -28,7 +28,10 @@ import {ItemView} from "./player/ItemView.js";
 import {
     droppedItemMotion, entityKind, projectileAngles, projectileDirection, projectilePhysics, THROWN_ITEM_SCALES,
 } from "./LiveEntityData.js";
-import {interpolationDuration} from "./LivePlayerData.js";
+import {angleDelta, interpolationDuration} from "./LivePlayerData.js";
+import {MobModel} from "./mob/MobModel.js";
+import {limbTarget, MOB_TYPES} from "./mob/MobTypes.js";
+import {PlaceholderModel} from "./mob/PlaceholderModel.js";
 
 /** beyond this camera-distance (blocks) entities are not shown */
 const ENTITY_MAX_DISTANCE = 300;
@@ -45,6 +48,12 @@ const CORRECTION_TIME = 0.1;
 /** flat items oriented along the flight (trident): scaled to roughly the length of the vanilla model */
 const PROJECTILE_SCALE = 0.6;
 
+/** vanilla LimbAnimator: the limb-speed approaches the target by 40% per tick */
+const LIMB_SMOOTHING = 0.6;
+
+/** vanilla: a death-animation takes 20 ticks, then the entity is removed */
+const DEATH_TICKS = 20;
+
 const FORWARD = new Vector3(0, 0, 1);
 const tempVector = new Vector3();
 
@@ -60,8 +69,9 @@ export class EntityMarker extends Marker {
      * @param markerId {string}
      * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache} - item-models
      * @param entityCache {import("./player/ItemAssetCache").ItemAssetCache | null} - own entity-models (arrow)
+     * @param mobCache {import("./mob/MobAssetCache").MobAssetCache | null} - mob-textures
      */
-    constructor(markerId, itemCache, entityCache = null) {
+    constructor(markerId, itemCache, entityCache = null, mobCache = null) {
         super(markerId);
         Object.defineProperty(this, 'isEntityMarker', {value: true});
         this.data.type = "entity";
@@ -69,6 +79,7 @@ export class EntityMarker extends Marker {
 
         this.itemCache = itemCache;
         this.entityCache = entityCache;
+        this.mobCache = mobCache;
         this.kind = null;
         this.entityType = null;
         this.body = new Group();
@@ -96,6 +107,24 @@ export class EntityMarker extends Marker {
         this.physics = projectilePhysics("");
 
         this.direction = new Vector3(0, 0, 1);
+
+        // mobs: interpolated rotations (degrees) and the animation-state
+        this.rotationFrom = {body: 0, head: 0, pitch: 0};
+        this.rotationTo = {body: 0, head: 0, pitch: 0};
+        this.rotation3 = {body: 0, head: 0, pitch: 0};
+        this.lastPosition = new Vector3();
+        this.limbSpeed = 0;
+        this.limbPos = 0;
+        this.hurtTime = 0;
+        this.deathTicks = 0;
+        this.flapProgress = 0;
+        this.flapSpeed = 0;
+        this.wingDeviation = 0;
+        this.tickRemainder = 0;
+        this.animationInput = {
+            limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0,
+            flags: new Set(), mainHand: null, leftHanded: false, wingAngle: 0,
+        };
     }
 
     /**
@@ -115,7 +144,9 @@ export class EntityMarker extends Marker {
         const first = !previous;
         tempVector.set(entity.position.x, entity.position.y, entity.position.z);
         const jump = first || tempVector.distanceTo(this.position) > MAX_INTERPOLATION_DISTANCE;
-        const flying = this.kind !== "item" && !entity.onGround;
+        const isMob = this.kind === "mob" || this.kind === "placeholder";
+        const flying = this.kind !== "item" && !isMob && !entity.onGround;
+        if (isMob) this.updateMobTarget(entity, jump);
 
         if (flying) {
             // predict from the new sample, the current difference is blended away (no visible jump)
@@ -153,8 +184,50 @@ export class EntityMarker extends Marker {
     }
 
     /** @private */
+    updateMobTarget(entity, jump) {
+        const mob = entity.mob;
+        const target = {body: mob.bodyYaw, head: mob.headYaw, pitch: entity.rotation.pitch};
+        if (jump) {
+            Object.assign(this.rotationFrom, target);
+            Object.assign(this.rotation3, target);
+            this.lastPosition.set(entity.position.x, entity.position.y, entity.position.z);
+            this.limbSpeed = 0;
+        } else {
+            Object.assign(this.rotationFrom, this.rotation3);
+        }
+        Object.assign(this.rotationTo, target);
+
+        // hurt: vanilla shows the overlay while hurtTime > 0 (ticks)
+        if (mob.hurtTime > 0) this.hurtTime = Math.max(this.hurtTime, mob.hurtTime / 20);
+        // death: the local clock runs on from the sampled deathTime
+        if (mob.deathTime > 0) this.deathTicks = Math.max(this.deathTicks, mob.deathTime);
+        else this.deathTicks = 0;
+
+        if (this.view && this.view.isMobModel) {
+            const equipment = mob.equipment;
+            this.view.setState(mob, {
+                mainHand: equipment ? equipment.mainHand : null,
+                offHand: equipment ? equipment.offHand : null,
+                leftHanded: !!(equipment && equipment.leftHanded),
+            });
+        } else if (this.view && this.view.isPlaceholderModel) {
+            this.view.setSize(mob.width, mob.height);
+        }
+    }
+
+    /** @private */
     createView() {
         if (!this.kind) return;
+        if (this.kind === "mob") {
+            this.view = new MobModel(this.entityType, MOB_TYPES[this.entityType], this.mobCache, this.itemCache);
+            this.body.add(this.view);
+            return;
+        }
+        if (this.kind === "placeholder") {
+            this.view = new PlaceholderModel(this.entityType);
+            this.body.add(this.view);
+            return;
+        }
         if (this.kind === "arrow") {
             // the vanilla arrow-model (entity-asset), no display-transformation
             this.view = new ItemView(this.entityCache, "none");
@@ -179,6 +252,7 @@ export class EntityMarker extends Marker {
     /** @private */
     updateView(entity = this.lastData) {
         if (!this.view || !entity) return;
+        if (this.kind === "mob" || this.kind === "placeholder") return;
         if (this.kind === "arrow") {
             this.view.update(entity.type, {});
         } else {
@@ -209,7 +283,9 @@ export class EntityMarker extends Marker {
         this.updateView();
 
         const body = this.body;
-        if (this.kind === "item") {
+        if (this.kind === "mob" || this.kind === "placeholder") {
+            if (this.stepMob(dt)) moving = true;
+        } else if (this.kind === "item") {
             const motion = droppedItemMotion(this.age, this.motionOffset);
             body.position.set(0, motion.bob + 0.25 * (this.view ? this.view.displayScaleY : 1), 0);
             body.rotation.set(0, motion.rotation, 0);
@@ -229,6 +305,65 @@ export class EntityMarker extends Marker {
             body.visible = distance <= ENTITY_MAX_DISTANCE;
         }
         return moving;
+    }
+
+    /**
+     * The animation of a mob: rotations, walking (vanilla LimbAnimator from the displayed movement), hurt, death
+     * and the wings of chickens.
+     * @private
+     * @returns {boolean} true if it is animated (high frame-rate needed)
+     */
+    stepMob(dt) {
+        const entity = this.lastData;
+        if (!entity || !entity.mob) return false;
+        const mob = entity.mob;
+        const t = this.progress;
+
+        // rotations, interpolated with the position (shortest way)
+        const r = this.rotation3;
+        r.body = this.rotationFrom.body + angleDelta(this.rotationFrom.body, this.rotationTo.body) * t;
+        r.head = this.rotationFrom.head + angleDelta(this.rotationFrom.head, this.rotationTo.head) * t;
+        r.pitch = this.rotationFrom.pitch + (this.rotationTo.pitch - this.rotationFrom.pitch) * t;
+
+        // walking: the horizontal movement of the displayed position, per tick
+        const ticks = dt * 20;
+        const moved = Math.hypot(this.position.x - this.lastPosition.x, this.position.z - this.lastPosition.z);
+        this.lastPosition.copy(this.position);
+        const target = ticks > 0 ? limbTarget(moved / ticks) : this.limbSpeed;
+        this.limbSpeed = target + (this.limbSpeed - target) * Math.pow(LIMB_SMOOTHING, ticks);
+        if (this.limbSpeed < 1e-4 && target === 0) this.limbSpeed = 0;
+        const dying = this.deathTicks > 0;
+        if (!dying) this.limbPos += this.limbSpeed * ticks;
+
+        this.hurtTime = Math.max(0, this.hurtTime - dt);
+        if (dying) this.deathTicks = Math.min(DEATH_TICKS, this.deathTicks + ticks);
+
+        // vanilla ChickenEntity.tickMovement: the wings flap in the air (per tick)
+        this.tickRemainder += ticks;
+        for (let i = 0; this.tickRemainder >= 1 && i < 20; i++) {
+            this.tickRemainder -= 1;
+            this.wingDeviation = Math.min(1, Math.max(0, this.wingDeviation + (entity.onGround ? -1 : 4) * 0.3));
+            if (!entity.onGround && this.flapSpeed < 1) this.flapSpeed = 1;
+            this.flapSpeed *= 0.9;
+            this.flapProgress += this.flapSpeed * 2;
+        }
+
+        const input = this.animationInput;
+        input.limbAngle = dying ? 0 : this.limbPos * (mob.baby ? 3 : 1);
+        input.limbDistance = dying ? 0 : Math.min(this.limbSpeed, 1);
+        input.age = this.age;
+        input.headYaw = angleDelta(r.body, r.head);
+        input.headPitch = r.pitch;
+        input.flags = mob.flags;
+        input.mainHand = mob.equipment ? mob.equipment.mainHand : null;
+        input.leftHanded = !!(mob.equipment && mob.equipment.leftHanded);
+        input.wingAngle = (Math.sin(this.flapProgress) + 1) * this.wingDeviation;
+
+        const hurt = this.hurtTime > 0 || dying;
+        if (this.view && this.view.isMobModel) this.view.animate(input, r.body, this.deathTicks, hurt);
+        else if (this.view && this.view.isPlaceholderModel) this.view.animate(r.body, hurt);
+
+        return this.limbSpeed > 0 || this.progress < 1 || hurt || dying || this.wingDeviation > 0 || mob.flags.has("charged");
     }
 
     /** @private */

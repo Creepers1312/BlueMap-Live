@@ -23,6 +23,7 @@ import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.ItemUse;
 import de.bluecolored.bluemap.common.live.LiveEntitiesJson;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
+import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.common.live.MovementState;
 import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.items.ItemModelBaker;
@@ -211,10 +212,21 @@ public class LiveE2EServer {
         //           /control?removeEntity=ID
         if (q.containsKey("entity")) {
             int id = Integer.parseInt(q.get("entity"));
+            // mobs: &mob=1&bodyYaw=..&headYaw=..&hurt=TICKS&death=TICKS&baby=1&variant=..&size=..&flags=a,b&main=ITEM&left=1&w=..&h=..
+            LiveMobState mob = null;
+            if ("1".equals(q.get("mob"))) {
+                HeldItem main = q.containsKey("main") ? new HeldItem(q.get("main")) : null;
+                mob = new LiveMobState(d(q, "bodyYaw"), q.containsKey("headYaw") ? d(q, "headYaw") : d(q, "bodyYaw"),
+                        (int) d(q, "hurt"), (int) d(q, "death"), "1".equals(q.get("baby")),
+                        main != null ? new Equipment(main, null, "1".equals(q.get("left")), false) : null,
+                        q.get("variant"), (int) d(q, "size"),
+                        q.containsKey("w") ? d(q, "w") : 0.6, q.containsKey("h") ? d(q, "h") : 1.95,
+                        q.containsKey("flags") && !q.get("flags").isEmpty() ? List.of(q.get("flags").split(",")) : List.of());
+            }
             entities.put(id, new LiveEntityState(id, q.getOrDefault("type", "minecraft:item"),
                     new Vector3d(d(q, "x"), d(q, "y"), d(q, "z")), d(q, "yaw"), d(q, "pitch"),
                     new Vector3d(d(q, "vx"), d(q, "vy"), d(q, "vz")), System.currentTimeMillis(),
-                    q.containsKey("item") ? new HeldItem(q.get("item")) : null, "1".equals(q.get("ground"))));
+                    q.containsKey("item") ? new HeldItem(q.get("item")) : null, "1".equals(q.get("ground")) || mob != null, mob));
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }

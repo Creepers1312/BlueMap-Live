@@ -57,7 +57,7 @@ import java.util.regex.Pattern;
 final class FabricMobs {
 
     private static final Pattern NAME = Pattern.compile("[a-z0-9_.-]+");
-    private static final Pattern NAME_OR_PATH = Pattern.compile("[a-z0-9_.-]+(/[a-z0-9_.-]+)*");
+    private static final Pattern NAME_OR_PATH = Pattern.compile("[a-z0-9_-]+(/[a-z0-9_-]+)*");
 
     private FabricMobs() {}
 

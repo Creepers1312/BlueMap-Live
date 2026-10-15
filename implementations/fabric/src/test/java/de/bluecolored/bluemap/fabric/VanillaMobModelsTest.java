@@ -96,6 +96,31 @@ public class VanillaMobModelsTest {
                 report.add("::" + String.join("; ", layerDifferences) + " -- vanilla: " + actual);
             }
         }
+        // the wool-colors of the sheep: vanilla SheepEntity.getRgbColor(DyeColor) (found by its signature)
+        JsonObject expectedColors = JsonParser.parseString(Files.readString(jsonFile, StandardCharsets.UTF_8))
+                .getAsJsonObject().getAsJsonObject("sheepWoolColors");
+        Class<?> dyeColor = Class.forName("net.minecraft.util.DyeColor");
+        java.lang.reflect.Method woolColor = null;
+        for (java.lang.reflect.Method method : Class.forName("net.minecraft.entity.passive.SheepEntity").getDeclaredMethods()) {
+            if (java.lang.reflect.Modifier.isStatic(method.getModifiers()) && method.getReturnType() == int.class &&
+                    method.getParameterCount() == 1 && method.getParameterTypes()[0] == dyeColor &&
+                    java.lang.reflect.Modifier.isPublic(method.getModifiers())) woolColor = method;
+        }
+        if (woolColor == null) {
+            differences.add("sheepWoolColors: no SheepEntity.getRgbColor(DyeColor)");
+            report.add("::sheepWoolColors: no SheepEntity.getRgbColor(DyeColor)");
+        } else {
+            JsonObject actualColors = new JsonObject();
+            for (Object dye : dyeColor.getEnumConstants()) {
+                String name = ((Enum<?>) dye).name().toLowerCase(Locale.ROOT);
+                actualColors.addProperty(name, String.format("#%06x", ((int) woolColor.invoke(null, dye)) & 0xFFFFFF));
+            }
+            if (!actualColors.equals(expectedColors)) {
+                differences.add("sheepWoolColors differ");
+                report.add("::sheepWoolColors differ -- vanilla: " + actualColors);
+            }
+        }
+
         writeReport(report);
         if (!differences.isEmpty()) fail("The webapp mob-models differ from vanilla:\n" + String.join("\n", differences));
     }

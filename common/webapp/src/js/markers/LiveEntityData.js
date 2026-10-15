@@ -28,7 +28,8 @@
  * unit-tested with node). See docs/bluemap-live/phase-5.md for the format.
  */
 
-import {parseItem, resolveUpdateInterval, SUPPORTED_PROTOCOL} from "./LivePlayerData.js";
+import {parseEquipment, parseItem, resolveUpdateInterval, SUPPORTED_PROTOCOL} from "./LivePlayerData.js";
+import {MOB_TYPES} from "./mob/MobTypes.js";
 
 const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
 
@@ -98,9 +99,44 @@ export const THROWN_ITEM_SCALES = {"minecraft:fireball": 3, "minecraft:small_fir
  *     velocity: {x: number, y: number, z: number},
  *     time: number | null,
  *     onGround: boolean,
- *     item: object | null
+ *     item: object | null,
+ *     mob: LiveMob | null
+ * }}
+ * @typedef LiveMob {{
+ *     bodyYaw: number, headYaw: number, hurtTime: number, deathTime: number, baby: boolean,
+ *     variant: string | null, size: number, width: number, height: number, flags: Set<string>,
+ *     equipment: {mainHand: object | null, offHand: object | null, leftHanded: boolean} | null
  * }}
  */
+
+const VARIANT_PATTERN = /^[a-z0-9_-]+(\/[a-z0-9_-]+)*$/;
+const FLAG_PATTERN = /^[a-z0-9_]{1,32}$/;
+const clampNumber = (value, min, max, fallback) => isFiniteNumber(value) ? Math.min(max, Math.max(min, value)) : fallback;
+
+/**
+ * @param value {any}
+ * @returns {LiveMob | null} - the state of a living entity, null if there is none
+ */
+export function parseMob(value) {
+    if (!value || typeof value !== "object") return null;
+    const flags = new Set();
+    if (Array.isArray(value.flags)) {
+        for (const flag of value.flags.slice(0, 16)) if (typeof flag === "string" && FLAG_PATTERN.test(flag)) flags.add(flag);
+    }
+    return {
+        bodyYaw: isFiniteNumber(value.bodyYaw) ? value.bodyYaw : 0,
+        headYaw: isFiniteNumber(value.headYaw) ? value.headYaw : (isFiniteNumber(value.bodyYaw) ? value.bodyYaw : 0),
+        hurtTime: clampNumber(value.hurtTime, 0, 10, 0),
+        deathTime: clampNumber(value.deathTime, 0, 20, 0),
+        baby: value.baby === true,
+        variant: typeof value.variant === "string" && value.variant.length <= 64 && VARIANT_PATTERN.test(value.variant) ? value.variant : null,
+        size: Math.round(clampNumber(value.size, 0, 127, 0)),
+        width: clampNumber(value.width, 0.1, 16, 0.6),
+        height: clampNumber(value.height, 0.1, 16, 1.8),
+        flags,
+        equipment: parseEquipment(value.equipment),
+    };
+}
 
 /**
  * @param raw {any}
@@ -125,6 +161,7 @@ export function parseEntity(raw) {
         time: isFiniteNumber(raw.time) ? raw.time : null,
         onGround: raw.onGround === true,
         item: parseItem(raw.item),
+        mob: parseMob(raw.mob),
     };
 }
 
@@ -160,9 +197,11 @@ export function parseEntitiesResponse(data) {
 /**
  * How an entity is rendered.
  * @param entity {LiveEntity}
- * @returns {"item" | "arrow" | "projectile" | "thrown" | null} - null: not rendered (yet)
+ * @returns {"item" | "arrow" | "projectile" | "thrown" | "mob" | "placeholder" | null} - null: not rendered (yet)
+ *  - mob: a vanilla mob-model (MobTypes), placeholder: a living entity without a model in the webapp
  */
 export function entityKind(entity) {
+    if (entity.mob) return Object.prototype.hasOwnProperty.call(MOB_TYPES, entity.type) ? "mob" : "placeholder";
     if (ARROW_MODEL_TYPES.has(entity.type)) return "arrow";
     if (!entity.item) return null;
     if (entity.type === "minecraft:item") return "item";

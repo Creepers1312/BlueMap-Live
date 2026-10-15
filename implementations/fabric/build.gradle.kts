@@ -120,9 +120,11 @@ curseforgeBlueMap {
 }
 
 // BlueMap Live: the mob-models of the webapp are verified against the model-definitions of minecraft
+// (fabric-loader-junit runs the tests in the fabric-environment, so the minecraft-classes are transformed like in the game)
 dependencies {
     testImplementation ( libs.junit.core )
     testRuntimeOnly ( libs.junit.engine )
+    testImplementation ("net.fabricmc:fabric-loader-junit:${fabricLoaderVersion}")
 }
 tasks.test {
     systemProperty("bluemap.mobModels", rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json").absolutePath)

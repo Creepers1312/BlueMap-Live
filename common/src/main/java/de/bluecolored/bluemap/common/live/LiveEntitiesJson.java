@@ -103,7 +103,7 @@ public final class LiveEntitiesJson {
                 json.name("offHand");
                 LivePlayersJson.writeItem(json, equipment.offHand());
             }
-            if (equipment.leftHanded()) json.name("leftHanded").value(true);
+            if (equipment.leftHanded()) json.name("mainArm").value("left"); // like the players
             json.endObject();
         }
         json.endObject();

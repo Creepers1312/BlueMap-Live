@@ -39,7 +39,9 @@ public class E2EItemResources implements ItemModelBaker.Resources {
 
     public static final int SWORD = 0xFF00FFFF, APPLE = 0xFFFF0000, STONE = 0xFFFF8000, SHIELD = 0xFF00C800,
             BOW = 0xFFFFFF00, BOW_PULLING = 0xFFFF00FF, CROSSBOW = 0xFF0000FF, CROSSBOW_ARROW = 0xFFFFFFFF,
-            DIAMOND = 0xFF8080FF, SNOWBALL = 0xFF80FFFF, ARROW = 0xFFFF80C0;
+            DIAMOND = 0xFF8080FF, SNOWBALL = 0xFF80FFFF, ARROW = 0xFFFF80C0,
+            ZOMBIE = 0xFF309060, COW = 0xFF804020, SHEEP = 0xFF606060, WOOL = 0xFFFFFFFF,
+            VILLAGER = 0xFFC08040, FARMER = 0xFFFF00C0;
 
     private final Map<String, String> models = new HashMap<>();
     private final Map<String, BufferedImage> textures = new HashMap<>();
@@ -123,6 +125,26 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:item/crossbow", bar(CROSSBOW));
         textures.put("minecraft:item/crossbow_pulling_0", bar(CROSSBOW));
         textures.put("minecraft:item/crossbow_arrow", bar(CROSSBOW_ARROW));
+
+        // mobs: one color per texture (the whole image), the villager-profession only on the upper half (head)
+        textures.put("minecraft:entity/zombie/zombie", square(64, 0, 0, 64, 64, ZOMBIE));
+        textures.put("minecraft:entity/cow/cow", rect(64, 32, 0, 0, 64, 32, COW));
+        textures.put("minecraft:entity/sheep/sheep", rect(64, 32, 0, 0, 64, 32, SHEEP));
+        textures.put("minecraft:entity/sheep/sheep_fur", rect(64, 32, 0, 0, 64, 32, WOOL));
+        textures.put("minecraft:entity/villager/villager", square(64, 0, 0, 64, 64, VILLAGER));
+        textures.put("minecraft:entity/villager/type/plains", square(64, 0, 0, 1, 1, VILLAGER));
+        textures.put("minecraft:entity/villager/profession/farmer", square(64, 0, 0, 64, 20, FARMER));
+    }
+
+    private static BufferedImage rect(int width, int height, int x, int y, int w, int h, int argb) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        for (int i = x; i < x + w; i++) for (int j = y; j < y + h; j++) image.setRGB(i, j, argb);
+        return image;
+    }
+
+    @Override
+    public java.util.List<String> textureKeys(String folder) {
+        return textures.keySet().stream().filter(key -> key.startsWith(folder)).sorted().toList();
     }
 
     private static BufferedImage square(int size, int x, int y, int w, int h, int argb) {

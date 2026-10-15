@@ -1,4 +1,6 @@
-{"format":1,"minecraft":"1.21","models":{
+{"format":1,"minecraft":"1.21",
+"sheepWoolColors":{"white":"#e6e6e6","orange":"#ba6015","magenta":"#953a8d","light_blue":"#2b86a3","yellow":"#bea22d","lime":"#609517","pink":"#b6687f","gray":"#353b3d","light_gray":"#757571","cyan":"#107575","purple":"#66258a","blue":"#2d337f","brown":"#623f25","green":"#465d10","red":"#84221c","black":"#151518"},
+"models":{
  "minecraft:zombie#main":{"texture":[64, 64],"parts":{
   "head":{"cuboids":[{"uv":[0,0],"box":[-4,-8,-4,8,8,8]}]},
   "hat":{"cuboids":[{"uv":[32,0],"box":[-4,-8,-4,8,8,8],"dilation":0.5}]},
