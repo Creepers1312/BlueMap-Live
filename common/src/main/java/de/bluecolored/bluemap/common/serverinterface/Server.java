@@ -96,6 +96,14 @@ public interface Server {
     }
 
     /**
+     * Returns true if this is an integrated server (the server of a singleplayer world, running inside the game-client).
+     * Used to choose safer defaults, e.g. the webserver only binds to the loopback-address by default.
+     */
+    default boolean isIntegratedServer() {
+        return false;
+    }
+
+    /**
      * Returns all loaded worlds of this server.
      */
     @DebugDump

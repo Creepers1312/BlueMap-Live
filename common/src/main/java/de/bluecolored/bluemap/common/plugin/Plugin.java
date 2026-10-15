@@ -240,7 +240,7 @@ public class Plugin implements ServerEventListener {
                                 webLogger
                         ));
                         webServer.bind(new InetSocketAddress(
-                                webserverConfig.resolveIp(),
+                                webserverConfig.resolveBindAddress(serverInterface.isIntegratedServer()),
                                 webserverConfig.getPort()
                         ));
                         webServer.start();

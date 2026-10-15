@@ -151,6 +151,12 @@ public class FabricMod implements ModInitializer, Server {
     }
 
     @Override
+    public boolean isIntegratedServer() {
+        MinecraftServer server = this.serverInstance;
+        return server != null && !server.isDedicated();
+    }
+
+    @Override
     public void registerListener(ServerEventListener listener) {
         eventForwarder.addEventListener(listener);
     }
