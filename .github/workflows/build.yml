@@ -34,12 +34,15 @@ jobs:
       - name: Vanilla model check
         if: always()
         run: cat implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
-      # BlueMap Live: the reason of a failed test-run as annotation (the failing tasks and tests)
+      # BlueMap Live: the reason of a failed test-run as annotation (the failures from the junit-reports)
       - name: Test failures
         if: failure()
         run: |
-          grep -E -A3 "FAILED|Exception|Error|expected" test-output.txt | grep -v "^\s*at org.gradle\|^\s*at java.base\|^\s*at worker" | head -60 | \
-            sed 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' | sed 's/^/::error title=test-failures::/'; echo
+          for f in $(grep -l -E "<failure|<error" */build/test-results/test/*.xml implementations/*/build/test-results/test/*.xml 2>/dev/null); do
+            grep -A25 -E "<failure|<error" "$f" | grep -v "^\s*at org.junit\|^\s*at java.base\|^\s*at org.gradle\|^\s*at worker" | head -30 | \
+              sed 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' | sed "s|^|::error title=$(basename $f)::|"; echo
+          done
+          grep -E "FAILED|initializationError" test-output.txt | grep -v buildSrc | head -10 | sed 's/^/::warning title=gradle::/' || true
 
   build:
     name: "Build"
