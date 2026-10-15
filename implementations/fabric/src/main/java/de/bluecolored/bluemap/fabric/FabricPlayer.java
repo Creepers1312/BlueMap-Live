@@ -45,7 +45,6 @@ import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.CrossbowItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.registry.Registries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.util.Arm;
@@ -225,14 +224,19 @@ public class FabricPlayer extends Player {
     private static @Nullable HeldItem toHeldItem(ItemStack stack) {
         if (stack.isEmpty()) return null;
 
+        // the id from the registry-entry of the item (avoids the fabric-injected registry-interface)
+        String id = stack.getRegistryEntry().getKey().map(key -> key.getValue().toString()).orElse(null);
+        if (id == null) return null;
+
         CustomModelDataComponent customModelData = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
         boolean charged = stack.isOf(Items.CROSSBOW) && CrossbowItem.isCharged(stack);
         ChargedProjectilesComponent projectiles = charged ? stack.get(DataComponentTypes.CHARGED_PROJECTILES) : null;
 
         return new HeldItem(
-                Registries.ITEM.getId(stack.getItem()).toString(),
+                id,
                 stack.hasGlint(),
-                customModelData != null ? customModelData.value() : null,
+                // the record-component "value" has no yarn-name in 1.21.1, so its intermediary name is used
+                customModelData != null ? customModelData.comp_2382() : null,
                 charged,
                 projectiles != null && projectiles.contains(Items.FIREWORK_ROCKET)
         );
