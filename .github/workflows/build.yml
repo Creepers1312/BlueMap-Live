@@ -56,6 +56,8 @@ jobs:
 
   docker:
     name: Deploy Docker Build
+    # only publish images from the original repository (BlueMap Live does not publish docker images)
+    if: github.repository == 'BlueMap-Minecraft/BlueMap'
     runs-on: ubuntu-latest
     needs: build
     steps:
