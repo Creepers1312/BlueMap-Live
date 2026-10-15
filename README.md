@@ -19,6 +19,8 @@
 | 4–5 | Live-Blockänderungen (zuverlässig, dann inkrementell), darin auch Truhen/interaktive Blöcke (Entscheidung: Option 1, `phase-4.md` §8) | geplant |
 | 6 | Stabilisierung und Dokumentation | geplant |
 
+Release-Plan (was in die nächsten Versionen kommt): [`docs/bluemap-live/roadmap.md`](docs/bluemap-live/roadmap.md)
+
 Noch **nicht für den produktiven Einsatz** gedacht.
 
 Test in einer Einzelspielerwelt: [`docs/bluemap-live/singleplayer-test.md`](docs/bluemap-live/singleplayer-test.md)
