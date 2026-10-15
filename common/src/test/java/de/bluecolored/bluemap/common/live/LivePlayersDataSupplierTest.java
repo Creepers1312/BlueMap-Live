@@ -125,6 +125,20 @@ public class LivePlayersDataSupplierTest {
     }
 
     @Test
+    public void testSkinLookup() {
+        TestPlayer player = new TestPlayer(overworld, Vector3d.ZERO);
+        LivePlayersJson.Skin skin = new LivePlayersJson.Skin("classic", "abc123");
+
+        String json = new LivePlayersDataSupplier(new TestServer(player), new PluginConfig(), mapWorld, uuid -> true, 250,
+                uuid -> uuid.equals(PLAYER) ? skin : null).get();
+        JsonObject p = onlyPlayer(json);
+        assertEquals("classic", p.getAsJsonObject("skin").get("model").getAsString());
+        assertEquals("abc123", p.getAsJsonObject("skin").get("version").getAsString());
+
+        assertFalse(onlyPlayer(supply(new PluginConfig(), player)).has("skin"), "no lookup -> no skin field");
+    }
+
+    @Test
     public void testDefaultSnapshotUsesWorldAndLiveState() {
         Player player = new TestPlayer(nether, new Vector3d(1, 2, 3));
         Player.LiveSnapshot snapshot = player.getLiveSnapshot();

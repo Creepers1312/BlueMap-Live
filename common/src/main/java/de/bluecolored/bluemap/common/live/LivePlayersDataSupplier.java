@@ -38,6 +38,7 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -48,6 +49,7 @@ public class LivePlayersDataSupplier implements Supplier<String> {
     private final World world;
     private final Predicate<UUID> playerFilter;
     private final int updateIntervalMillis;
+    private final Function<UUID, LivePlayersJson.Skin> skinLookup;
 
     private transient @Nullable ServerWorld serverWorld;
 
@@ -59,11 +61,20 @@ public class LivePlayersDataSupplier implements Supplier<String> {
      * @param updateIntervalMillis the interval that is announced to clients, in which they should poll for new data
      */
     public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter, int updateIntervalMillis) {
+        this(server, config, world, playerFilter, updateIntervalMillis, uuid -> null);
+    }
+
+    /**
+     * @param skinLookup provides the info about the stored full skin of a player, returns null if there is none
+     */
+    public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter, int updateIntervalMillis,
+                                   Function<UUID, LivePlayersJson.Skin> skinLookup) {
         this.server = server;
         this.config = config;
         this.world = world;
         this.playerFilter = playerFilter;
         this.updateIntervalMillis = updateIntervalMillis;
+        this.skinLookup = skinLookup;
     }
 
     @Override
@@ -94,7 +105,8 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                         player.getName().toPlainString(),
                         !isCorrectWorld,
                         playerWorld != null ? playerWorld.getDimension().getFormatted() : null,
-                        snapshot.state()
+                        snapshot.state(),
+                        skinLookup.apply(player.getUuid())
                 ));
             }
         }

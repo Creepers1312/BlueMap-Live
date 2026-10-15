@@ -33,8 +33,10 @@ import de.bluecolored.bluemap.common.api.BlueMapAPIImpl;
 import de.bluecolored.bluemap.common.config.*;
 import de.bluecolored.bluemap.common.debug.StateDumper;
 import de.bluecolored.bluemap.common.live.LivePlayersDataSupplier;
+import de.bluecolored.bluemap.common.live.LivePlayersJson;
 import de.bluecolored.bluemap.common.metrics.Metrics;
 import de.bluecolored.bluemap.common.plugin.skins.PlayerSkinUpdater;
+import de.bluecolored.bluemap.common.plugin.skins.SkinInfo;
 import de.bluecolored.bluemap.common.rendermanager.MapUpdatePreparationTask;
 import de.bluecolored.bluemap.common.rendermanager.RenderManager;
 import de.bluecolored.bluemap.common.rendermanager.RenderTask;
@@ -207,7 +209,7 @@ public class Plugin implements ServerEventListener {
                         MapRequestHandler mapRequestHandler;
                         BmMap map = maps.get(id);
                         if (map != null) {
-                            mapRequestHandler = new MapRequestHandler(map, serverInterface, pluginConfig, Predicate.not(pluginState::isPlayerHidden));
+                            mapRequestHandler = new MapRequestHandler(map, serverInterface, pluginConfig, Predicate.not(pluginState::isPlayerHidden), this::getLiveSkin);
                         } else {
                             Storage storage = blueMap.getOrLoadStorage(mapConfig.getStorage());
                             mapRequestHandler = new MapRequestHandler(storage.map(id));
@@ -551,7 +553,8 @@ public class Plugin implements ServerEventListener {
                     getBlueMap().getConfig().getPluginConfig(),
                     map.getWorld(),
                     Predicate.not(pluginState::isPlayerHidden),
-                    (int) Math.min(Integer.MAX_VALUE, TimeUnit.SECONDS.toMillis(getBlueMap().getConfig().getPluginConfig().getWritePlayersInterval()))
+                    (int) Math.min(Integer.MAX_VALUE, TimeUnit.SECONDS.toMillis(getBlueMap().getConfig().getPluginConfig().getWritePlayersInterval())),
+                    this::getLiveSkin
             );
             try (
                     OutputStream out = map.getStorage().players().write();
@@ -562,6 +565,17 @@ public class Plugin implements ServerEventListener {
                 Logger.global.logError("Failed to save players for map '" + map.getId() + "'!", ex);
             }
         }
+    }
+
+    /**
+     * The info about the stored full skin of a player for the live-data, or null if none is known.
+     */
+    private @Nullable LivePlayersJson.Skin getLiveSkin(UUID playerUuid) {
+        PlayerSkinUpdater skinUpdater = this.skinUpdater;
+        if (skinUpdater == null) return null;
+        SkinInfo info = skinUpdater.getSkinInfo(playerUuid);
+        if (info == null) return null;
+        return new LivePlayersJson.Skin(info.model().getId(), info.version());
     }
 
     public synchronized void startWatchingMap(BmMap map) {

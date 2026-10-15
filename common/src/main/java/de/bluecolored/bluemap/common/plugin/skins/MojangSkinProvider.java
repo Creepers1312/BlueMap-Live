@@ -24,8 +24,9 @@
  */
 package de.bluecolored.bluemap.common.plugin.skins;
 
-import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import de.bluecolored.bluemap.api.plugin.SkinProvider;
 import de.bluecolored.bluemap.core.logger.Logger;
@@ -33,58 +34,102 @@ import de.bluecolored.bluemap.core.logger.Logger;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URI;
-import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
 public class MojangSkinProvider implements SkinProvider {
 
+    private static final int TIMEOUT_MILLIS = 10000;
+
+    /**
+     * The skin-image together with the model-variant from the players profile.
+     */
+    public record MojangSkin(BufferedImage image, SkinModel model) {}
+
+    /**
+     * The skin-texture information from a players profile.
+     */
+    record TextureInfo(String url, SkinModel model) {}
+
     @Override
     public Optional<BufferedImage> load(UUID playerUUID) throws IOException {
-        try (Reader reader = requestProfileJson(playerUUID)) {
-            String textureInfoJson = readTextureInfoJson(JsonParser.parseReader(reader));
-            String textureUrl = readTextureUrl(JsonParser.parseString(textureInfoJson));
-            return Optional.of(ImageIO.read(URI.create(textureUrl).toURL()));
-        } catch (IOException ex) {
+        return loadSkin(playerUUID).map(MojangSkin::image);
+    }
+
+    /**
+     * Loads the skin and the model-variant (classic/slim) of the player from the mojang session-server.
+     * Returns an empty optional if the player has no skin or the skin can not be loaded.
+     */
+    public Optional<MojangSkin> loadSkin(UUID playerUUID) {
+        try {
+            TextureInfo textureInfo;
+            try (Reader reader = new InputStreamReader(
+                    open("https://sessionserver.mojang.com/session/minecraft/profile/" + playerUUID),
+                    StandardCharsets.UTF_8
+            )) {
+                textureInfo = readTextureInfo(JsonParser.parseReader(reader));
+            }
+
+            BufferedImage image;
+            try (InputStream in = open(textureInfo.url())) {
+                image = ImageIO.read(in);
+            }
+            if (image == null) throw new IOException("The skin-texture is not a valid image: " + textureInfo.url());
+
+            return Optional.of(new MojangSkin(image, textureInfo.model()));
+        } catch (IOException | JsonParseException ex) {
             Logger.global.logDebug("Failed to load skin from mojang for player: '" + playerUUID + "' - " + ex);
             return Optional.empty();
         }
     }
 
-    private Reader requestProfileJson(UUID playerUUID) throws IOException {
-        URL url = URI.create("https://sessionserver.mojang.com/session/minecraft/profile/" + playerUUID).toURL();
-        return new InputStreamReader(url.openStream());
+    private InputStream open(String url) throws IOException {
+        URLConnection connection = URI.create(url).toURL().openConnection();
+        connection.setConnectTimeout(TIMEOUT_MILLIS);
+        connection.setReadTimeout(TIMEOUT_MILLIS);
+        return connection.getInputStream();
     }
 
-    private String readTextureInfoJson(JsonElement json) throws IOException {
+    /**
+     * Reads the skin-url and the model-variant from a profile-json of the mojang session-server.
+     * <p>Mojang only adds <code>metadata.model = "slim"</code> for slim skins, a missing model means classic.</p>
+     */
+    static TextureInfo readTextureInfo(JsonElement profile) throws IOException {
         try {
-            JsonArray properties = json.getAsJsonObject().getAsJsonArray("properties");
-
-            for (JsonElement element : properties) {
-                if (element.getAsJsonObject().get("name").getAsString().equals("textures")) {
-                    return new String(Base64.getDecoder().decode(element.getAsJsonObject().get("value").getAsString().getBytes()));
+            String texturesJson = null;
+            for (JsonElement element : profile.getAsJsonObject().getAsJsonArray("properties")) {
+                JsonObject property = element.getAsJsonObject();
+                if (property.get("name").getAsString().equals("textures")) {
+                    texturesJson = new String(Base64.getDecoder().decode(property.get("value").getAsString()), StandardCharsets.UTF_8);
+                    break;
                 }
             }
+            if (texturesJson == null) throw new IOException("No texture info found!");
 
-            throw new IOException("No texture info found!");
-        } catch (NullPointerException | IllegalStateException | ClassCastException e) {
-            throw new IOException(e);
-        }
-
-    }
-
-    private String readTextureUrl(JsonElement json) throws IOException {
-        try {
-            return json.getAsJsonObject()
+            JsonObject skin = JsonParser.parseString(texturesJson).getAsJsonObject()
                     .getAsJsonObject("textures")
-                    .getAsJsonObject("SKIN")
-                    .get("url").getAsString();
-        } catch (NullPointerException | IllegalStateException | ClassCastException e) {
-            throw new IOException(e);
+                    .getAsJsonObject("SKIN");
+            if (skin == null) throw new IOException("Profile has no skin-texture!");
+
+            String url = skin.get("url").getAsString();
+
+            SkinModel model = SkinModel.CLASSIC;
+            JsonObject metadata = skin.getAsJsonObject("metadata");
+            if (metadata != null && metadata.has("model") && "slim".equals(metadata.get("model").getAsString())) {
+                model = SkinModel.SLIM;
+            }
+
+            return new TextureInfo(url, model);
+        } catch (NullPointerException | IllegalStateException | ClassCastException | UnsupportedOperationException |
+                 IllegalArgumentException | JsonParseException e) {
+            throw new IOException("Invalid profile-json: " + e, e);
         }
     }
 

@@ -52,14 +52,28 @@ public final class LivePlayersJson {
      * One entry in the players-list.
      *
      * @param world the formatted dimension-key of the world the player is in, or null if unknown
+     * @param skin the stored full skin of the player, or null if none is known
      */
     public record Entry(
             String uuid,
             String name,
             boolean foreign,
             @Nullable String world,
-            LivePlayerState state
-    ) {}
+            LivePlayerState state,
+            @Nullable Skin skin
+    ) {
+        public Entry(String uuid, String name, boolean foreign, @Nullable String world, LivePlayerState state) {
+            this(uuid, name, foreign, world, state, null);
+        }
+    }
+
+    /**
+     * Information about the full skin of a player, stored as <code>assets/playerskins/&lt;uuid&gt;.png</code>.
+     *
+     * @param model "classic" or "slim"
+     * @param version changes whenever the skin changes (used to invalidate the browser-cache)
+     */
+    public record Skin(String model, String version) {}
 
     /**
      * @param serverTime the current server time in epoch-millis
@@ -106,6 +120,14 @@ public final class LivePlayersJson {
 
             json.name("velocity");
             writeVector(json, state.velocity());
+
+            Skin skin = player.skin();
+            if (skin != null) {
+                json.name("skin").beginObject();
+                json.name("model").value(skin.model());
+                json.name("version").value(skin.version());
+                json.endObject();
+            }
 
             MovementState movement = state.movement();
             if (movement != null) {

@@ -150,6 +150,28 @@ public class LivePlayersJsonTest {
     }
 
     @Test
+    public void testSkin() throws IOException {
+        LivePlayersJson.Skin skin = new LivePlayersJson.Skin("slim", "0123abcd");
+        JsonObject p = writeAndParse(true, List.of(
+                new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld", state(null), skin)
+        )).getAsJsonArray("players").get(0).getAsJsonObject();
+        assertEquals("slim", p.getAsJsonObject("skin").get("model").getAsString());
+        assertEquals("0123abcd", p.getAsJsonObject("skin").get("version").getAsString());
+
+        // no skin known -> no field
+        p = writeAndParse(true, List.of(
+                new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld", state(null), null)
+        )).getAsJsonArray("players").get(0).getAsJsonObject();
+        assertFalse(p.has("skin"));
+
+        // extended data disabled -> only the original fields
+        p = writeAndParse(false, List.of(
+                new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld", state(null), skin)
+        )).getAsJsonArray("players").get(0).getAsJsonObject();
+        assertFalse(p.has("skin"));
+    }
+
+    @Test
     public void testNoPlayers() throws IOException {
         JsonObject root = writeAndParse(true, List.of());
         assertEquals(0, root.getAsJsonArray("players").size());
