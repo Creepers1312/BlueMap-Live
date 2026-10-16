@@ -15,7 +15,7 @@ const OUT = process.env.E2E_OUT || "e2e-out";
 mkdirSync(OUT, {recursive: true});
 
 // the colors of E2EItemResources (rgb)
-const COLORS = {zombie: [48, 144, 96], cow: [128, 64, 32], wool: [132, 34, 28], villager: [192, 128, 64], farmer: [255, 0, 192], sword: [0, 255, 255]};
+const COLORS = {iron: [160, 255, 0], leather: [51, 85, 255], zombie: [48, 144, 96], cow: [128, 64, 32], wool: [132, 34, 28], villager: [192, 128, 64], farmer: [255, 0, 192], sword: [0, 255, 255]};
 
 const results = [];
 async function step(name, fn) {
@@ -255,6 +255,38 @@ await step("unknown living entity: a placeholder with its hitbox and name", asyn
     await sleep(500);
     await page.screenshot({path: `${OUT}/47-placeholder.png`});
     await control({removeEntity: 14});
+});
+
+await step("armor: a zombie and a player wear helmet and dyed leather-leggings (vanilla armor-models and layers)", async () => {
+    await mob(15, "minecraft:zombie", 8.5, 9.5, {bodyYaw: 0, armor: "head:iron,legs:leather:3355ff"});
+    await waitForEntity(15, "m.view.visible && m.view.armor.pieces.length === 3 && m.view.armor.pieces.every(p => p.entry.state === 'loaded')");
+    await sleep(800);
+    assert.ok(await countColor("48-zombie-armor", await project(15, 1.75), COLORS.iron, 60) > 50, "helmet pixels");
+    assert.ok(await countColor("48-zombie-armor", await project(15, 0.5), COLORS.leather, 60) > 50, "dyed leggings pixels");
+    await control({removeEntity: 15});
+    await page.waitForFunction(() => !window.bluemap.mapViewer.markers.markerSets.get("bm-entities").markers.has("bm-entity-15"), null, {timeout: 10000});
+    assert.equal(await page.evaluate(() => window.bluemap.entityMarkerManager.itemCache.textures.entries.size), 0, "armor-textures released");
+
+    const A = "00000000-0000-0000-0000-00000000a001";
+    await control({uuid: A, name: "Armored", x: 8.5, y: 64, z: 9.5, yaw: 0, pitch: 0, armor: "head:iron,legs:leather:3355ff"});
+    await page.waitForFunction(uuid => {
+        const m = window.bluemap.mapViewer.markers.markerSets.get("bm-players")?.markers.get("bm-player-" + uuid);
+        return m && m.model.armor && m.model.armor.pieces.length === 3 && m.model.armor.pieces.every(p => p.entry.state === "loaded");
+    }, A, {timeout: 10000});
+    await sleep(800);
+    const center = await page.evaluate(([uuid, height]) => {
+        const mv = window.bluemap.mapViewer;
+        const m = mv.markers.markerSets.get("bm-players").markers.get("bm-player-" + uuid);
+        m.updateMatrixWorld(true);
+        const rect = mv.renderer.domElement.getBoundingClientRect();
+        // the center of the helmet
+        const helmet = m.model.getObjectByName("armor-head-head");
+        const box = new window.BlueMap.Three.Box3().setFromObject(helmet);
+        const ndc = box.getCenter(new window.BlueMap.Three.Vector3()).project(mv.camera);
+        return {x: rect.left + (ndc.x + 1) / 2 * rect.width, y: rect.top + (1 - ndc.y) / 2 * rect.height};
+    }, [A, 1.6]);
+    assert.ok(await countColor("49-player-armor", center, COLORS.iron, 60) > 50, "player-helmet pixels");
+    await control({leave: A});
 });
 
 await step("no uncaught errors", async () => {

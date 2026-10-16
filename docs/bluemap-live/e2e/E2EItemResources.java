@@ -41,7 +41,7 @@ public class E2EItemResources implements ItemModelBaker.Resources {
             BOW = 0xFFFFFF00, BOW_PULLING = 0xFFFF00FF, CROSSBOW = 0xFF0000FF, CROSSBOW_ARROW = 0xFFFFFFFF,
             DIAMOND = 0xFF8080FF, SNOWBALL = 0xFF80FFFF, ARROW = 0xFFFF80C0,
             ZOMBIE = 0xFF309060, COW = 0xFF804020, SHEEP = 0xFF606060, WOOL = 0xFFFFFFFF,
-            VILLAGER = 0xFFC08040, FARMER = 0xFFFF00C0;
+            VILLAGER = 0xFFC08040, FARMER = 0xFFFF00C0, IRON_ARMOR = 0xFFA0FF00, LEATHER = 0xFFFFFFFF;
 
     private final Map<String, String> models = new HashMap<>();
     private final Map<String, BufferedImage> textures = new HashMap<>();
@@ -134,6 +134,11 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/villager/villager", square(64, 0, 0, 64, 64, VILLAGER));
         textures.put("minecraft:entity/villager/type/plains", square(64, 0, 0, 1, 1, VILLAGER));
         textures.put("minecraft:entity/villager/profession/farmer", square(64, 0, 0, 64, 20, FARMER));
+
+        // armor-layers (64x32, one color; the leather-overlay is transparent)
+        textures.put("minecraft:models/armor/iron_layer_1", rect(64, 32, 0, 0, 64, 32, IRON_ARMOR));
+        textures.put("minecraft:models/armor/leather_layer_2", rect(64, 32, 0, 0, 64, 32, LEATHER));
+        textures.put("minecraft:models/armor/leather_layer_2_overlay", rect(64, 32, 0, 0, 0, 0, LEATHER));
     }
 
     private static BufferedImage rect(int width, int height, int x, int y, int w, int h, int argb) {

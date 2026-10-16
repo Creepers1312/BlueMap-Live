@@ -18,6 +18,7 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import de.bluecolored.bluemap.common.live.LivePlayerState;
 import de.bluecolored.bluemap.common.live.LivePlayersJson;
+import de.bluecolored.bluemap.common.live.Armor;
 import de.bluecolored.bluemap.common.live.Equipment;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.ItemUse;
@@ -65,6 +66,7 @@ public class LiveE2EServer {
         boolean swingLeft = false;
         SwingState.Kind swingKind = SwingState.Kind.SWING;
         String mainHand = null, offHand = null;
+        Armor armor = null;
         boolean leftHanded = false, charged = false;
         Integer hurtCount = null;
 
@@ -129,6 +131,7 @@ public class LiveE2EServer {
                         if (file.startsWith("assets/playerskins/") && file.endsWith(".png")) handleSkin(ex, file);
                         else if (file.startsWith("assets/items/") && file.endsWith(".json")) handleItem(ex, file);
                         else if (file.startsWith("assets/entities/") && file.endsWith(".json")) handleEntityAsset(ex, file);
+                        else if (file.startsWith("assets/textures/") && file.endsWith(".png")) handleTexture(ex, file);
                         else send(ex, 404, "text/plain", "not found".getBytes(StandardCharsets.UTF_8));
                     }
                 }
@@ -218,7 +221,8 @@ public class LiveE2EServer {
                 HeldItem main = q.containsKey("main") ? new HeldItem(q.get("main")) : null;
                 mob = new LiveMobState(d(q, "bodyYaw"), q.containsKey("headYaw") ? d(q, "headYaw") : d(q, "bodyYaw"),
                         (int) d(q, "hurt"), (int) d(q, "death"), "1".equals(q.get("baby")),
-                        main != null ? new Equipment(main, null, "1".equals(q.get("left")), false) : null,
+                        main != null || q.containsKey("armor") ? new Equipment(main, null, "1".equals(q.get("left")), false,
+                                q.containsKey("armor") ? armor(q.get("armor")) : null) : null,
                         q.get("variant"), (int) d(q, "size"),
                         q.containsKey("w") ? d(q, "w") : 0.6, q.containsKey("h") ? d(q, "h") : 1.95,
                         q.containsKey("flags") && !q.get("flags").isEmpty() ? List.of(q.get("flags").split(",")) : List.of());
@@ -266,10 +270,11 @@ public class LiveE2EServer {
             if (q.containsKey("leftHanded")) p.leftHanded = q.get("leftHanded").equals("1");
             if (q.containsKey("charged")) p.charged = q.get("charged").equals("1");
             if (q.containsKey("hurt")) p.hurtCount = Integer.parseInt(q.get("hurt"));
+            if (q.containsKey("armor")) p.armor = armor(q.get("armor"));
             Equipment equipment = new Equipment(
                     p.mainHand != null ? new HeldItem(p.mainHand, false, null, p.charged && p.mainHand.endsWith(":crossbow"), false) : null,
                     p.offHand != null ? new HeldItem(p.offHand) : null,
-                    p.leftHanded, false
+                    p.leftHanded, false, p.armor
             );
             ItemUse use = q.containsKey("use") ?
                     new ItemUse(q.get("use").equals("main"), q.getOrDefault("useAction", "none"), Integer.parseInt(q.getOrDefault("useTicks", "0"))) :
@@ -417,6 +422,24 @@ public class LiveE2EServer {
     }
 
     /** baked by the real ItemModelBaker from a small, color-coded resource-pack (see E2EItemResources) */
+    /**
+     * "head:iron,legs:leather:3355ff" -> the vanilla layers of these materials (leather: dyeable layer and overlay),
+     * "none" -> no armor
+     */
+    private static Armor armor(String value) {
+        if (value.equals("none") || value.isEmpty()) return null;
+        Map<String, List<Armor.Layer>> slots = new HashMap<>();
+        for (String piece : value.split(",")) {
+            String[] v = piece.split(":");
+            String base = "minecraft:models/armor/" + v[1] + "_layer_" + (v[0].equals("legs") ? 2 : 1);
+            Integer color = v.length > 2 ? Integer.parseInt(v[2], 16) : null;
+            slots.put(v[0], v[1].equals("leather") ?
+                    List.of(new Armor.Layer(base, color != null ? color : 0xA06540), new Armor.Layer(base + "_overlay", null)) :
+                    List.of(new Armor.Layer(base, null)));
+        }
+        return new Armor(slots.get("head"), slots.get("chest"), slots.get("legs"), slots.get("feet"));
+    }
+
     private static LiveEntityState.Impact impact(String value) {
         String[] v = value.split(",");
         return new LiveEntityState.Impact(new Vector3d(Double.parseDouble(v[0]), Double.parseDouble(v[1]), Double.parseDouble(v[2])),
@@ -437,6 +460,19 @@ public class LiveE2EServer {
             itemAssets.put(itemId, json);
         }
         send(ex, 200, "application/json", json);
+    }
+
+    private void handleTexture(HttpExchange ex, String file) throws IOException {
+        String path = file.substring("assets/textures/".length(), file.length() - ".png".length());
+        int slash = path.indexOf('/');
+        BufferedImage image = new E2EItemResources().texture(path.substring(0, slash) + ":" + path.substring(slash + 1));
+        if (image == null) {
+            send(ex, 404, "text/plain", "no texture".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        ByteArrayOutputStream png = new ByteArrayOutputStream();
+        ImageIO.write(image, "png", png);
+        send(ex, 200, "image/png", png.toByteArray());
     }
 
     private void handleEntityAsset(HttpExchange ex, String file) throws IOException {
