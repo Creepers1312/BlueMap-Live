@@ -123,6 +123,20 @@ public class VanillaAnimationDumpTest {
         METHODS.put("net/minecraft/client/particle/SpellParticle$DefaultFactory", Set.of());
         METHODS.put("net/minecraft/client/particle/SpellParticle$InstantFactory", Set.of());
         METHODS.put("net/minecraft/entity/effect/StatusEffect", Set.of("method_58145", "method_58147"));
+        METHODS.put("net/minecraft/server/world/ServerChunkManager", Set.of("save", "getWorldChunk", "tick"));
+        METHODS.put("net/minecraft/server/world/ServerChunkLoadingManager", Set.of("save", "unloadChunks", "tick", "shouldDelayShutdown"));
+        METHODS.put("net/minecraft/world/chunk/Chunk", Set.of("needsSaving", "setNeedsSaving", "tryMarkSaved", "markNeedsSaving"));
+        METHODS.put("net/minecraft/world/chunk/WorldChunk", Set.of("setBlockState", "addBlockEntity", "setBlockEntity"));
+        METHODS.put("net/minecraft/server/world/ServerWorld", Set.of("save", "savingDisabled", "isSavingDisabled"));
+        METHODS.put("net/minecraft/block/entity/ChestBlockEntity", Set.of());
+        METHODS.put("net/minecraft/block/entity/ChestLidAnimator", Set.of());
+        METHODS.put("net/minecraft/block/entity/ViewerCountManager", Set.of());
+        METHODS.put("net/minecraft/client/render/block/entity/ChestBlockEntityRenderer", Set.of());
+        METHODS.put("net/minecraft/client/render/block/entity/ShulkerBoxBlockEntityRenderer", Set.of());
+        METHODS.put("net/minecraft/block/entity/ShulkerBoxBlockEntity", Set.of());
+        METHODS.put("net/minecraft/block/entity/EnderChestBlockEntity", Set.of());
+        METHODS.put("net/minecraft/block/entity/BarrelBlockEntity", Set.of());
+        METHODS.put("net/minecraft/client/render/TexturedRenderLayers", Set.of("<clinit>", "getChestTextureId", "getChestTexture"));
         // horses: grazing, rearing, eating, tail, gallop (model and the animation-progress of the entity)
         METHODS.put(MODEL + "HorseEntityModel", Set.of());
         METHODS.put(MODEL + "DonkeyEntityModel", Set.of());
