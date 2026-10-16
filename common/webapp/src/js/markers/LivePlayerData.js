@@ -51,7 +51,7 @@ const parseVector = value => {
     return {x: value.x, y: value.y, z: value.z};
 }
 
-const STATE_KEYS = ["sneaking", "sprinting", "onGround", "swimming", "flying", "fallFlying"];
+const STATE_KEYS = ["sneaking", "sprinting", "onGround", "swimming", "flying", "fallFlying", "riding"];
 
 const SKIN_VERSION_PATTERN = /^[0-9a-f]{1,64}$/;
 

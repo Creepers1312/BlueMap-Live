@@ -429,8 +429,10 @@ export class EntityMarker extends Marker {
         }
 
         const input = this.animationInput;
-        input.limbAngle = dying ? 0 : this.limbPos * (mob.baby ? 3 : 1);
-        input.limbDistance = dying ? 0 : Math.min(this.limbSpeed, 1);
+        // vanilla LivingEntityRenderer: no limb-animation while dead or riding
+        const still = dying || mob.flags.has("riding");
+        input.limbAngle = still ? 0 : this.limbPos * (mob.baby ? 3 : 1);
+        input.limbDistance = still ? 0 : Math.min(this.limbSpeed, 1);
         input.age = this.age;
         input.headYaw = angleDelta(r.body, r.head);
         input.headPitch = r.pitch;

@@ -199,6 +199,7 @@ public final class LivePlayersJson {
                 json.name("swimming").value(movement.swimming());
                 json.name("flying").value(movement.flying());
                 json.name("fallFlying").value(movement.fallFlying());
+                if (movement.riding()) json.name("riding").value(true);
                 json.endObject();
             }
         }

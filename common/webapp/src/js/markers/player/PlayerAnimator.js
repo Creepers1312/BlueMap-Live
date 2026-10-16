@@ -118,6 +118,7 @@ export class PlayerAnimator {
         // target-state, set from the live-data
         this.targetLimbSpeed = 0;
         this.sneaking = false;
+        this.riding = false;
         this.inAir = false;
         this.fallSpeed = 0;
         this.leaning = false;
@@ -178,13 +179,15 @@ export class PlayerAnimator {
         const velocity = player.velocity;
 
         const horizontalSpeed = velocity ? Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z) : 0;
-        this.targetLimbSpeed = Math.min(horizontalSpeed * LIMB_SPEED_FACTOR, 1);
+        // vanilla LivingEntityRenderer: a passenger has no limb-animation
+        this.riding = !!(state && state.riding);
+        this.targetLimbSpeed = this.riding ? 0 : Math.min(horizontalSpeed * LIMB_SPEED_FACTOR, 1);
 
         this.sneaking = !!(state && state.sneaking);
         this.flying = !!(state && state.flying);
         this.fallFlying = !!(state && state.fallFlying);
         this.leaning = !!(state && (state.swimming || state.fallFlying));
-        this.inAir = !!(state && !state.onGround && !this.flying && !this.leaning);
+        this.inAir = !!(state && !state.onGround && !this.flying && !this.leaning && !this.riding);
         this.fallSpeed = velocity && velocity.y < 0 ? Math.min(-velocity.y / 20, 1) : 0;
 
         const swing = player.swing;
@@ -292,12 +295,23 @@ export class PlayerAnimator {
         const {head, body, rightArm, leftArm, rightLeg, leftLeg} = pose.parts;
 
         // walking (vanilla BipedEntityModel.setAngles), damped while flying/gliding
-        const speed = this.limbSpeed * (1 - 0.7 * this.flyWeight);
+        const speed = this.riding ? 0 : this.limbSpeed * (1 - 0.7 * this.flyWeight);
         const phase = this.limbPos * LIMB_FREQUENCY;
         rightArm.rx = Math.cos(phase + PI) * speed;
         leftArm.rx = Math.cos(phase) * speed;
         rightLeg.rx = Math.cos(phase) * 1.4 * speed;
         leftLeg.rx = Math.cos(phase + PI) * 1.4 * speed;
+
+        // riding (vanilla BipedEntityModel.setAngles): arms forward, legs sitting and spread (yaw / roll negated)
+        if (this.riding) {
+            rightArm.rx += -PI / 5;
+            leftArm.rx += -PI / 5;
+            rightLeg.rx = leftLeg.rx = -1.4137167;
+            rightLeg.ry = -PI / 10;
+            leftLeg.ry = PI / 10;
+            rightLeg.rz = -0.07853982;
+            leftLeg.rz = 0.07853982;
+        }
 
         // arm-poses of held and used items (vanilla), blended: the difference to the walking-pose is smoothed
         this.calculateArmPoses(dt, snap, rightArm, leftArm);

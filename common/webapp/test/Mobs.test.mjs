@@ -148,6 +148,20 @@ test("vanilla animations: zombies hold the arms forward, skeletons aim, legs swi
     ANIMATIONS.enderman(enderman, input({flags: new Set(["angry"])}));
     assert.equal(enderman.head.pivotY, -18, "angry: the head is raised (mouth open)");
 
+    // riding (vanilla BipedEntityModel / IllagerEntityModel): sitting legs, arms forward
+    const rider = partsOf("minecraft:piglin#main");
+    ANIMATIONS.piglin(rider, input({flags: new Set(["riding"])}));
+    assert.ok(Math.abs(rider.right_leg.pitch - -1.4137167) < 1e-6 && Math.abs(rider.left_leg.pitch - -1.4137167) < 1e-6);
+    assert.ok(Math.abs(rider.right_leg.yaw - PI / 10) < 1e-6 && Math.abs(rider.left_leg.yaw + PI / 10) < 1e-6);
+    assert.ok(Math.abs(rider.right_leg.roll - 0.07853982) < 1e-6 && Math.abs(rider.left_leg.roll + 0.07853982) < 1e-6);
+    const jockey = partsOf("minecraft:zombie#main");
+    ANIMATIONS.zombie(jockey, input({flags: new Set(["riding"])}));
+    assert.ok(Math.abs(jockey.right_leg.pitch - -1.4137167) < 1e-6, "zombie-jockey sits");
+    assert.ok(Math.abs(jockey.right_arm.pitch - -PI / 2.25) < 1e-9, "the zombie-arms stay forward");
+    const pillager = partsOf("minecraft:pillager#main");
+    ANIMATIONS.illager(pillager, input({flags: new Set(["riding"]), limbAngle: 1, limbDistance: 1}));
+    assert.ok(Math.abs(pillager.right_arm.pitch - -PI / 5) < 1e-6 && Math.abs(pillager.left_leg.yaw + PI / 10) < 1e-6);
+
     const left = {pitch: 0, yaw: 0, roll: 0}, right = {pitch: 0, yaw: 0, roll: 0};
     meleeAttack(left, right, false, 0, 0);
     assert.ok(Math.abs(right.yaw - -0.1) < 1e-9 && Math.abs(left.yaw - 0.1) < 1e-9);
@@ -319,6 +333,13 @@ test("an entity-marker shows a mob: interpolated, walking, hurt and dying", asyn
     assert.ok(Math.abs(marker.position.x - 1) < 1e-9);
     assert.ok(marker.limbSpeed > 0.5, `walking (${marker.limbSpeed})`);
     assert.ok(Math.abs(marker.rotation3.body - 90) < 1e-9, "rotation interpolated to the target");
+
+    // riding: no limb-animation (vanilla LivingEntityRenderer)
+    marker.updateFromData(sample(2, {}, {bodyYaw: 90, flags: ["riding"]}), 250);
+    marker.step(0.05, null);
+    assert.equal(marker.animationInput.limbDistance, 0, "a passenger does not walk");
+    marker.updateFromData(sample(2, {}, {bodyYaw: 90}), 250);
+    marker.step(0.05, null);
 
     // hurt for 10 ticks
     marker.updateFromData(sample(1, {}, {bodyYaw: 90, hurtTime: 10}), 250);

@@ -57,7 +57,7 @@ test("parses a complete protocol-1 response", () => {
     assert.equal(p.generation, 3);
     assert.equal(p.time, 123456789);
     assert.deepEqual(p.velocity, {x: 4.3, y: 0, z: 0});
-    assert.deepEqual(p.state, {sneaking: true, sprinting: false, onGround: true, swimming: false, flying: false, fallFlying: true});
+    assert.deepEqual(p.state, {sneaking: true, sprinting: false, onGround: true, swimming: false, flying: false, fallFlying: true, riding: false});
 });
 
 test("parses the legacy format of older servers (no protocol field)", () => {

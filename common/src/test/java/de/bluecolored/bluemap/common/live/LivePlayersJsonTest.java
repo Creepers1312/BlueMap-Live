@@ -121,6 +121,27 @@ public class LivePlayersJsonTest {
         assertFalse(s.get("swimming").getAsBoolean());
         assertFalse(s.get("flying").getAsBoolean());
         assertTrue(s.get("fallFlying").getAsBoolean());
+        assertFalse(s.has("riding"), "riding is only written when set");
+    }
+
+    @Test
+    public void testRiding() throws IOException {
+        JsonObject root = writeAndParse(true, List.of(
+                new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld",
+                        state(new MovementState(false, false, false, false, false, false, true)))
+        ));
+        JsonObject s = root.getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonObject("state");
+        assertTrue(s.get("riding").getAsBoolean());
+    }
+
+    @Test
+    public void testPassengerBodyYaw() {
+        // vanilla LivingEntityRenderer: the body follows the vehicle, the head may differ by up to 85 degrees
+        assertEquals(10f, MovementState.passengerBodyYaw(30f, 10f), 1e-4f);
+        assertEquals(90f - 40f, MovementState.passengerBodyYaw(90f, 50f) - 0f, 1e-4f, "within 50 degrees: the vehicle body");
+        assertEquals(170f - 85f + 17f, MovementState.passengerBodyYaw(170f, 0f), 1e-4f, "clamped to 85 and turned by 0.2");
+        assertEquals(-170f + 85f - 17f, MovementState.passengerBodyYaw(-170f, 0f), 1e-4f);
+        assertEquals(350f - (-20f), MovementState.passengerBodyYaw(350f, 10f), 1e-4f, "the difference is wrapped");
     }
 
     @Test

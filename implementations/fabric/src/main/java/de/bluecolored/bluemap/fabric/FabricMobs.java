@@ -119,6 +119,10 @@ final class FabricMobs {
         int[] size = {0};
 
         if (entity instanceof MobEntity mob && mob.isAttacking()) flags.add("attacking");
+        // riding (jockeys, mobs in boats and minecarts): the body follows a living vehicle like in LivingEntityRenderer
+        if (entity.hasVehicle()) flags.add("riding");
+        float bodyYaw = entity.getVehicle() instanceof LivingEntity vehicle ?
+                de.bluecolored.bluemap.common.live.MovementState.passengerBodyYaw(entity.getHeadYaw(), vehicle.bodyYaw) : entity.bodyYaw;
         if (!detailsUnavailable) {
             try {
                 sampleDetails(entity, flags, variant, size, models);
@@ -155,7 +159,7 @@ final class FabricMobs {
                 new Equipment(mainHand, offHand, entity.getMainArm() == Arm.LEFT, false, armor, head) : null;
 
         return new LiveMobState(
-                entity.bodyYaw,
+                bodyYaw,
                 entity.getHeadYaw(),
                 Math.max(entity.hurtTime, 0),
                 Math.max(entity.deathTime, 0),

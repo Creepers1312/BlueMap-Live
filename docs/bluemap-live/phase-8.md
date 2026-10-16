@@ -113,6 +113,7 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 | Panda | `PandaEntityModel`, `PandaEntityRenderer.setupTransforms` | Sitzen (auch fressend), auf dem Rücken liegen |
 | Eisbär | `PolarBearEntityModel.setAngles` | Aufrichten |
 | Mobs im Bett (Dorfbewohner) | `LivingEntityRenderer.render` und `setupTransforms` | nach der Bettrichtung gedreht, liegend, zum Kopfende verschoben |
+| Reiten (Spieler, Jockeys, Mobs in Booten und Loren) | `BipedEntityModel.setAngles`, `IllagerEntityModel.setAngles`, `LivingEntityRenderer.render` | Beine sitzend (Neigung −0,45π, gespreizt ±π/10, Rollung ±π/40), Arme π/5 nach vorn, keine Laufbewegung; auf einem lebenden Reittier folgt der Körper dessen Körperdrehung (Kopf höchstens 85° abweichend) |
 
 - **Übergänge:** Wie in Minecraft laufen sie über Fortschrittswerte pro Tick.
   - Katze: Liegen +0,15/−0,22, Schwanz +0,08/−0,13, Kopf +0,1/−0,13
@@ -227,6 +228,7 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 | Rüstung fehlte (lief im Browser-Test) | Im fertigen Spiel gelten Intermediary-Namen. `ArmorItem` hat zwei öffentliche Methoden ohne Parameter, die einen `RegistryEntry` liefern (`getMaterial`, `getEquipSound`); der Namensvergleich griff nur in der Testumgebung. Es entstand ein falscher Texturname. | Auswahl über den generischen Rückgabetyp `RegistryEntry<ArmorMaterial>` oder über den Wert. `Layer.getTexture` wird über das Ergebnis gewählt (`getTextureId` hat dieselbe Signatur), `isDyeable` über den Typ. Die Rückfallregel gilt nur für Rüstungsmaterial-Schlüssel. |
 | Sitzender Wolf bzw. Katze „in sich gedreht“, Pandas unsichtbar | Die Transformation des sitzenden Pandas (`PandaEntityRenderer`, 90° nach hinten) galt für jeden Mob mit der Flag `sitting` | Nur noch für Pandas; die Liegetransformation der Katze nur für Katzen |
 | Verzauberungsglanz stand still | Die Karte zeichnet nur bei Bewegung neu | Ein sichtbarer Glanz hält das Neuzeichnen am Laufen. Browsertest: Der Glanz bewegt sich ohne andere Bewegung. |
+| Reitanimation fehlte | Server meldete das Reiten nicht | Server: `riding` (Spieler im `state`, Mobs als Flag) und die Körperdrehung wie `LivingEntityRenderer`. Webapp: Sitzpose aus dem CI-Dump, Laufbewegung aus. Dorfbewohner haben in Vanilla keine eigene Reitpose, nur die angehaltenen Beine. |
 | Warden und Slimes ohne Animation | fehlte | Warden: Laufen und Schwanken wie `WardenEntityModel.setAngles`. Slimes: Strecken und Stauchen wie `SlimeEntity.tick` und `SlimeEntityRenderer.scale` (aus dem CI-Dump). |
 
 **CI:** Der Dump der Vanilla-Methoden läuft nur noch, wenn er von Hand gestartet wird (Actions → CI → „Run workflow“). Das spart vier Jobs pro Push.

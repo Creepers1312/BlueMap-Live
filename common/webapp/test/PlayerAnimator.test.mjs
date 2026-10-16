@@ -250,3 +250,16 @@ test("several players animate independently, the pose-object is reused", () => {
     assert.ok(walking.limbSpeed > 0.8 && sneaking.limbSpeed === 0);
     assert.ok(walking.pose.parts.body.rx === 0 && sneaking.pose.parts.body.rx > 0.49);
 });
+
+test("riding: no walking, the vanilla sitting-pose and no air-pose", () => {
+    const a = new PlayerAnimator();
+    a.setTarget(player({speed: SPRINT, onGround: false, riding: true}));
+    run(a, 1);
+    const {rightArm, leftArm, rightLeg, leftLeg} = a.pose.parts;
+    assert.equal(a.limbSpeed, 0);
+    assert.ok(Math.abs(rightLeg.rx - -1.4137167) < 1e-6 && Math.abs(leftLeg.rx - -1.4137167) < 1e-6);
+    assert.ok(Math.abs(rightLeg.ry + Math.PI / 10) < 1e-6 && Math.abs(leftLeg.ry - Math.PI / 10) < 1e-6, "legs spread");
+    assert.ok(Math.abs(rightArm.rx - -Math.PI / 5) < 0.06 && Math.abs(leftArm.rx - -Math.PI / 5) < 0.06, "arms forward");
+    assert.equal(a.inAir, false);
+    assert.equal(parsePlayer({uuid: UUID, position: {x: 0, y: 0, z: 0}, state: {riding: true}}).state.riding, true);
+});

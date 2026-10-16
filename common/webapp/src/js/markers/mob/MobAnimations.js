@@ -129,7 +129,7 @@ function animateArms(p, input) {
 }
 
 /**
- * vanilla BipedEntityModel.setAngles (no riding, sneaking, swimming or gliding: mobs on the ground)
+ * vanilla BipedEntityModel.setAngles (riding, no sneaking, swimming or gliding)
  * @param poses {{right: string, left: string}} - the arm-poses (vanilla ArmPose, as in PlayerItemPoses)
  */
 export function biped(p, input, poses = {right: "empty", left: "empty"}) {
@@ -148,6 +148,11 @@ export function biped(p, input, poses = {right: "empty", left: "empty"}) {
     leftLeg.pitch = cos(f * 0.6662 + PI) * 1.4 * g;
     rightLeg.yaw = 0.005; leftLeg.yaw = -0.005;
     rightLeg.roll = 0.005; leftLeg.roll = -0.005;
+    if (input.flags.has("riding")) {
+        rightArm.pitch += -PI / 5;
+        leftArm.pitch += -PI / 5;
+        ridingLegs(rightLeg, leftLeg);
+    }
     rightArm.yaw = 0;
     leftArm.yaw = 0;
 
@@ -162,6 +167,12 @@ export function biped(p, input, poses = {right: "empty", left: "empty"}) {
     swingArm(rightArm, input.age, 1);
     swingArm(leftArm, input.age, -1);
     copyTransform(p.hat, head);
+}
+
+/** vanilla BipedEntityModel / IllagerEntityModel: the legs of a sitting passenger */
+function ridingLegs(rightLeg, leftLeg) {
+    rightLeg.pitch = -1.4137167; rightLeg.yaw = PI / 10; rightLeg.roll = 0.07853982;
+    leftLeg.pitch = -1.4137167; leftLeg.yaw = -PI / 10; leftLeg.roll = -0.07853982;
 }
 
 const isOf = (item, id) => !!item && item.id === id;
@@ -489,10 +500,16 @@ export function illager(p, input) {
     const f = input.limbAngle, g = input.limbDistance, flags = input.flags;
     look(p, input);
     const {right_arm: rightArm, left_arm: leftArm, right_leg: rightLeg, left_leg: leftLeg} = p;
-    rightArm.pitch = cos(f * 0.6662 + PI) * 2 * g * 0.5;
-    leftArm.pitch = cos(f * 0.6662) * 2 * g * 0.5;
-    rightLeg.pitch = cos(f * 0.6662) * 1.4 * g * 0.5;
-    leftLeg.pitch = cos(f * 0.6662 + PI) * 1.4 * g * 0.5;
+    if (flags.has("riding")) {
+        rightArm.pitch = -PI / 5; rightArm.yaw = 0; rightArm.roll = 0;
+        leftArm.pitch = -PI / 5; leftArm.yaw = 0; leftArm.roll = 0;
+        ridingLegs(rightLeg, leftLeg);
+    } else {
+        rightArm.pitch = cos(f * 0.6662 + PI) * 2 * g * 0.5;
+        leftArm.pitch = cos(f * 0.6662) * 2 * g * 0.5;
+        rightLeg.pitch = cos(f * 0.6662) * 1.4 * g * 0.5;
+        leftLeg.pitch = cos(f * 0.6662 + PI) * 1.4 * g * 0.5;
+    }
     const h = p.head;
     if (flags.has("illager_attacking")) {
         if (!input.mainHand) {

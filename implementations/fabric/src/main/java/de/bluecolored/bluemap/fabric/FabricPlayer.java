@@ -41,6 +41,7 @@ import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ChargedProjectilesComponent;
 import net.minecraft.component.type.CustomModelDataComponent;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.item.CrossbowItem;
@@ -302,8 +303,12 @@ public class FabricPlayer extends Player {
                 player.isOnGround(),
                 player.isSwimming(),
                 player.getAbilities().flying,
-                player.isFallFlying()
+                player.isFallFlying(),
+                player.hasVehicle()
         );
+        // vanilla LivingEntityRenderer: on a living vehicle the body follows the vehicle
+        float bodyYaw = player.getVehicle() instanceof LivingEntity vehicle ?
+                MovementState.passengerBodyYaw(player.getHeadYaw(), vehicle.bodyYaw) : player.getBodyYaw();
 
         long now = System.currentTimeMillis();
         PlayerMotionTracker.Result motion = motionTracker.sample(serverWorld.getDimension().getFormatted(), position, now);
@@ -318,7 +323,7 @@ public class FabricPlayer extends Player {
                 new LivePlayerState(
                         position,
                         rotation,
-                        player.getBodyYaw(),
+                        bodyYaw,
                         motion.velocity(),
                         motion.generation(),
                         now,
