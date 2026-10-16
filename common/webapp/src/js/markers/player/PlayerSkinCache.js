@@ -69,6 +69,27 @@ export function createHurtMaterial(material) {
     return hurt;
 }
 
+/**
+ * A copy of a material that is mixed with white like vanilla's white overlay (OverlayTexture: column u has the
+ * alpha 1 - u / 15 * 0.75, so the color is mixed with u / 15 * 0.75 white), e.g. the flashing of an igniting creeper.
+ * @param material {MeshBasicMaterial}
+ * @param level {number} - vanilla overlay-u (1..15)
+ * @returns {MeshBasicMaterial}
+ */
+export function createWhiteOverlayMaterial(material, level) {
+    const amount = Math.min(Math.max(level, 0), 15) / 15 * 0.75;
+    const white = material.clone();
+    white.onBeforeCompile = shader => {
+        shader.fragmentShader = shader.fragmentShader.replace(
+            "#include <output_fragment>",
+            `#include <output_fragment>\n\tgl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), ${amount.toFixed(4)});`
+        );
+    };
+    white.customProgramCacheKey = () => "bluemap-live-white-" + level;
+    white.userData.whiteOverlay = amount;
+    return white;
+}
+
 export class PlayerSkinCache {
 
     /**

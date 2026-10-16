@@ -96,6 +96,11 @@ public final class LiveEntitiesJson {
         if (mob.size() > 0) json.name("size").value(mob.size());
         json.name("width").value(finite(mob.width()));
         json.name("height").value(finite(mob.height()));
+        if (!mob.models().isEmpty()) {
+            json.name("models").beginArray();
+            for (String model : mob.models()) json.value(model);
+            json.endArray();
+        }
         if (!mob.flags().isEmpty()) {
             json.name("flags").beginArray();
             for (String flag : mob.flags()) json.value(flag);

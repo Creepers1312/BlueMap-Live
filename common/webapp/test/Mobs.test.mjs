@@ -8,7 +8,7 @@ import {buildPartGeometry, cuboidQuads} from "../src/js/markers/mob/MobModelGeom
 import {createSkinBoxGeometry} from "../src/js/markers/player/PlayerModelGeometry.js";
 import {ANIMATIONS, createTransform, meleeAttack} from "../src/js/markers/mob/MobAnimations.js";
 import {
-    creeperSwelling, deathAngle, isLayerShown, layerTextures, limbTarget, MOB_TYPES, sheepWoolColor, slimeScale, VANILLA_MODELS,
+    creeperSwelling, creeperWhiteOverlay, deathAngle, isLayerShown, layerTextures, limbTarget, MOB_TYPES, sheepWoolColor, slimeScale, VANILLA_MODELS,
     villagerTextures,
 } from "../src/js/markers/mob/MobTypes.js";
 import {MobAssetCache} from "../src/js/markers/mob/MobAssetCache.js";
@@ -185,6 +185,12 @@ test("mob-types: textures, variants, colors and renderer-values", () => {
     assert.equal(limbTarget(1), 1);
     assert.equal(placeholderLabel("minecraft:magma_cube"), "Magma Cube");
     assert.deepEqual(creeperSwelling(0), {horizontal: 1, vertical: 1});
+    // white flashing: every 0.1 of the fuse, at least level 7 (0.5 * 15), at most 15
+    assert.equal(creeperWhiteOverlay(0), 0);
+    assert.equal(creeperWhiteOverlay(0.05), 0);
+    assert.equal(creeperWhiteOverlay(0.15), 7);
+    assert.equal(creeperWhiteOverlay(0.25), 0);
+    assert.equal(creeperWhiteOverlay(0.95), 14);
     const swollen = creeperSwelling(1);
     assert.ok(swollen.horizontal > 1.39 && swollen.horizontal < 1.42 && swollen.vertical > 1.08 && swollen.vertical < 1.12, JSON.stringify(swollen));
 });
@@ -338,4 +344,56 @@ test("an entity-marker shows a placeholder for living entities without a model",
     assert.equal(marker.view.fill.scale.y, 0.6);
     assert.ok(Math.abs(marker.view.box.rotation.y - -PI / 2) < 1e-9);
     marker.dispose();
+});
+
+test("mooshroom-mushrooms and the carried block of the enderman are block-models (item-assets), creepers flash white", async () => {
+    const {ItemAssetCache} = await import("../src/js/markers/player/ItemAssetCache.js");
+    const requested = [];
+    const quads = [0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, -1];
+    const items = new ItemAssetCache("i/", url => {
+        requested.push(url.substring(0, url.indexOf("?")));
+        const empty = url.includes("block/dandelion_missing");
+        return Promise.resolve({format: 1, textures: ["data:image/png;base64,AA"], models: empty ? [] : [{type: "quads", quads, display: {}}]});
+    }, () => Promise.resolve({width: 16, height: 16}));
+    const cache = fakeMobCache({"minecraft:entity/cow/red_mooshroom": 1, "minecraft:entity/enderman/enderman": 1,
+        "minecraft:entity/enderman/enderman_eyes": 1, "minecraft:entity/creeper/creeper": 1});
+    const input = {limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0, flags: new Set(),
+        mainHand: null, leftHanded: false, wingAngle: 0};
+    const noItems = {mainHand: null, offHand: null, leftHanded: false};
+
+    const cow = new MobModel("minecraft:mooshroom", MOB_TYPES["minecraft:mooshroom"], cache, items);
+    await flush(); await flush();
+    cow.setState({variant: "red", baby: false, flags: new Set(), size: 0, models: ["minecraft:block/red_mushroom"]}, noItems);
+    cow.animate(input, 0, 0, false);
+    await flush(); await flush();
+    cow.animate(input, 0, 0, false);
+    assert.equal(cow.blocks.length, 3, "two on the back, one on the head");
+    assert.ok(cow.blocks.every(b => b.view.visible && b.view.itemId === "minecraft:block/red_mushroom"));
+    assert.ok(requested.includes("i/minecraft/block/red_mushroom.json"));
+    cow.setState({variant: "red", baby: true, flags: new Set(), size: 0, models: ["minecraft:block/red_mushroom"]}, noItems);
+    cow.animate(input, 0, 0, false);
+    assert.ok(cow.blocks.every(b => !b.view.visible), "babies have no mushrooms");
+    cow.dispose();
+
+    const enderman = new MobModel("minecraft:enderman", MOB_TYPES["minecraft:enderman"], cache, items);
+    await flush(); await flush();
+    const carrying = {variant: null, baby: false, flags: new Set(["carrying"]), size: 0, models: ["minecraft:block/dandelion_missing"]};
+    enderman.setState(carrying, noItems);
+    for (let i = 0; i < 4; i++) {
+        enderman.animate({...input, flags: carrying.flags}, 0, 0, false);
+        await flush();
+    }
+    assert.equal(enderman.blocks[0].view.view.itemId, "minecraft:dandelion_missing", "no block-model: the item-model");
+    assert.equal(enderman.blocks[0].view.visible, true);
+    enderman.dispose();
+
+    const creeper = new MobModel("minecraft:creeper", MOB_TYPES["minecraft:creeper"], cache, null);
+    await flush(); await flush();
+    creeper.setState({variant: null, baby: false, flags: new Set(), size: 0, models: []}, noItems);
+    creeper.animate(input, 0, 0, false, 0.15);
+    assert.equal(creeper.white, 7);
+    assert.ok(Math.abs(creeper.layerViews[0].meshes[0].material.userData.whiteOverlay - 7 / 15 * 0.75) < 1e-9);
+    creeper.animate(input, 0, 0, false, 0.25);
+    assert.equal(creeper.layerViews[0].meshes[0].material.userData.whiteOverlay, undefined, "flashing");
+    creeper.dispose();
 });

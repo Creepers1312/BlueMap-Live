@@ -29,6 +29,7 @@ import de.bluecolored.bluemap.common.live.Equipment;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.core.logger.Logger;
+import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.ArmorStandEntity;
@@ -76,13 +77,14 @@ final class FabricMobs {
 
     static LiveMobState sample(LivingEntity entity) {
         List<String> flags = new ArrayList<>();
+        List<String> models = new ArrayList<>();
         String[] variant = {null};
         int[] size = {0};
 
         if (entity instanceof MobEntity mob && mob.isAttacking()) flags.add("attacking");
         if (!detailsUnavailable) {
             try {
-                sampleDetails(entity, flags, variant, size);
+                sampleDetails(entity, flags, variant, size, models);
             } catch (LinkageError error) {
                 detailsUnavailable = true;
                 Logger.global.logWarning("BlueMap Live: mob-details are not available: " + error);
@@ -106,16 +108,20 @@ final class FabricMobs {
                 size[0],
                 entity.getWidth(),
                 entity.getHeight(),
+                models,
                 flags
         );
     }
 
-    private static void sampleDetails(LivingEntity entity, List<String> flags, String[] variant, int[] size) {
+    private static void sampleDetails(LivingEntity entity, List<String> flags, String[] variant, int[] size, List<String> models) {
         if (entity instanceof SheepEntity sheep) {
             variant[0] = sheep.getColor().getName();
             if (sheep.isSheared()) flags.add("sheared");
         } else if (entity instanceof MooshroomEntity mooshroom) {
             variant[0] = mooshroom.getVariant().asString();
+            // vanilla MooshroomMushroomFeatureRenderer: the block-model of the mushroom-state of the variant
+            String mushroom = blockModel(mooshroom.getVariant().getMushroomState());
+            if (mushroom != null) models.add(mushroom);
         } else if (entity instanceof PigEntity pig) {
             if (pig.isSaddled()) flags.add("saddled");
         } else if (entity instanceof CreeperEntity creeper) {
@@ -125,7 +131,13 @@ final class FabricMobs {
             size[0] = slime.getSize();
         } else if (entity instanceof EndermanEntity enderman) {
             if (enderman.isAngry()) flags.add("angry");
-            if (enderman.getCarriedBlock() != null) flags.add("carrying");
+            BlockState carried = enderman.getCarriedBlock();
+            if (carried != null) {
+                flags.add("carrying");
+                // vanilla EndermanBlockFeatureRenderer: the carried block
+                String block = blockModel(carried);
+                if (block != null) models.add(block);
+            }
         } else if (entity instanceof VillagerEntity villager) {
             variant[0] = villagerVariant(villager.getVillagerData());
         } else if (entity instanceof ZombieVillagerEntity zombieVillager) {
@@ -140,6 +152,13 @@ final class FabricMobs {
                 default -> {}
             }
         }
+    }
+
+    /** the default block-model of a block-state: "minecraft:block/red_mushroom" (the webapp falls back to the item-model) */
+    private static @Nullable String blockModel(BlockState state) {
+        return state.getRegistryEntry().getKey()
+                .map(key -> key.getValue().getNamespace() + ":block/" + key.getValue().getPath())
+                .orElse(null);
     }
 
     /** "type/profession/level", e.g. "plains/farmer/2" (type and profession print their name) */

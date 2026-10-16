@@ -122,6 +122,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                 for (int i = 0; i < listed.size() && i < limit; i++) {
                     LiveEntityState entity = listed.get(i).entity();
                     if (entity.item() != null) itemRequester.accept(entity.item().id());
+                    if (entity.mob() != null) entity.mob().models().forEach(itemRequester);
                     Equipment equipment = entity.mob() != null ? entity.mob().equipment() : null;
                     if (equipment != null) {
                         if (equipment.mainHand() != null) itemRequester.accept(equipment.mainHand().id());

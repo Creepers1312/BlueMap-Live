@@ -25,10 +25,47 @@
 import {Group, MathUtils, Mesh} from "three";
 import {getLayerGeometries} from "./MobModelGeometry.js";
 import {ANIMATIONS, createTransform, resetTransform} from "./MobAnimations.js";
-import {creeperSwelling, deathAngle, isLayerShown, layerTextures, sheepWoolColor, slimeScale, VANILLA_MODELS} from "./MobTypes.js";
+import {creeperSwelling, creeperWhiteOverlay, deathAngle, isLayerShown, layerTextures, sheepWoolColor, slimeScale, VANILLA_MODELS} from "./MobTypes.js";
 import {ItemView} from "../player/ItemView.js";
 import {itemPredicates} from "../player/PlayerItemPoses.js";
 import {ArmorView} from "./ArmorView.js";
+
+const DEG = Math.PI / 180;
+
+/**
+ * A block-model (item-asset "minecraft:block/<id>", see the java ItemModelBaker) placed like vanilla's
+ * renderBlockAsEntity: the model from 0 to 1. Falls back to the item-model if the block has no own model.
+ */
+class BlockModelView extends Group {
+
+    constructor(itemCache) {
+        super();
+        this.view = new ItemView(itemCache, "none");
+        this.view.position.set(0.5, 0.5, 0.5); // the ItemView-content starts at -0.5
+        this.add(this.view);
+        this.blockModel = null;
+        this.fallback = false;
+    }
+
+    update(blockModel) {
+        if (blockModel !== this.blockModel) {
+            this.blockModel = blockModel;
+            this.fallback = false;
+        }
+        const entry = this.view.entry;
+        if (!this.fallback && blockModel && entry && entry.state === "loaded" && entry.models.length === 0 && this.view.itemId === blockModel) {
+            this.fallback = true; // no block-model: the item-model
+        }
+        const id = !blockModel ? null : this.fallback ? blockModel.replace(":block/", ":") : blockModel;
+        this.view.update(id, {});
+        this.visible = !!blockModel;
+    }
+
+    dispose() {
+        this.view.dispose();
+    }
+
+}
 
 /** vanilla LivingEntityRenderer: the model is moved down by 1.501 blocks after the flip */
 const MODEL_OFFSET = -1.501;
@@ -119,6 +156,7 @@ export class MobModel extends Group {
 
         this.mob = {variant: null, baby: false, flags: new Set()};
         this.hurt = false;
+        this.white = 0;
         this.wasBaby = null;
 
         // held items (biped mobs)
@@ -127,6 +165,11 @@ export class MobModel extends Group {
             this.itemSlots = {right: this.createItemSlot("right", itemCache), left: this.createItemSlot("left", itemCache)};
         }
         this.items = {mainHand: null, offHand: null, leftHanded: false};
+
+        // block-models rendered with the mob (vanilla feature-renderers), in the model-space in blocks (after the flip)
+        this.blocks = [];
+        if (itemCache && mobType.mushrooms) this.createMushrooms(itemCache);
+        if (itemCache && mobType.carriedBlock) this.createCarriedBlock(itemCache);
 
         this.visible = false; // until the textures are loaded
         this.updateMaterials();
@@ -219,6 +262,12 @@ export class MobModel extends Group {
      * @param fuse {number} - creeper: vanilla getClientFuseTime (0: not swelling)
      */
     animate(input, bodyYaw, deathTicks, hurt, fuse = 0) {
+        // vanilla CreeperEntityRenderer.getAnimationCounter: white flashing while the fuse burns
+        const white = this.mobType.creeper ? creeperWhiteOverlay(fuse) : 0;
+        if (white !== this.white) {
+            this.white = white;
+            this.updateMaterials();
+        }
         if (this.mobType.creeper && this.baseScale) {
             const swelling = creeperSwelling(fuse);
             this.flip.scale.set(-this.baseScale * swelling.horizontal, -this.baseScale * swelling.vertical, this.baseScale * swelling.horizontal);
@@ -253,6 +302,7 @@ export class MobModel extends Group {
             meshes[0].material.map.offset.set(shift, -shift);
         }
         if (this.itemSlots) this.updateItems();
+        if (this.blocks.length) this.updateBlocks();
     }
 
     /** @private */
@@ -264,7 +314,9 @@ export class MobModel extends Group {
             if (armor) continue;
             const shown = isLayerShown(layer, this.mob);
             const tint = layer.tint === "sheep" ? sheepWoolColor(this.mob.variant) : null;
-            const material = shown ? this.assetCache.material(asset, layerTextures(layer, this.mob), layer.type || "cutout", tint, this.hurt && layer.type !== "eyes" && layer.type !== "energy") : null;
+            const overlay = layer.type !== "eyes" && layer.type !== "energy";
+            const material = shown ? this.assetCache.material(asset, layerTextures(layer, this.mob), layer.type || "cutout", tint,
+                this.hurt && overlay, overlay ? this.white : 0) : null;
             for (const mesh of meshes) {
                 mesh.material = material;
                 mesh.visible = !!material;
@@ -273,6 +325,81 @@ export class MobModel extends Group {
             if (layer === this.mobType.layers[0]) any = !!material;
         }
         this.visible = any;
+    }
+
+    /**
+     * vanilla MooshroomMushroomFeatureRenderer (1.21): two mushrooms on the back, one on the head.
+     * @private
+     */
+    createMushrooms(itemCache) {
+        const mushroom = (parent, steps) => {
+            let group = parent;
+            for (const step of steps) {
+                const next = new Group();
+                if (step.t) next.position.set(...step.t);
+                if (step.ry !== undefined) next.rotation.y = step.ry * DEG;
+                if (step.s) next.scale.set(...step.s);
+                group.add(next);
+                group = next;
+            }
+            // scale(-1, -1, 1), translate(-0.5): the ItemView-content is already at -0.5
+            const flip = new Group();
+            flip.scale.set(-1, -1, 1);
+            group.add(flip);
+            const view = new ItemView(itemCache, "none");
+            flip.add(view);
+            this.blocks.push({view, role: "mushroom"});
+        };
+        mushroom(this.offset, [{t: [0.2, -0.35, 0.5]}, {ry: -48}]);
+        mushroom(this.offset, [{t: [0.2, -0.35, 0.5]}, {ry: 42}, {t: [0.1, 0, -0.6]}, {ry: -48}]);
+        // on the head: head.rotate (pixels), then in blocks
+        const headBone = this.layerViews[0].bones.get("head");
+        if (headBone) {
+            const blocks = new Group();
+            blocks.scale.setScalar(16);
+            headBone.add(blocks);
+            mushroom(blocks, [{t: [0, -0.7, -0.2]}, {ry: -78}]);
+        }
+    }
+
+    /**
+     * vanilla EndermanBlockFeatureRenderer (1.21): the carried block in front of the enderman.
+     * @private
+     */
+    createCarriedBlock(itemCache) {
+        const a = new Group();
+        a.position.set(0, 0.6875, -0.75);
+        const b = new Group();
+        b.rotation.set(20 * DEG, 45 * DEG, 0, "XYZ");
+        const c = new Group();
+        c.position.set(0.25, 0.1875, 0.25);
+        const d = new Group();
+        d.scale.set(-0.5, -0.5, 0.5);
+        const e = new Group();
+        e.rotation.y = 90 * DEG;
+        this.offset.add(a);
+        a.add(b);
+        b.add(c);
+        c.add(d);
+        d.add(e);
+        const view = new BlockModelView(itemCache);
+        e.add(view);
+        this.blocks.push({view, role: "carried"});
+    }
+
+    /** @private */
+    updateBlocks() {
+        const model = this.mob.models && this.mob.models[0] || null;
+        for (const {view, role} of this.blocks) {
+            if (role === "mushroom") {
+                const shown = !!model && !this.mob.baby && this.visible;
+                view.update(shown ? model : null, {});
+                view.visible = shown;
+            } else {
+                const shown = !!model && this.mob.flags.has("carrying") && this.visible;
+                view.update(shown ? model : null);
+            }
+        }
     }
 
     /**
@@ -326,6 +453,7 @@ export class MobModel extends Group {
     }
 
     dispose() {
+        for (const {view} of this.blocks) view.dispose();
         if (this.armor) this.armor.dispose();
         if (this.itemSlots) {
             this.itemSlots.right.dispose();

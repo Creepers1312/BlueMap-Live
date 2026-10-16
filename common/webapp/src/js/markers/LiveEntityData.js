@@ -105,7 +105,7 @@ export const THROWN_ITEM_SCALES = {"minecraft:fireball": 3, "minecraft:small_fir
  * }}
  * @typedef LiveMob {{
  *     bodyYaw: number, headYaw: number, hurtTime: number, deathTime: number, baby: boolean,
- *     variant: string | null, size: number, width: number, height: number, flags: Set<string>,
+ *     variant: string | null, size: number, width: number, height: number, flags: Set<string>, models: string[],
  *     equipment: {mainHand: object | null, offHand: object | null, leftHanded: boolean} | null
  * }}
  */
@@ -146,6 +146,8 @@ export function parseMob(value) {
         width: clampNumber(value.width, 0.1, 16, 0.6),
         height: clampNumber(value.height, 0.1, 16, 1.8),
         flags,
+        models: Array.isArray(value.models) ?
+            value.models.slice(0, 4).filter(model => typeof model === "string" && TYPE_PATTERN.test(model) && !model.includes("..")) : [],
         equipment: parseEquipment(value.equipment),
     };
 }

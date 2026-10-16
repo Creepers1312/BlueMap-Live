@@ -41,6 +41,8 @@ import java.util.List;
  * @param size the size of slimes and magma cubes, 0 for other entities
  * @param width the width of the hitbox in blocks (for a placeholder if the webapp has no model)
  * @param height the height of the hitbox in blocks
+ * @param models block-models the webapp renders with the mob, e.g. the mushrooms of a mooshroom or the block an
+ *               enderman carries (<code>minecraft:block/red_mushroom</code>), provided like the item-assets
  * @param flags further states that change the model or its animation (e.g. <code>attacking</code>,
  *              <code>sheared</code>, <code>saddled</code>), sorted
  */
@@ -55,11 +57,19 @@ public record LiveMobState(
         int size,
         double width,
         double height,
+        List<String> models,
         List<String> flags
 ) {
 
     public LiveMobState {
+        models = List.copyOf(models);
         flags = flags.stream().sorted().distinct().toList();
+    }
+
+    public LiveMobState(double bodyYaw, double headYaw, int hurtTime, int deathTime, boolean baby,
+                        @Nullable Equipment equipment, @Nullable String variant, int size, double width, double height,
+                        List<String> flags) {
+        this(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height, List.of(), flags);
     }
 
 }

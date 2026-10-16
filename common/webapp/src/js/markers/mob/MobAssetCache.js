@@ -24,7 +24,7 @@
  */
 import {AdditiveBlending, Color, DoubleSide, MeshBasicMaterial, NearestFilter, RepeatWrapping, Texture} from "three";
 import {assetUrl, MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
-import {createHurtMaterial} from "../player/PlayerSkinCache.js";
+import {createHurtMaterial, createWhiteOverlayMaterial} from "../player/PlayerSkinCache.js";
 
 /*
  * Loads the mob-assets (the textures of a mob from the resource-pack, see the java ItemModelBaker.bakeMob and
@@ -127,15 +127,21 @@ export class MobAssetCache {
      * @param kind {"cutout" | "translucent" | "eyes" | "energy"}
      * @param tint {number | null} - rgb-color the texture is multiplied with
      * @param hurt {boolean} - with the red hurt-overlay
+     * @param white {number} - the vanilla white-overlay level (0: none, 1..15), ignored when hurt (vanilla: the
+     *  hurt-rows of the overlay-texture are red in every column)
      * @returns {MeshBasicMaterial | null} - null if the first texture is missing
      */
-    material(entry, textureKeys, kind = "cutout", tint = null, hurt = false) {
+    material(entry, textureKeys, kind = "cutout", tint = null, hurt = false, white = 0) {
         if (entry.state !== "loaded") return null;
-        const key = `${textureKeys.join("+")}|${kind}|${tint}|${hurt}`;
+        if (hurt) white = 0;
+        const key = `${textureKeys.join("+")}|${kind}|${tint}|${hurt}|${white}`;
         let material = entry.materials.get(key);
         if (material !== undefined) return material;
 
-        if (hurt) {
+        if (white > 0) {
+            const base = this.material(entry, textureKeys, kind, tint, false, 0);
+            material = base ? createWhiteOverlayMaterial(base, white) : null;
+        } else if (hurt) {
             const base = this.material(entry, textureKeys, kind, tint, false);
             material = base ? createHurtMaterial(base) : null;
         } else {

@@ -62,7 +62,9 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  *     armorLayers?: {inner: string, outer: string},  the armor-models (default: the player armor-models)
  *     lyingAngle?: number,              vanilla LivingEntityRenderer.getLyingAngle (degrees, default 90)
  *     slime?: boolean,                  scaled by the size (vanilla SlimeEntityRenderer)
- *     creeper?: boolean                 swells before the explosion (vanilla CreeperEntityRenderer)
+ *     creeper?: boolean,                swells before the explosion (vanilla CreeperEntityRenderer)
+ *     mushrooms?: boolean,              the mushrooms of the mooshroom (block-model from mob.models)
+ *     carriedBlock?: boolean            the block of the enderman (block-model from mob.models)
  * }}
  */
 
@@ -137,7 +139,7 @@ export const MOB_TYPES = {
         layers: [{model: "minecraft:cow#main", texture: E + "cow/cow"}],
     },
     "minecraft:mooshroom": {
-        animation: "quadruped", child: [false, 10, 4, 2, 2, 24], headParts: ["head"],
+        animation: "quadruped", mushrooms: true, child: [false, 10, 4, 2, 2, 24], headParts: ["head"],
         layers: [{model: "minecraft:mooshroom#main", texture: mob => E + "cow/" + (mob.variant === "brown" ? "brown" : "red") + "_mooshroom"}],
     },
     "minecraft:sheep": {
@@ -166,7 +168,7 @@ export const MOB_TYPES = {
         ],
     },
     "minecraft:enderman": {
-        animation: "enderman",
+        animation: "enderman", carriedBlock: true,
         layers: [
             {model: "minecraft:enderman#main", texture: E + "enderman/enderman"},
             {model: "minecraft:enderman#main", texture: E + "enderman/enderman_eyes", type: "eyes"},
@@ -263,4 +265,15 @@ export function creeperSwelling(fuse) {
     g *= g;
     g *= g;
     return {horizontal: (1 + g * 0.4) * h, vertical: (1 + g * 0.1) / h};
+}
+
+/**
+ * vanilla CreeperEntityRenderer.getAnimationCounter: the white overlay of an igniting creeper, flashing every
+ * 0.1 of the fuse-progress, at least half; as vanilla overlay-level (OverlayTexture.getU: (int) (progress * 15)).
+ * @param fuse {number} - vanilla getClientFuseTime
+ * @returns {number} 0 (none) .. 15
+ */
+export function creeperWhiteOverlay(fuse) {
+    if (!(fuse > 0) || Math.floor(fuse * 10) % 2 === 0) return 0;
+    return Math.floor(Math.min(Math.max(fuse, 0.5), 1) * 15);
 }

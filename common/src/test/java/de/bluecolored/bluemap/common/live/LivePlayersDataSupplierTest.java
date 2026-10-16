@@ -262,6 +262,18 @@ public class LivePlayersDataSupplierTest {
         assertFalse(sheepJson.has("equipment"));
         assertFalse(list.get(1).getAsJsonObject().has("item"));
 
+        // block-models (mooshroom-mushrooms, carried block) and armor-textures are requested like items
+        LiveMobState mooshroom = new LiveMobState(0, 0, 0, 0, false,
+                new Equipment(null, null, false, false, new Armor(List.of(new Armor.Layer("minecraft:models/armor/iron_layer_1", null)), null, null, null)),
+                "red", 0, 0.9, 1.4, List.of("minecraft:block/red_mushroom"), List.of());
+        server.entities = List.of(new LiveEntityState(3, "minecraft:mooshroom", new Vector3d(1, 0, 0), 0, 0, Vector3d.ZERO, 1000, null, true, mooshroom));
+        List<String> requested2 = new ArrayList<>();
+        JsonObject mooshroomJson = entities(supplyEntities(new PluginConfig(), server, requested2)).get(0).getAsJsonObject().getAsJsonObject("mob");
+        assertEquals("minecraft:block/red_mushroom", mooshroomJson.getAsJsonArray("models").get(0).getAsString());
+        assertEquals("minecraft:models/armor/iron_layer_1", mooshroomJson.getAsJsonObject("equipment").getAsJsonObject("armor")
+                .getAsJsonArray("head").get(0).getAsJsonObject().get("texture").getAsString());
+        assertEquals(List.of("minecraft:block/red_mushroom", "texture:minecraft:models/armor/iron_layer_1"), requested2);
+
         // flags are sorted and unique
         assertEquals(List.of("a", "b"), new LiveMobState(0, 0, 0, 0, false, null, null, 0, 1, 1, List.of("b", "a", "b")).flags());
     }

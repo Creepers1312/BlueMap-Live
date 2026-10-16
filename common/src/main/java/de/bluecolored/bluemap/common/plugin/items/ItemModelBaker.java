@@ -103,7 +103,8 @@ public class ItemModelBaker {
      */
     public String bake(String itemId) throws IOException {
         Key id = Key.parse(itemId);
-        String itemModelKey = id.namespace + ":item/" + id.path;
+        // "minecraft:block/red_mushroom": the block-model itself (rendered by the webapp with entities, e.g. mooshroom)
+        String itemModelKey = id.path.startsWith("block/") ? id.namespace + ":" + id.path : id.namespace + ":item/" + id.path;
 
         Textures textures = new Textures();
         List<BakedModel> models = new ArrayList<>();
