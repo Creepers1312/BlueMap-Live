@@ -46,6 +46,13 @@ import net.minecraft.entity.passive.FoxEntity;
 import net.minecraft.entity.passive.PolarBearEntity;
 import net.minecraft.entity.passive.PufferfishEntity;
 import net.minecraft.entity.passive.TropicalFishEntity;
+import net.minecraft.entity.passive.WolfEntity;
+import net.minecraft.entity.passive.LlamaEntity;
+import net.minecraft.item.AnimalArmorItem;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.component.type.DyedColorComponent;
+import net.minecraft.util.DyeColor;
 import net.minecraft.util.math.Direction;
 import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.mob.IllagerEntity;
@@ -251,6 +258,7 @@ final class FabricMobs {
         if (entity instanceof PandaEntity panda) {
             if (panda.isSitting()) flags.add("sitting");
             if (panda.isLyingOnBack()) flags.add("lying_on_back");
+            if (panda.isEating()) flags.add("eating");
         }
         if (entity instanceof PolarBearEntity bear && bear.isWarning()) flags.add("warning");
         if (entity instanceof ArmadilloEntity armadillo && armadillo.isRolledUp()) flags.add("rolled_up");
@@ -259,6 +267,29 @@ final class FabricMobs {
         if (entity instanceof TropicalFishEntity fish) {
             flags.add("base_" + fish.getBaseColorComponents().getName());
             flags.add("pattern_" + fish.getPatternColorComponents().getName());
+        }
+        // vanilla Wolf/CatCollarFeatureRenderer: the collar of tamed wolves and cats in its dye-color
+        if (entity instanceof WolfEntity wolf && wolf.isTamed()) flags.add("collar_" + wolf.getCollarColor().getName());
+        if (entity instanceof CatEntity cat && cat.isTamed()) flags.add("collar_" + cat.getCollarColor().getName());
+        // vanilla LlamaDecorFeatureRenderer: the carpet (the trader-llama has its own decor without one)
+        if (entity instanceof LlamaEntity llama) {
+            DyeColor carpet = llama.getCarpetColor();
+            if (carpet != null) flags.add("carpet_" + carpet.getName());
+            else if (llama.isTrader()) flags.add("carpet_trader");
+        }
+        // vanilla HorseArmorFeatureRenderer: equestrian armor, dyeable (leather) with its color
+        if (entity instanceof HorseEntity horse) {
+            ItemStack armor = horse.getBodyArmor();
+            if (armor.getItem() instanceof AnimalArmorItem armorItem && armorItem.getType() == AnimalArmorItem.Type.EQUESTRIAN) {
+                String texture = armorItem.getEntityTexture().getPath();
+                String prefix = "textures/entity/horse/armor/horse_armor_";
+                if (texture.startsWith(prefix) && texture.endsWith(".png")) {
+                    flags.add("armor_" + texture.substring(prefix.length(), texture.length() - 4));
+                    if (armor.isIn(ItemTags.DYEABLE)) {
+                        flags.add(String.format("armor_color_%06x", DyedColorComponent.getColor(armor, -6265536) & 0xFFFFFF));
+                    }
+                }
+            }
         }
         // vanilla PufferfishEntityRenderer: the model of the puff-state
         if (entity instanceof PufferfishEntity pufferfish && pufferfish.getPuffState() > 0) {

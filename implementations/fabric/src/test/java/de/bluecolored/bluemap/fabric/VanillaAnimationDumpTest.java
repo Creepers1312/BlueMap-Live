@@ -50,13 +50,6 @@ public class VanillaAnimationDumpTest {
     private static final Map<String, Set<String>> METHODS = new LinkedHashMap<>();
     static {
         // poses: sitting, sleeping, lying
-        METHODS.put(MODEL + "WolfEntityModel", Set.of("animateModel", "setAngles"));
-        METHODS.put(MODEL + "OcelotEntityModel", Set.of("animateModel", "setAngles"));
-        METHODS.put(MODEL + "CatEntityModel", Set.of());
-        METHODS.put(MODEL + "FoxEntityModel", Set.of("animateModel", "setAngles"));
-        METHODS.put(MODEL + "PandaEntityModel", Set.of("animateModel", "setAngles"));
-        METHODS.put(MODEL + "PolarBearEntityModel", Set.of("setAngles"));
-        METHODS.put(MODEL + "ParrotEntityModel", Set.of());
         METHODS.put(RENDER + "LivingEntityRenderer", Set.of("setupTransforms", "getLyingAngle", "getYaw"));
         METHODS.put(MODEL + "ModelUtil", Set.of("interpolateAngle"));
         METHODS.put("net/minecraft/entity/passive/CatEntity", Set.of("tick", "updateAnimations", "getSleepAnimation",
@@ -65,26 +58,12 @@ public class VanillaAnimationDumpTest {
                 "updateRollOverAnimation", "getSittingAnimationProgress", "getLieOnBackAnimationProgress", "getRollOverAnimationProgress",
                 "playingTick", "updateEatingAnimation"));
         METHODS.put("net/minecraft/entity/passive/PolarBearEntity", Set.of("tick", "getWarningAnimationProgress"));
-        METHODS.put(RENDER + "CatEntityRenderer", Set.of());
-        METHODS.put(RENDER + "PandaEntityRenderer", Set.of());
-        METHODS.put(RENDER + "FoxEntityRenderer", Set.of());
-        METHODS.put(RENDER + "PolarBearEntityRenderer", Set.of());
         // tropical fish, pufferfish
-        METHODS.put(RENDER + "TropicalFishEntityRenderer", Set.of());
-        METHODS.put(FEATURE + "TropicalFishColorFeatureRenderer", Set.of());
-        METHODS.put(RENDER + "PufferfishEntityRenderer", Set.of());
         METHODS.put(MODEL + "SmallPufferfishEntityModel", Set.of("setAngles"));
         METHODS.put(MODEL + "MediumPufferfishEntityModel", Set.of("setAngles"));
         METHODS.put(MODEL + "LargePufferfishEntityModel", Set.of("setAngles"));
         // collars, carpets, horse-armor, glowing layers
-        METHODS.put(FEATURE + "WolfCollarFeatureRenderer", Set.of());
-        METHODS.put(FEATURE + "CatCollarFeatureRenderer", Set.of());
-        METHODS.put(FEATURE + "LlamaDecorFeatureRenderer", Set.of());
-        METHODS.put(FEATURE + "HorseArmorFeatureRenderer", Set.of());
-        METHODS.put(FEATURE + "EyesFeatureRenderer", Set.of());
-        METHODS.put(FEATURE + "WardenFeatureRenderer", Set.of());
         METHODS.put(RENDER + "WardenEntityRenderer", Set.of());
-        METHODS.put(RENDER + "GlowSquidEntityRenderer", Set.of());
         // attacks: the models and where the server advances the swing
         METHODS.put(MODEL + "IronGolemEntityModel", Set.of("animateModel", "setAngles"));
         METHODS.put(MODEL + "RavagerEntityModel", Set.of("animateModel", "setAngles"));
@@ -93,6 +72,11 @@ public class VanillaAnimationDumpTest {
         METHODS.put("net/minecraft/entity/LivingEntity", Set.of("tickHandSwing", "swingHand", "getHandSwingDuration"));
         METHODS.put("net/minecraft/entity/mob/HostileEntity", Set.of("tickMovement"));
         METHODS.put("net/minecraft/util/math/MathHelper", Set.of("wrap"));
+        // the dilations of the feature-layers; the parts and the alphas of the warden-layers
+        METHODS.put(MODEL + "EntityModels", Set.of("getModels"));
+        METHODS.put(MODEL + "WardenEntityModel", Set.of("getTendrils", "getBody", "getHeadAndLimbs", "getBodyHeadAndLimbs"));
+        METHODS.put(RENDER + "WardenEntityRenderer", Set.of());
+        METHODS.put("net/minecraft/entity/mob/WardenEntity", Set.of("getHeartPitch", "getTendrilPitch", "tick"));
         // armor-trims and the glint, heads on the head
         METHODS.put(FEATURE + "ArmorFeatureRenderer", Set.of());
         METHODS.put(FEATURE + "HeadFeatureRenderer", Set.of());
@@ -149,7 +133,7 @@ public class VanillaAnimationDumpTest {
 
             @Override
             public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-                if (name.equals("getTexturedModelData") || name.startsWith("lambda$")) return null;
+                if (name.equals("getTexturedModelData") || (name.startsWith("lambda$") && !className.startsWith("Warden"))) return null;
                 if (!methods.isEmpty() && !methods.contains(name)) return null;
                 StringBuilder out = new StringBuilder(className + "." + name + descriptor.replaceAll("L[a-z0-9/]+/([A-Za-z0-9$]+);", "$1;") + ":");
                 Map<Label, Integer> labels = new HashMap<>();

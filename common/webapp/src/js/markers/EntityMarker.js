@@ -65,6 +65,10 @@ const tempVector = new Vector3();
  */
 /** the change of the cat-poses per tick (vanilla CatEntity.update*Animation) */
 const CAT_POSE_RATE = 0.1;
+/** the change of the panda-poses per tick (vanilla PandaEntity.update*Animation) */
+const PANDA_POSE_RATE = 0.15;
+/** vanilla PolarBearEntity: warningAnimationProgress runs up to 6 ticks, getWarningAnimationProgress divides by 6 */
+const WARNING_RATE = 1 / 6;
 
 const approach = (value, target, step) => value < target ? Math.min(target, value + step) : Math.max(target, value - step);
 
@@ -136,6 +140,9 @@ export class EntityMarker extends Marker {
         this.attackTicks = 0;
         /** the pose-animations of the cat (vanilla CatEntity: sleepAnimation, tailCurlAnimation, headDownAnimation) */
         this.catPose = {sleep: 0, tailCurl: 0, headDown: 0};
+        /** vanilla PandaEntity: sittingAnimation, lieOnBackAnimation; PolarBearEntity: warningAnimationProgress */
+        this.pandaPose = {sit: 0, lie: 0};
+        this.warning = 0;
         this.animationInput = {
             limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0, swingOffHand: false, attackTicks: 0,
             flags: new Set(), mainHand: null, leftHanded: false, wingAngle: 0,
@@ -396,6 +403,10 @@ export class EntityMarker extends Marker {
         catPose.sleep = approach(catPose.sleep, lying ? 1 : 0, CAT_POSE_RATE * ticks);
         catPose.tailCurl = approach(catPose.tailCurl, lying ? 1 : 0, CAT_POSE_RATE * ticks);
         catPose.headDown = approach(catPose.headDown, mob.flags.has("head_down") ? 1 : 0, CAT_POSE_RATE * ticks);
+        const pandaPose = this.pandaPose;
+        pandaPose.sit = approach(pandaPose.sit, mob.flags.has("sitting") ? 1 : 0, PANDA_POSE_RATE * ticks);
+        pandaPose.lie = approach(pandaPose.lie, mob.flags.has("lying_on_back") ? 1 : 0, PANDA_POSE_RATE * ticks);
+        this.warning = approach(this.warning, mob.flags.has("warning") ? 1 : 0, WARNING_RATE * ticks);
         if (dying) this.deathTicks = Math.min(DEATH_TICKS, this.deathTicks + ticks);
 
         // vanilla ChickenEntity.tickMovement: the wings flap in the air (per tick)
@@ -426,6 +437,9 @@ export class EntityMarker extends Marker {
         input.attackTicks = dying ? 0 : this.attackTicks;
         input.bed = bedPose(mob);
         input.cat = catPose;
+        input.panda = pandaPose;
+        input.warning = this.warning;
+        input.entityPitch = entity.rotation.pitch;
 
         const hurt = this.hurtTime > 0 || dying;
         const fuse = this.fuseTicks / (CREEPER_FUSE_TICKS - 2);
@@ -434,7 +448,9 @@ export class EntityMarker extends Marker {
 
         return this.limbSpeed > 0 || this.progress < 1 || hurt || dying || this.wingDeviation > 0 || mob.flags.has("charged") ||
             this.fuseTicks > 0 || this.swingTicks >= 0 || this.attackTicks > 0 ||
-            (catPose.sleep > 0 && catPose.sleep < 1) || (catPose.headDown > 0 && catPose.headDown < 1);
+            (catPose.sleep > 0 && catPose.sleep < 1) || (catPose.headDown > 0 && catPose.headDown < 1) ||
+            (pandaPose.sit > 0 && pandaPose.sit < 1) || (pandaPose.lie > 0 && pandaPose.lie < 1) ||
+            (this.warning > 0 && this.warning < 1);
     }
 
     /** @private */

@@ -259,7 +259,7 @@ Object.assign(MOB_TYPES, {
     "minecraft:llama": simple("llama", "minecraft:llama#main", mob => E + "llama/" + (mob.variant || "creamy")),
     "minecraft:trader_llama": simple("llama", "minecraft:trader_llama#main", mob => E + "llama/" + (mob.variant || "creamy")),
     "minecraft:magma_cube": simple("slime", "minecraft:magma_cube#main", E + "slime/magmacube", {slime: true}),
-    "minecraft:panda": simple("generic", "minecraft:panda#main", mob => E + "panda/" + (mob.variant && mob.variant !== "normal" ? mob.variant + "_panda" : "panda")),
+    "minecraft:panda": simple("panda", "minecraft:panda#main", mob => E + "panda/" + (mob.variant && mob.variant !== "normal" ? mob.variant + "_panda" : "panda")),
     "minecraft:parrot": simple("parrot", "minecraft:parrot#main", mob => E + "parrot/parrot_" + (mob.variant === "gray" ? "grey" : mob.variant || "red_blue")),
     "minecraft:phantom": {
         animation: "phantom",
@@ -268,7 +268,7 @@ Object.assign(MOB_TYPES, {
             {model: "minecraft:phantom#main", texture: E + "phantom_eyes", type: "eyes"},
         ],
     },
-    "minecraft:polar_bear": simple("generic", "minecraft:polar_bear#main", E + "bear/polarbear", {scale: 1.2}),
+    "minecraft:polar_bear": simple("polarBear", "minecraft:polar_bear#main", E + "bear/polarbear", {scale: 1.2}),
     // vanilla PufferfishEntityRenderer: the model of the puff-state (small, medium, big), switched while it lives
     "minecraft:pufferfish": {
         ...simple("pufferfish", "minecraft:pufferfish_small#main", E + "fish/pufferfish"),

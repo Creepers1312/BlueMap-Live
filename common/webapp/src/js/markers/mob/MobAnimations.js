@@ -272,6 +272,59 @@ export function quadruped(p, input) {
     p.left_front_leg.pitch = cos(f * 0.6662) * 1.4 * g;
 }
 
+/**
+ * vanilla PandaEntityModel.setAngles: sitting (eating while sitting) and lying on the back; asking for bamboo,
+ * sneezing, rolling and the thunder-fear are not sampled. input.panda: {sit, lie} 0..1
+ */
+export function panda(p, input) {
+    quadruped(p, input);
+    const progress = input.panda || {sit: 0, lie: 0};
+    const h = input.age;
+    p.head.roll = 0;
+    if (progress.sit > 0) {
+        p.body.pitch = interpolateAngle(p.body.pitch, 1.7407963, progress.sit);
+        p.head.pitch = interpolateAngle(p.head.pitch, 1.5707964, progress.sit);
+        p.right_front_leg.roll = -0.27079642;
+        p.left_front_leg.roll = 0.27079642;
+        p.right_hind_leg.roll = 0.5707964;
+        p.left_hind_leg.roll = -0.5707964;
+        if (input.flags.has("eating")) {
+            p.head.pitch = 1.5707964 + 0.2 * sin(h * 0.6);
+            p.right_front_leg.pitch = -0.4 - 0.2 * sin(h * 0.6);
+            p.left_front_leg.pitch = -0.4 - 0.2 * sin(h * 0.6);
+        }
+    }
+    if (progress.lie > 0) {
+        p.right_hind_leg.pitch = -0.6 * sin(h * 0.15);
+        p.left_hind_leg.pitch = 0.6 * sin(h * 0.15);
+        p.right_front_leg.pitch = 0.3 * sin(h * 0.25);
+        p.left_front_leg.pitch = -0.3 * sin(h * 0.25);
+        p.head.pitch = interpolateAngle(p.head.pitch, 1.5707964, progress.lie);
+    }
+}
+
+/** vanilla PolarBearEntityModel.setAngles: standing up (getWarningAnimationProgress, squared). input.warning 0..1 */
+export function polarBear(p, input) {
+    quadruped(p, input);
+    const w = (input.warning || 0) * (input.warning || 0), n = 1 - w;
+    p.body.pitch = 1.5707964 - w * PI * 0.35;
+    p.body.pivotY = 9 * n + 11 * w;
+    p.right_front_leg.pivotY = 14 * n - 6 * w;
+    p.right_front_leg.pivotZ = -8 * n - 4 * w;
+    p.right_front_leg.pitch -= w * PI * 0.45;
+    p.left_front_leg.pivotY = p.right_front_leg.pivotY;
+    p.left_front_leg.pivotZ = p.right_front_leg.pivotZ;
+    p.left_front_leg.pitch -= w * PI * 0.45;
+    if (input.baby) {
+        p.head.pivotY = 10 * n - 9 * w;
+        p.head.pivotZ = -16 * n - 7 * w;
+    } else {
+        p.head.pivotY = 10 * n - 14 * w;
+        p.head.pivotZ = -16 * n - 3 * w;
+    }
+    p.head.pitch += w * PI * 0.15;
+}
+
 /** vanilla CreeperEntityModel */
 export function creeper(p, input) {
     const f = input.limbAngle, g = input.limbDistance;
@@ -933,6 +986,6 @@ export const ANIMATIONS = {
     zombie, drowned, skeleton, piglin, zombified_piglin: (p, input) => piglin(p, input, true),
     quadruped, creeper, spider, chicken, enderman, villager, slime,
     illager, ironGolem, snowGolem, blaze, ghast, squid, silverfish, endermite, phantom, fish, salmon, dolphin, guardian,
-    hoglin, ravager, ocelot, cat, fox, wolf, pufferfish, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
+    hoglin, ravager, ocelot, cat, fox, wolf, pufferfish, panda, polarBear, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
     shulker, wither,
 };

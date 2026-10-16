@@ -299,6 +299,27 @@ export class MobModel extends Group {
         this.deathGroup.rotation.z = MathUtils.degToRad(bed && !dying ? 90 : deathAngle(deathTicks, this.mobType.lyingAngle || 90));
         this.poseGroup.position.set(0, 0, 0);
         this.poseGroup.rotation.set(0, bed && !dying ? MathUtils.degToRad(270) : 0, 0);
+        // vanilla PandaEntityRenderer.setupTransforms: sitting (up by 0.8, tilted back, down by 1), lying on the back
+        // (up by 1.3, turned over); T1 * R * T2 as one group: position T1 + R * T2
+        const pandaPose = input.panda;
+        if (pandaPose && (pandaPose.sit > 0 || pandaPose.lie > 0)) {
+            const pitch = input.entityPitch || 0;
+            let angle = 0, y = 0, z = 0;
+            if (pandaPose.sit > 0) {
+                angle = MathUtils.degToRad(pitch + 90 * pandaPose.sit);
+                y = 0.8 * pandaPose.sit - pandaPose.sit * Math.cos(angle);
+                z = -pandaPose.sit * Math.sin(angle);
+            }
+            if (pandaPose.lie > 0) {
+                // the second transform follows the first one: rotated by the first angle
+                const lift = (input.baby ? 0.5 : 1.3) * pandaPose.lie;
+                y += lift * Math.cos(angle);
+                z += lift * Math.sin(angle);
+                angle += MathUtils.degToRad(pitch + 180 * pandaPose.lie);
+            }
+            this.poseGroup.position.set(0, y, z);
+            this.poseGroup.rotation.x = angle;
+        }
         // vanilla CatEntityRenderer.setupTransforms: the lying cat is moved and rolled to its side
         const catSleep = input.cat ? input.cat.sleep : 0;
         if (catSleep > 0) {

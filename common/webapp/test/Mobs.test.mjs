@@ -586,3 +586,30 @@ test("poses: a mob in a bed is turned by the bed and moved to the head-end (vani
     near(model.poseGroup.rotation.y, 0, "no pose");
     model.dispose();
 });
+
+test("poses: sitting and lying panda, standing polar bear like the vanilla models and renderers", () => {
+    const panda = mainParts("minecraft:panda");
+    ANIMATIONS.panda(panda, input({panda: {sit: 1, lie: 0}}));
+    near(panda.body.pitch, 1.7407963, "sitting panda body");
+    near(panda.right_hind_leg.roll, 0.5707964, "hind legs spread");
+    const bear = mainParts("minecraft:polar_bear");
+    ANIMATIONS.polarBear(bear, input({warning: 1}));
+    near(bear.body.pitch, PI / 2 - PI * 0.35, "standing up");
+    near(bear.body.pivotY, 11, "body raised");
+    near(bear.head.pivotY, -14, "head up (10 * 0 - 14 * 1)");
+    const standing = mainParts("minecraft:polar_bear");
+    ANIMATIONS.polarBear(standing, input());
+    near(standing.body.pivotY, 9, "on all fours like the model-data");
+
+    const cache = fakeMobCache({"minecraft:entity/panda/panda": 1});
+    const model = new MobModel("minecraft:panda", MOB_TYPES["minecraft:panda"], cache, null);
+    model.setState(parseMob({}), {mainHand: null, offHand: null, leftHanded: false, armor: null});
+    model.animate(input({panda: {sit: 1, lie: 0}, entityPitch: 0}), 0, 0, false);
+    near(model.poseGroup.rotation.x, PI / 2, "tilted back by 90");
+    near(model.poseGroup.position.y, 0.8, "up by 0.8 (the -1 is rotated into z)");
+    near(model.poseGroup.position.z, -1, "");
+    model.animate(input({panda: {sit: 0, lie: 1}, entityPitch: 0}), 0, 0, false);
+    near(model.poseGroup.rotation.x, PI, "on its back");
+    near(model.poseGroup.position.y, 1.3, "lifted by 1.3");
+    model.dispose();
+});

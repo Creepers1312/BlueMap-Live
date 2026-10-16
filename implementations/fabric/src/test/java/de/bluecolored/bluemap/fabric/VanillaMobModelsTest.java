@@ -285,6 +285,10 @@ public class VanillaMobModelsTest {
         LAYERS.put("minecraft:zombie_horse#main", () -> of(call(MODEL + "HorseEntityModel", "getModelData", dilation(0)), 64, 64));
         simple("iron_golem", "IronGolemEntityModel");
         LAYERS.put("minecraft:llama#main", () -> call(MODEL + "LlamaEntityModel", "getTexturedModelData", dilation(0)));
+        // the feature-layers of EntityModels.getModels (collar, carpet, horse-armor; the dilations are in the CI-dump)
+        LAYERS.put("minecraft:cat#collar", () -> of(call(MODEL + "OcelotEntityModel", "getModelData", dilation(0.01f)), 64, 32));
+        LAYERS.put("minecraft:llama#decor", () -> call(MODEL + "LlamaEntityModel", "getTexturedModelData", dilation(0.5f)));
+        LAYERS.put("minecraft:horse#armor", () -> of(call(MODEL + "HorseEntityModel", "getModelData", dilation(0.1f)), 64, 64));
         LAYERS.put("minecraft:trader_llama#main", () -> call(MODEL + "LlamaEntityModel", "getTexturedModelData", dilation(0)));
         simple("magma_cube", "MagmaCubeEntityModel");
         simple("panda", "PandaEntityModel");
