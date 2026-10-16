@@ -122,11 +122,13 @@ curseforgeBlueMap {
 // BlueMap Live: the mob-models of the webapp are verified against the model-definitions of minecraft
 dependencies {
     testImplementation ( libs.junit.core )
+    testImplementation ( "org.ow2.asm:asm:9.7.1" )
     testRuntimeOnly ( libs.junit.engine )
 }
 tasks.test {
     systemProperty("bluemap.mobModels", rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json").absolutePath)
     systemProperty("bluemap.modelCheckReport", layout.buildDirectory.file("vanilla-model-check.txt").get().asFile.absolutePath)
+    systemProperty("bluemap.animationDump", layout.buildDirectory.file("vanilla-animation-dump.txt").get().asFile.absolutePath)
     inputs.file(rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json"))
     testLogging {
         events("failed")
