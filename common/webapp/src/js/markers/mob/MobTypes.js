@@ -45,9 +45,10 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  * @typedef MobLayer {{
  *     model: string,                    the model-layer in vanilla-mob-models.json
  *     texture: string | function(mob): string,
- *     type?: "cutout" | "translucent" | "eyes" | "energy",
+ *     type?: "cutout" | "bright" | "translucent" | "eyes" | "energy",
  *     tint?: "sheep" | function(mob): number | null,   the wool-color of the sheep, or a color (0xRRGGBB)
  *     flag?: string, unlessFlag?: string, adult?: boolean  only shown with / without this flag, only for adults
+ *     flagPrefix?: string               only shown with a flag that starts with this prefix (e.g. "collar_")
  * }}
  * @typedef MobType {{
  *     animation: string,                see MobAnimations.ANIMATIONS
@@ -229,7 +230,14 @@ Object.assign(MOB_TYPES, {
     },
     "minecraft:breeze": simple("breeze", "minecraft:breeze#main", E + "breeze/breeze"),
     "minecraft:camel": simple("camel", "minecraft:camel#main", E + "camel/camel"),
-    "minecraft:cat": simple("cat", "minecraft:cat#main", mob => E + "cat/" + (mob.variant || "tabby"), {scale: 0.8}),
+    "minecraft:cat": {
+        ...simple("cat", "minecraft:cat#main", mob => E + "cat/" + (mob.variant || "tabby"), {scale: 0.8}),
+        layers: [
+            {model: "minecraft:cat#main", texture: mob => E + "cat/" + (mob.variant || "tabby")},
+            // vanilla CatCollarFeatureRenderer: tamed cats, the collar-model (dilation 0.01) in the collar-color
+            {model: "minecraft:cat#collar", texture: E + "cat/cat_collar", flagPrefix: "collar_", tint: mob => dyeColor(flagValue(mob, "collar_"))},
+        ],
+    },
     "minecraft:ocelot": simple("ocelot", "minecraft:ocelot#main", E + "cat/ocelot"),
     "minecraft:cod": simple("fish", "minecraft:cod#main", E + "fish/cod"),
     "minecraft:dolphin": simple("dolphin", "minecraft:dolphin#main", E + "dolphin"),
@@ -241,6 +249,9 @@ Object.assign(MOB_TYPES, {
             {model: "minecraft:horse#main", texture: mob => E + "horse/horse_" + ((mob.variant || "white").split("/")[0])},
             {model: "minecraft:horse#main", texture: mob => E + "horse/horse_markings_" + (HORSE_MARKINGS[(mob.variant || "").split("/")[1]] || "none"),
                 markings: true},
+            // vanilla HorseArmorFeatureRenderer: equestrian armor (armor-model, dilation 0.1), leather in its dye-color
+            {model: "minecraft:horse#armor", flagPrefix: "armor_", texture: mob => E + "horse/armor/horse_armor_" + horseArmor(mob),
+                tint: mob => horseArmorColor(mob)},
         ],
     },
     "minecraft:skeleton_horse": simple("horse", "minecraft:skeleton_horse#main", E + "horse/horse_skeleton"),
@@ -256,14 +267,34 @@ Object.assign(MOB_TYPES, {
     "minecraft:frog": simple("frog", "minecraft:frog#main", mob => E + "frog/" + (mob.variant || "temperate") + "_frog"),
     "minecraft:ghast": simple("ghast", "minecraft:ghast#main", mob => E + "ghast/ghast" + (mob.flags.has("shooting") ? "_shooting" : ""), {scale: 4.5}),
     "minecraft:giant": biped("zombie", "minecraft:giant#main", E + "zombie/zombie", {scale: 6, headItem: false}),
-    "minecraft:glow_squid": simple("squid", "minecraft:glow_squid#main", E + "squid/glow_squid"),
+    // vanilla GlowSquidEntityRenderer.getBlockLight: block-light 15 (while not darkened by damage): always fully lit
+    "minecraft:glow_squid": {
+        ...simple("squid", "minecraft:glow_squid#main", E + "squid/glow_squid"),
+        layers: [{model: "minecraft:glow_squid#main", texture: E + "squid/glow_squid", type: "bright"}],
+    },
     "minecraft:squid": simple("squid", "minecraft:squid#main", E + "squid/squid"),
     "minecraft:goat": simple("generic", "minecraft:goat#main", E + "goat/goat"),
     "minecraft:hoglin": simple("hoglin", "minecraft:hoglin#main", E + "hoglin/hoglin"),
     "minecraft:zoglin": simple("hoglin", "minecraft:zoglin#main", E + "hoglin/zoglin"),
     "minecraft:iron_golem": simple("ironGolem", "minecraft:iron_golem#main", E + "iron_golem/iron_golem"),
-    "minecraft:llama": simple("llama", "minecraft:llama#main", mob => E + "llama/" + (mob.variant || "creamy")),
-    "minecraft:trader_llama": simple("llama", "minecraft:trader_llama#main", mob => E + "llama/" + (mob.variant || "creamy")),
+    "minecraft:llama": {
+        ...simple("llama", "minecraft:llama#main", mob => E + "llama/" + (mob.variant || "creamy")),
+        layers: [
+            {model: "minecraft:llama#main", texture: mob => E + "llama/" + (mob.variant || "creamy")},
+            // vanilla LlamaDecorFeatureRenderer: the carpet (decor-model, dilation 0.5), the trader-llama's own decor
+            {model: "minecraft:llama#decor", flagPrefix: "carpet_",
+                texture: mob => E + "llama/decor/" + (flagValue(mob, "carpet_") === "trader" ? "trader_llama" : flagValue(mob, "carpet_"))},
+        ],
+    },
+    "minecraft:trader_llama": {
+        ...simple("llama", "minecraft:trader_llama#main", mob => E + "llama/" + (mob.variant || "creamy")),
+        layers: [
+            {model: "minecraft:trader_llama#main", texture: mob => E + "llama/" + (mob.variant || "creamy")},
+            // vanilla LlamaDecorFeatureRenderer: the carpet (decor-model, dilation 0.5), the trader-llama's own decor
+            {model: "minecraft:llama#decor", flagPrefix: "carpet_",
+                texture: mob => E + "llama/decor/" + (flagValue(mob, "carpet_") === "trader" ? "trader_llama" : flagValue(mob, "carpet_"))},
+        ],
+    },
     "minecraft:magma_cube": simple("slime", "minecraft:magma_cube#main", E + "slime/magmacube", {slime: true}),
     "minecraft:panda": simple("panda", "minecraft:panda#main", mob => E + "panda/" + (mob.variant && mob.variant !== "normal" ? mob.variant + "_panda" : "panda")),
     "minecraft:parrot": simple("parrot", "minecraft:parrot#main", mob => E + "parrot/parrot_" + (mob.variant === "gray" ? "grey" : mob.variant || "red_blue")),
@@ -327,7 +358,14 @@ Object.assign(MOB_TYPES, {
     "minecraft:warden": simple("generic", "minecraft:warden#main", E + "warden/warden"),
     "minecraft:witch": simple("villager", "minecraft:witch#main", E + "witch", {scale: 0.9375}),
     "minecraft:wither": simple("wither", "minecraft:wither#main", E + "wither/wither", {scale: 2}),
-    "minecraft:wolf": simple("wolf", "minecraft:wolf#main", wolfTexture),
+    "minecraft:wolf": {
+        ...simple("wolf", "minecraft:wolf#main", wolfTexture),
+        layers: [
+            {model: "minecraft:wolf#main", texture: wolfTexture},
+            // vanilla WolfCollarFeatureRenderer: tamed wolves, the wolf-model in the collar-color
+            {model: "minecraft:wolf#main", texture: E + "wolf/wolf_collar", flagPrefix: "collar_", tint: mob => dyeColor(flagValue(mob, "collar_"))},
+        ],
+    },
 });
 
 /**
@@ -350,6 +388,18 @@ export function dyeColor(dye) {
     const colors = VANILLA_MODELS.dyeColors;
     const color = colors[dye] || colors.white;
     return parseInt(color.substring(1), 16);
+}
+
+/** the material of the horse-armor (flag "armor_iron"), not the color-flag */
+function horseArmor(mob) {
+    for (const flag of mob.flags) if (flag.startsWith("armor_") && !flag.startsWith("armor_color_")) return flag.substring(6);
+    return null;
+}
+
+/** the dye-color of dyeable horse-armor (flag "armor_color_a06540"), null if not dyeable */
+function horseArmorColor(mob) {
+    const color = flagValue(mob, "armor_color_");
+    return color && /^[0-9a-f]{6}$/.test(color) ? parseInt(color, 16) : null;
 }
 
 /**
@@ -392,6 +442,7 @@ export function layerTextures(layer, mob) {
 export function isLayerShown(layer, mob) {
     if (layer.flag && !mob.flags.has(layer.flag)) return false;
     if (layer.unlessFlag && mob.flags.has(layer.unlessFlag)) return false;
+    if (layer.flagPrefix && flagValue(mob, layer.flagPrefix) === null) return false;
     return !(layer.adult && mob.baby);
 }
 

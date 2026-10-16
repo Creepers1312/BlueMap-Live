@@ -627,3 +627,29 @@ test("head-items: a carved pumpkin on the head follows the head (vanilla HeadFea
     assert.deepEqual(MOB_TYPES["minecraft:piglin"].headItemScale, [1.0019531, 1, 1.0019531]);
     assert.equal(MOB_TYPES["minecraft:cow"].headItem, undefined);
 });
+
+test("feature-layers: collars of tamed wolves and cats, llama-carpets, horse-armor (vanilla feature-renderers)", async () => {
+    const {isLayerShown, layerTint, layerTextures} = await import("../src/js/markers/mob/MobTypes.js");
+    const find = (type, model, texture) => MOB_TYPES[type].layers.find(l => l.model === model && (!texture || String(l.texture).includes(texture)));
+    const wolfCollar = find("minecraft:wolf", "minecraft:wolf#main", "wolf_collar");
+    assert.equal(isLayerShown(wolfCollar, {flags: new Set(["tame"]), baby: false}), false, "no collar-flag (wild or untamed)");
+    const red = {flags: new Set(["tame", "collar_red"]), baby: false};
+    assert.equal(isLayerShown(wolfCollar, red), true);
+    assert.equal(layerTint(wolfCollar, red), 0xb02e26);
+    const catCollar = find("minecraft:cat", "minecraft:cat#collar");
+    assert.equal(layerTint(catCollar, {flags: new Set(["collar_blue"])}), 0x3c44aa);
+
+    const decor = find("minecraft:llama", "minecraft:llama#decor");
+    assert.deepEqual(layerTextures(decor, {flags: new Set(["carpet_lime"]), baby: false}), ["minecraft:entity/llama/decor/lime"]);
+    const traderDecor = find("minecraft:trader_llama", "minecraft:llama#decor");
+    assert.deepEqual(layerTextures(traderDecor, {flags: new Set(["carpet_trader"]), baby: false}), ["minecraft:entity/llama/decor/trader_llama"]);
+    assert.equal(isLayerShown(decor, {flags: new Set(), baby: false}), false, "no carpet");
+
+    const armor = find("minecraft:horse", "minecraft:horse#armor");
+    const leather = {flags: new Set(["armor_color_a06540", "armor_leather"]), variant: "white/none", baby: false};
+    assert.deepEqual(layerTextures(armor, leather), ["minecraft:entity/horse/armor/horse_armor_leather"], "not the color-flag");
+    assert.equal(layerTint(armor, leather), 0xa06540);
+    assert.equal(layerTint(armor, {flags: new Set(["armor_diamond"])}), null, "not dyeable");
+    // the feature-layers are verified against Minecraft like the other layers (model-check)
+    for (const layer of ["minecraft:cat#collar", "minecraft:llama#decor", "minecraft:horse#armor"]) assert.ok(VANILLA_MODELS.models[layer], layer);
+});

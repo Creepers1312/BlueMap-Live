@@ -51,35 +51,25 @@ public class VanillaAnimationDumpTest {
     static {
         // poses: sitting, sleeping, lying
         METHODS.put(RENDER + "LivingEntityRenderer", Set.of("setupTransforms", "getLyingAngle", "getYaw"));
-        METHODS.put(MODEL + "ModelUtil", Set.of("interpolateAngle"));
-        METHODS.put("net/minecraft/entity/passive/CatEntity", Set.of("tick", "updateAnimations", "getSleepAnimation",
-                "getTailCurlAnimation", "getHeadDownAnimation", "updateSleepAnimation", "updateTailCurlAnimation", "updateHeadDownAnimation"));
-        METHODS.put("net/minecraft/entity/passive/PandaEntity", Set.of("tick", "updateSittingAnimation", "updateLieOnBackAnimation",
-                "updateRollOverAnimation", "getSittingAnimationProgress", "getLieOnBackAnimationProgress", "getRollOverAnimationProgress",
-                "playingTick", "updateEatingAnimation"));
-        METHODS.put("net/minecraft/entity/passive/PolarBearEntity", Set.of("tick", "getWarningAnimationProgress"));
         // tropical fish, pufferfish
-        METHODS.put(MODEL + "SmallPufferfishEntityModel", Set.of("setAngles"));
-        METHODS.put(MODEL + "MediumPufferfishEntityModel", Set.of("setAngles"));
-        METHODS.put(MODEL + "LargePufferfishEntityModel", Set.of("setAngles"));
         // collars, carpets, horse-armor, glowing layers
         METHODS.put(RENDER + "WardenEntityRenderer", Set.of());
         // attacks: the models and where the server advances the swing
-        METHODS.put(MODEL + "IronGolemEntityModel", Set.of("animateModel", "setAngles"));
-        METHODS.put(MODEL + "RavagerEntityModel", Set.of("animateModel", "setAngles"));
-        METHODS.put(MODEL + "HoglinEntityModel", Set.of("setAngles"));
-        METHODS.put(MODEL + "BipedEntityModel", Set.of("animateArms", "getPreferredArm"));
-        METHODS.put("net/minecraft/entity/LivingEntity", Set.of("tickHandSwing", "swingHand", "getHandSwingDuration"));
-        METHODS.put("net/minecraft/entity/mob/HostileEntity", Set.of("tickMovement"));
-        METHODS.put("net/minecraft/util/math/MathHelper", Set.of("wrap"));
         // the dilations of the feature-layers; the parts and the alphas of the warden-layers
-        METHODS.put(MODEL + "EntityModels", Set.of("getModels"));
-        METHODS.put(MODEL + "WardenEntityModel", Set.of("getTendrils", "getBody", "getHeadAndLimbs", "getBodyHeadAndLimbs"));
+        METHODS.put(MODEL + "WardenEntityModel", Set.of("<init>", "getTendrils", "getBody", "getHeadAndLimbs", "getBodyHeadAndLimbs"));
         METHODS.put(RENDER + "WardenEntityRenderer", Set.of());
         METHODS.put("net/minecraft/entity/mob/WardenEntity", Set.of("getHeartPitch", "getTendrilPitch", "tick"));
         // armor-trims and the glint, heads on the head
         METHODS.put(FEATURE + "ArmorFeatureRenderer", Set.of());
-        METHODS.put(FEATURE + "HeadFeatureRenderer", Set.of());
+        METHODS.put(FEATURE + "HeadFeatureRenderer", Set.of("<init>"));
+        // skulls on the head: the models, textures and the render-transformation
+        METHODS.put("net/minecraft/client/render/block/entity/SkullBlockEntityRenderer", Set.of());
+        METHODS.put("net/minecraft/client/render/block/entity/SkullBlockEntityModel", Set.of());
+        METHODS.put(MODEL + "SkullEntityModel", Set.of());
+        METHODS.put(MODEL + "DragonHeadEntityModel", Set.of("setHeadRotation"));
+        METHODS.put(MODEL + "PiglinHeadEntityModel", Set.of("setHeadRotation"));
+        // armor-trims: the texture-path of a trim
+        METHODS.put("net/minecraft/item/trim/ArmorTrim", Set.of());
     }
 
     private static final Map<Integer, String> OPCODES = new HashMap<>();
@@ -151,7 +141,11 @@ public class VanillaAnimationDumpTest {
                         add(OPCODES.get(opcode).replace("INVOKE", "") + " " + shortName(owner) + "." + methodName +
                                 d.replaceAll("L[a-z0-9/]+/([A-Za-z0-9$]+);", "$1;"));
                     }
-                    @Override public void visitInvokeDynamicInsn(String n, String d, Handle h, Object... args) { add("INDY " + n); }
+                    @Override public void visitInvokeDynamicInsn(String n, String d, Handle h, Object... args) {
+                        StringBuilder b = new StringBuilder("INDY " + n);
+                        for (Object arg : args) if (arg instanceof Handle handle) b.append(" -> ").append(shortName(handle.getOwner())).append('.').append(handle.getName());
+                        add(b.toString());
+                    }
                     @Override public void visitJumpInsn(int opcode, Label target) { add(OPCODES.get(opcode) + " " + label.apply(target)); }
                     @Override public void visitLabel(Label l) { add(label.apply(l) + ":"); }
                     @Override public void visitLdcInsn(Object value) { add("LDC " + (value instanceof Type t ? shortName(t.getInternalName()) : value)); }
