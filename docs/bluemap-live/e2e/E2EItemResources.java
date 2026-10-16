@@ -41,7 +41,8 @@ public class E2EItemResources implements ItemModelBaker.Resources {
             BOW = 0xFFFFFF00, BOW_PULLING = 0xFFFF00FF, CROSSBOW = 0xFF0000FF, CROSSBOW_ARROW = 0xFFFFFFFF,
             DIAMOND = 0xFF8080FF, SNOWBALL = 0xFF80FFFF, ARROW = 0xFFFF80C0,
             ZOMBIE = 0xFF309060, COW = 0xFF804020, SHEEP = 0xFF606060, WOOL = 0xFFFFFFFF,
-            VILLAGER = 0xFFC08040, FARMER = 0xFFFF00C0, IRON_ARMOR = 0xFFA0FF00, LEATHER = 0xFFFFFFFF;
+            VILLAGER = 0xFFC08040, FARMER = 0xFFFF00C0, IRON_ARMOR = 0xFFA0FF00, LEATHER = 0xFFFFFFFF,
+            MOOSHROOM = 0xFF602020, MUSHROOM = 0xFFFF2080, ENDERMAN = 0xFF202020, GRASS = 0xFF40FF40, CREEPER = 0xFF00C0C0;
 
     private final Map<String, String> models = new HashMap<>();
     private final Map<String, BufferedImage> textures = new HashMap<>();
@@ -134,6 +135,23 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/villager/villager", square(64, 0, 0, 64, 64, VILLAGER));
         textures.put("minecraft:entity/villager/type/plains", square(64, 0, 0, 1, 1, VILLAGER));
         textures.put("minecraft:entity/villager/profession/farmer", square(64, 0, 0, 64, 20, FARMER));
+
+        // block-models for the mooshroom-mushrooms (vanilla block/cross structure) and the enderman (a cube)
+        models.put("minecraft:block/cross", """
+                {"elements": [
+                  {"from": [0.8, 0, 8], "to": [15.2, 16, 8], "rotation": {"origin": [8, 8, 8], "axis": "y", "angle": 45, "rescale": true},
+                   "faces": {"north": {"uv": [0, 0, 16, 16], "texture": "#cross"}, "south": {"uv": [0, 0, 16, 16], "texture": "#cross"}}},
+                  {"from": [8, 0, 0.8], "to": [8, 16, 15.2], "rotation": {"origin": [8, 8, 8], "axis": "y", "angle": 45, "rescale": true},
+                   "faces": {"west": {"uv": [0, 0, 16, 16], "texture": "#cross"}, "east": {"uv": [0, 0, 16, 16], "texture": "#cross"}}}]}""");
+        models.put("minecraft:block/red_mushroom", """
+                {"parent": "minecraft:block/cross", "textures": {"cross": "minecraft:block/red_mushroom"}}""");
+        textures.put("minecraft:block/red_mushroom", square(16, 2, 2, 12, 12, MUSHROOM));
+        models.put("minecraft:block/grass_block", """
+                {"parent": "minecraft:block/cube_all", "textures": {"all": "minecraft:block/grass_block_e2e"}}""");
+        textures.put("minecraft:block/grass_block_e2e", square(16, 0, 0, 16, 16, GRASS));
+        textures.put("minecraft:entity/cow/red_mooshroom", rect(64, 32, 0, 0, 64, 32, MOOSHROOM));
+        textures.put("minecraft:entity/enderman/enderman", rect(64, 32, 0, 0, 64, 32, ENDERMAN));
+        textures.put("minecraft:entity/creeper/creeper", rect(64, 32, 0, 0, 64, 32, CREEPER));
 
         // armor-layers (64x32, one color; the leather-overlay is transparent)
         textures.put("minecraft:models/armor/iron_layer_1", rect(64, 32, 0, 0, 64, 32, IRON_ARMOR));

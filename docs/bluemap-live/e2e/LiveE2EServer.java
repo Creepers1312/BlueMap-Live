@@ -225,6 +225,7 @@ public class LiveE2EServer {
                                 q.containsKey("armor") ? armor(q.get("armor")) : null) : null,
                         q.get("variant"), (int) d(q, "size"),
                         q.containsKey("w") ? d(q, "w") : 0.6, q.containsKey("h") ? d(q, "h") : 1.95,
+                        q.containsKey("models") ? List.of(q.get("models").split(";")) : List.of(),
                         q.containsKey("flags") && !q.get("flags").isEmpty() ? List.of(q.get("flags").split(",")) : List.of());
             }
             entities.put(id, new LiveEntityState(id, q.getOrDefault("type", "minecraft:item"),

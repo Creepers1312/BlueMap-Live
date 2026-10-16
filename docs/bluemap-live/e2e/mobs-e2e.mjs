@@ -15,7 +15,7 @@ const OUT = process.env.E2E_OUT || "e2e-out";
 mkdirSync(OUT, {recursive: true});
 
 // the colors of E2EItemResources (rgb)
-const COLORS = {iron: [160, 255, 0], leather: [51, 85, 255], zombie: [48, 144, 96], cow: [128, 64, 32], wool: [132, 34, 28], villager: [192, 128, 64], farmer: [255, 0, 192], sword: [0, 255, 255]};
+const COLORS = {mushroom: [255, 32, 128], grass: [64, 255, 64], iron: [160, 255, 0], leather: [51, 85, 255], zombie: [48, 144, 96], cow: [128, 64, 32], wool: [132, 34, 28], villager: [192, 128, 64], farmer: [255, 0, 192], sword: [0, 255, 255]};
 
 const results = [];
 async function step(name, fn) {
@@ -287,6 +287,28 @@ await step("armor: a zombie and a player wear helmet and dyed leather-leggings (
     }, [A, 1.6]);
     assert.ok(await countColor("49-player-armor", center, COLORS.iron, 60) > 50, "player-helmet pixels");
     await control({leave: A});
+});
+
+await step("mooshroom with its mushrooms, enderman with the carried block (block-models), igniting creeper flashes white", async () => {
+    await mob(16, "minecraft:mooshroom", 8.5, 9.5, {bodyYaw: 90, variant: "red", models: "minecraft:block/red_mushroom", w: 0.9, h: 1.4});
+    await waitForEntity(16, "m.view.visible && m.view.blocks.length === 3 && m.view.blocks.every(b => b.view.content.children.length > 0)");
+    await sleep(800);
+    assert.ok(await countColor("50-mooshroom", await project(16, 1.2), COLORS.mushroom, 80) > 20, "mushroom pixels");
+    await control({removeEntity: 16});
+
+    await mob(17, "minecraft:enderman", 8.5, 9.5, {bodyYaw: 0, flags: "carrying", models: "minecraft:block/grass_block", w: 0.6, h: 2.9});
+    await waitForEntity(17, "m.view.visible && m.view.blocks[0].view.view.content.children.length > 0");
+    await sleep(800);
+    assert.ok(await countColor("51-enderman-block", await project(17, 1.6), COLORS.grass, 90) > 20, "carried-block pixels");
+    await control({removeEntity: 17});
+
+    await mob(18, "minecraft:creeper", 8.5, 9.5, {bodyYaw: 0, flags: "fusing", w: 0.6, h: 1.7});
+    await waitForEntity(18, "m.view.visible");
+    const whites = await sample(18, 1500, "m.view.white");
+    assert.ok(whites.some(w => w >= 7) && whites.some(w => w === 0), `flashing white: ${[...new Set(whites)]}`);
+    const scale = await entityExpr(18, "m.view.flip.scale.x");
+    assert.ok(scale < -1.2, `swollen (${scale})`);
+    await control({removeEntity: 18});
 });
 
 await step("no uncaught errors", async () => {
