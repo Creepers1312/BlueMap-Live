@@ -104,6 +104,21 @@ public class VanillaAnimationDumpTest {
         METHODS.put("net/minecraft/entity/projectile/FireballEntity", Set.of("onCollision", "<init>"));
         METHODS.put("net/minecraft/entity/decoration/EndCrystalEntity", Set.of("damage"));
         METHODS.put("net/minecraft/entity/projectile/WitherSkullEntity", Set.of("onCollision"));
+        METHODS.put("net/minecraft/entity/effect/StatusEffectInstance", Set.of("createParticle", "shouldShowParticles", "isAmbient"));
+        METHODS.put("net/minecraft/entity/effect/StatusEffect", Set.of("createParticle", "getColor", "<init>"));
+        METHODS.put("net/minecraft/particle/EntityEffectParticleEffect", Set.of());
+        METHODS.put("net/minecraft/entity/AreaEffectCloudEntity", Set.of());
+        METHODS.put("net/minecraft/entity/mob/CreeperEntity", Set.of("getClientFuseTime", "writeCustomDataToNbt", "shouldRenderOverlay"));
+        METHODS.put("net/minecraft/entity/projectile/FireballEntity", Set.of("writeCustomDataToNbt"));
+        METHODS.put("net/minecraft/entity/projectile/ExplosiveProjectileEntity", Set.of("tick"));
+        METHODS.put("net/minecraft/entity/LivingEntity", Set.of("updatePotionSwirls", "containsOnlyAmbientEffects"));
+        METHODS.put("net/minecraft/component/type/PotionContentsComponent", Set.of("getColor", "getMixedColor"));
+        METHODS.put("net/minecraft/client/render/model/ModelLoader", Set.of("<clinit>"));
+        METHODS.put("net/minecraft/client/particle/FlameParticle", Set.of());
+        METHODS.put("net/minecraft/client/particle/AbstractSlowingParticle", Set.of());
+        METHODS.put("net/minecraft/entity/Entity", Set.of("isOnFire", "doesRenderOnFire", "getRemovalReason"));
+        METHODS.put("net/minecraft/entity/TntEntity", Set.of("getFuse"));
+        METHODS.put("net/fabricmc/fabric/api/event/lifecycle/v1/ServerEntityEvents", Set.of());
         // horses: grazing, rearing, eating, tail, gallop (model and the animation-progress of the entity)
         METHODS.put(MODEL + "HorseEntityModel", Set.of());
         METHODS.put(MODEL + "DonkeyEntityModel", Set.of());
@@ -120,7 +135,8 @@ public class VanillaAnimationDumpTest {
             "assets/minecraft/particles/entity_effect.json", "assets/minecraft/particles/effect.json",
             "assets/minecraft/particles/poof.json", "assets/minecraft/particles/splash.json",
             "assets/minecraft/particles/instant_effect.json", "assets/minecraft/particles/smoke.json",
-            "assets/minecraft/particles/large_smoke.json", "assets/minecraft/particles/flame.json");
+            "assets/minecraft/particles/large_smoke.json", "assets/minecraft/particles/flame.json",
+            "assets/minecraft/textures/block/fire_0.png.mcmeta", "assets/minecraft/textures/block/fire_1.png.mcmeta");
 
     private static final Map<Integer, String> OPCODES = new HashMap<>();
     static {
