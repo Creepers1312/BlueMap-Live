@@ -86,6 +86,13 @@ public class VanillaMobModelsTest {
                 report.add("::" + String.join("; ", layerDifferences) + " -- vanilla: " + actual);
             }
         }
+        // layers the webapp does not use (yet): their vanilla definition is reported (no failure)
+        for (Map.Entry<String, Object> layer : new TreeMap<>(layers).entrySet()) {
+            if (!expectedModels.has(layer.getKey())) {
+                report.add("::" + layer.getKey() + ": not in the webapp -- vanilla: " + toJson(layer.getValue()));
+            }
+        }
+
         // the wool-colors of the sheep: vanilla SheepEntity.getRgbColor(DyeColor) (found by its signature);
         // if the entity-class can not be loaded without the registries, the dye-colors are checked with the formula
         JsonObject expectedColors = JsonParser.parseString(Files.readString(jsonFile, StandardCharsets.UTF_8))
@@ -133,14 +140,28 @@ public class VanillaMobModelsTest {
         if (!differences.isEmpty()) fail("The webapp mob-models differ from vanilla:\n" + String.join("\n", differences));
     }
 
-    /** one GitHub-annotation per line (error, warning, notice: at most 10 of each type are shown per step) */
+    /**
+     * GitHub-annotations (error, warning, notice: at most 10 of each type are shown per step), several reports are
+     * joined into one annotation (separated by " ##### ") so all differences fit
+     */
     private static void writeReport(List<String> report) throws IOException {
         String[] types = {"error", "warning", "notice"};
+        List<String> joined = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        for (String line : report) {
+            String text = line.startsWith("error::") ? line.substring(7) : line.substring(2);
+            if (current.length() > 0 && current.length() + text.length() > 15000) {
+                joined.add(current.toString());
+                current.setLength(0);
+            }
+            if (current.length() > 0) current.append(" ##### ");
+            current.append(text);
+        }
+        if (current.length() > 0) joined.add(current.toString());
         List<String> lines = new ArrayList<>();
-        for (int i = 0; i < report.size(); i++) {
-            String line = report.get(i);
-            if (line.startsWith("error::")) line = line.substring(5);
-            lines.add("::" + types[Math.min(i / 10, 2)] + " title=vanilla-model-check" + line.replace("%", "%25").replace("\r", "").replace("\n", " "));
+        for (int i = 0; i < joined.size(); i++) {
+            lines.add("::" + types[Math.min(i / 10, 2)] + " title=vanilla-model-check::" +
+                    joined.get(i).replace("%", "%25").replace("\r", "").replace("\n", " "));
         }
         Path out = Path.of(System.getProperty("bluemap.modelCheckReport", "build/vanilla-model-check.txt"));
         Files.createDirectories(out.getParent());
@@ -197,6 +218,75 @@ public class VanillaMobModelsTest {
         LAYERS.put("minecraft:zombie_villager#outer_armor", () -> call(MODEL + "ZombieVillagerEntityModel", "getArmorTexturedModelData", dilation(1f)));
         LAYERS.put("minecraft:piglin#inner_armor", () -> of(call(MODEL + "ArmorEntityModel", "getModelData", dilation(0.5f)), 64, 32));
         LAYERS.put("minecraft:piglin#outer_armor", () -> of(call(MODEL + "ArmorEntityModel", "getModelData", dilation(1.02f)), 64, 32));
+        // further mobs of 1.21 (EntityModels.getModels)
+        simple("allay", "AllayEntityModel");
+        simple("armadillo", "ArmadilloEntityModel");
+        simple("axolotl", "AxolotlEntityModel");
+        simple("bat", "BatEntityModel");
+        simple("bee", "BeeEntityModel");
+        simple("blaze", "BlazeEntityModel");
+        simple("bogged", "BoggedEntityModel");
+        LAYERS.put("minecraft:bogged#outer", () -> of(call(MODEL + "BipedEntityModel", "getModelData", dilation(0.2f), 0f), 64, 32));
+        LAYERS.put("minecraft:breeze#main", () -> call(MODEL + "BreezeEntityModel", "getTexturedModelData", 32, 32));
+        simple("camel", "CamelEntityModel");
+        LAYERS.put("minecraft:cat#main", () -> of(call(MODEL + "OcelotEntityModel", "getModelData", dilation(0)), 64, 32));
+        LAYERS.put("minecraft:ocelot#main", () -> of(call(MODEL + "OcelotEntityModel", "getModelData", dilation(0)), 64, 32));
+        simple("cod", "CodEntityModel");
+        simple("dolphin", "DolphinEntityModel");
+        simple("donkey", "DonkeyEntityModel");
+        simple("mule", "DonkeyEntityModel");
+        simple("elder_guardian", "GuardianEntityModel");
+        simple("guardian", "GuardianEntityModel");
+        simple("endermite", "EndermiteEntityModel");
+        simple("evoker", "IllagerEntityModel");
+        simple("illusioner", "IllagerEntityModel");
+        simple("pillager", "IllagerEntityModel");
+        simple("vindicator", "IllagerEntityModel");
+        simple("fox", "FoxEntityModel");
+        simple("frog", "FrogEntityModel");
+        simple("ghast", "GhastEntityModel");
+        LAYERS.put("minecraft:giant#main", () -> of(call(MODEL + "BipedEntityModel", "getModelData", dilation(0), 0f), 64, 64));
+        simple("glow_squid", "SquidEntityModel");
+        simple("squid", "SquidEntityModel");
+        simple("goat", "GoatEntityModel");
+        simple("hoglin", "HoglinEntityModel");
+        simple("zoglin", "HoglinEntityModel");
+        LAYERS.put("minecraft:horse#main", () -> of(call(MODEL + "HorseEntityModel", "getModelData", dilation(0)), 64, 64));
+        LAYERS.put("minecraft:skeleton_horse#main", () -> of(call(MODEL + "HorseEntityModel", "getModelData", dilation(0)), 64, 64));
+        LAYERS.put("minecraft:zombie_horse#main", () -> of(call(MODEL + "HorseEntityModel", "getModelData", dilation(0)), 64, 64));
+        simple("iron_golem", "IronGolemEntityModel");
+        LAYERS.put("minecraft:llama#main", () -> call(MODEL + "LlamaEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:trader_llama#main", () -> call(MODEL + "LlamaEntityModel", "getTexturedModelData", dilation(0)));
+        simple("magma_cube", "MagmaCubeEntityModel");
+        simple("panda", "PandaEntityModel");
+        simple("parrot", "ParrotEntityModel");
+        simple("phantom", "PhantomEntityModel");
+        simple("polar_bear", "PolarBearEntityModel");
+        simple("pufferfish_big", "LargePufferfishEntityModel");
+        simple("pufferfish_medium", "MediumPufferfishEntityModel");
+        simple("pufferfish_small", "SmallPufferfishEntityModel");
+        simple("rabbit", "RabbitEntityModel");
+        simple("ravager", "RavagerEntityModel");
+        simple("salmon", "SalmonEntityModel");
+        simple("shulker", "ShulkerEntityModel");
+        simple("silverfish", "SilverfishEntityModel");
+        simple("sniffer", "SnifferEntityModel");
+        simple("snow_golem", "SnowGolemEntityModel");
+        simple("strider", "StriderEntityModel");
+        simple("tadpole", "TadpoleEntityModel");
+        LAYERS.put("minecraft:tropical_fish_large#main", () -> call(MODEL + "LargeTropicalFishEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:tropical_fish_small#main", () -> call(MODEL + "SmallTropicalFishEntityModel", "getTexturedModelData", dilation(0)));
+        simple("turtle", "TurtleEntityModel");
+        simple("vex", "VexEntityModel");
+        LAYERS.put("minecraft:wandering_trader#main", () -> of(call(MODEL + "VillagerResemblingModel", "getModelData"), 64, 64));
+        simple("warden", "WardenEntityModel");
+        simple("witch", "WitchEntityModel");
+        LAYERS.put("minecraft:wither#main", () -> call(MODEL + "WitherEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:wolf#main", () -> call(MODEL + "WolfEntityModel", "getTexturedModelData", dilation(0)));
+    }
+
+    private static void simple(String mob, String modelClass) {
+        LAYERS.put("minecraft:" + mob + "#main", () -> call(MODEL + modelClass, "getTexturedModelData"));
     }
 
     /** calls a static method by its name and the number of arguments (primitive floats are matched) */
