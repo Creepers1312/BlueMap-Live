@@ -57,7 +57,6 @@ public class VanillaAnimationDumpTest {
         METHODS.put(MODEL + "AbstractZombieModel", Set.of("setAngles"));
         METHODS.put(MODEL + "SkeletonEntityModel", Set.of("setAngles"));
         METHODS.put(MODEL + "PiglinEntityModel", Set.of("setAngles"));
-        METHODS.put("net/minecraft/entity/LivingEntity", Set.of("getPassengerRidingPos", "getPassengerAttachmentPos"));
         METHODS.put("net/minecraft/entity/Entity", Set.of("updatePassengerPosition", "getPassengerRidingPos", "getPassengerAttachmentPos",
                 "getVehicleAttachmentPos", "getRidingOffset"));
         // boats and minecarts: renderers, models (paddles), paddle-phases, passenger-positions
@@ -77,7 +76,9 @@ public class VanillaAnimationDumpTest {
         METHODS.put("net/minecraft/entity/Leashable", Set.of());
         METHODS.put("net/minecraft/entity/Entity", Set.of("updatePassengerPosition", "getPassengerRidingPos", "getPassengerAttachmentPos",
                 "getVehicleAttachmentPos", "getRidingOffset", "getLeashPos", "getLeashOffset"));
-        METHODS.put("net/minecraft/entity/player/PlayerEntity", Set.of("getLeashOffset"));
+        METHODS.put("net/minecraft/entity/player/PlayerEntity", Set.of("getLeashOffset", "getLeashPos"));
+        METHODS.put(RENDER + "EntityRenderer", Set.of("render", "renderLeash", "renderLeashSegment", "renderLeashPiece", "shouldRender"));
+        METHODS.put("net/minecraft/entity/LivingEntity", Set.of("getPassengerRidingPos", "getPassengerAttachmentPos", "getLeashPos"));
         METHODS.put("net/minecraft/entity/decoration/LeashKnotEntity", Set.of("getLeashPos", "getLeashOffset", "<init>"));
         METHODS.put("net/minecraft/entity/vehicle/BoatEntity", Set.of("tick", "interpolatePaddlePhase", "isPaddleMoving",
                 "updatePassengerPosition", "getPassengerAttachmentPos", "getVariant", "clampPassengerYaw", "getMaxPassengers", "getLeashOffset"));
