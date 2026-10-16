@@ -125,6 +125,8 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
         if (!namespace.equals("minecraft")) return true;
         if (value.startsWith("entity/")) return true; // shield, projectiles and the mob-textures
         if (value.startsWith("models/armor/")) return true; // armor-layers
+        if (value.startsWith("trims/models/armor/") || value.startsWith("trims/color_palettes/")) return true; // armor-trims
+        if (value.startsWith("misc/enchanted_glint")) return true; // the enchantment-glint
         int slash = value.indexOf('/');
         return slash < 0 || !SKIPPED_TEXTURE_FOLDERS.contains(value.substring(0, slash));
     }

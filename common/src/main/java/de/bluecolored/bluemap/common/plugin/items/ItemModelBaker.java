@@ -145,11 +145,23 @@ public class ItemModelBaker {
         return ENTITY_MODELS.containsKey(entityType) || MobTextures.TEXTURES.containsKey(entityType);
     }
 
-    /** textures that are provided on their own (requested by the live-data): the armor-textures and armor-trims */
+    /** textures that are provided on their own (requested by the live-data): armor-textures, armor-trims, skulls */
     static boolean isProvidedTexture(String textureKey) {
         int colon = textureKey.indexOf(':');
-        return textureKey.startsWith("models/armor/", colon + 1) || textureKey.startsWith(TRIM_SPRITES, colon + 1);
+        return textureKey.startsWith("models/armor/", colon + 1) || textureKey.startsWith(TRIM_SPRITES, colon + 1) ||
+                SKULL_TEXTURES.containsValue(textureKey);
     }
+
+    /** vanilla SkullBlockEntityRenderer.TEXTURES by the skull-items (player-heads: the default skin) */
+    public static final Map<String, String> SKULL_TEXTURES = Map.of(
+            "minecraft:skeleton_skull", "minecraft:entity/skeleton/skeleton",
+            "minecraft:wither_skeleton_skull", "minecraft:entity/skeleton/wither_skeleton",
+            "minecraft:player_head", "minecraft:entity/player/wide/steve",
+            "minecraft:zombie_head", "minecraft:entity/zombie/zombie",
+            "minecraft:creeper_head", "minecraft:entity/creeper/creeper",
+            "minecraft:dragon_head", "minecraft:entity/enderdragon/dragon",
+            "minecraft:piglin_head", "minecraft:entity/piglin/piglin"
+    );
 
     /** the sprites of vanilla ArmorTrim.getGenericModelId / getLeggingsModelId: &lt;pattern&gt;[_leggings]_&lt;material&gt; */
     static final String TRIM_SPRITES = "trims/models/armor/";

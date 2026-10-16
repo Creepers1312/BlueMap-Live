@@ -27,6 +27,7 @@ import {Group, Mesh} from "three";
 import {getPlayerModelGeometries} from "./PlayerModelGeometry.js";
 import {PART_NAMES, PIXEL_SCALE, playerModelLayout} from "./PlayerModelLayout.js";
 import {ItemView} from "./ItemView.js";
+import {SKULLS, SkullView} from "../mob/SkullView.js";
 import {ArmorView} from "../mob/ArmorView.js";
 
 /** vanilla armor-part -> the bone of the player-model it follows */
@@ -315,8 +316,13 @@ export class PlayerModel extends Group {
             blocks.add(head);
             this.headItem = new ItemView(this.itemCache, "head");
             head.add(this.headItem);
+            // skulls: an own model after the head-rotation (vanilla HeadFeatureRenderer, skull-branch)
+            this.headSkull = new SkullView(this.itemCache.textures, false);
+            blocks.add(this.headSkull);
         }
-        this.headItem.update(item ? item.id : null);
+        const skull = item && SKULLS[item.id] ? item.id : null;
+        this.headItem.update(item && !skull ? item.id : null);
+        this.headSkull.update(skull, 0);
     }
 
     /** @private */
@@ -339,6 +345,7 @@ export class PlayerModel extends Group {
     dispose() {
         if (this.armor) this.armor.dispose();
         if (this.headItem) this.headItem.dispose();
+        if (this.headSkull) this.headSkull.dispose();
         for (const slot of Object.values(this.itemSlots)) slot.dispose();
         this.skinCache.defaultSkinListeners.delete(this.onSkinStateChanged);
         if (this.skin) {

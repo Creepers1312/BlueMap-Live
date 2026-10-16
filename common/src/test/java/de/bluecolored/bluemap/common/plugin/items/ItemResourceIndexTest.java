@@ -102,4 +102,14 @@ public class ItemResourceIndexTest {
         assertNull(index.modelJson("minecraft:item/missing"));
     }
 
+
+    @Test
+    public void testTrimAndGlintTexturesAreIndexed() {
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "trims/models/armor/coast"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "trims/color_palettes/iron_darker"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "misc/enchanted_glint_armor"));
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "trims/items/helmet_trim"));
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "misc/pumpkinblur"));
+    }
+
 }

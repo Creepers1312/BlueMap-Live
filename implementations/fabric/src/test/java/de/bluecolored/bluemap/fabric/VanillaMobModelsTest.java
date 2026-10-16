@@ -288,6 +288,11 @@ public class VanillaMobModelsTest {
         // the feature-layers of EntityModels.getModels (collar, carpet, horse-armor; the dilations are in the CI-dump)
         LAYERS.put("minecraft:cat#collar", () -> of(call(MODEL + "OcelotEntityModel", "getModelData", dilation(0.01f)), 64, 32));
         LAYERS.put("minecraft:llama#decor", () -> call(MODEL + "LlamaEntityModel", "getTexturedModelData", dilation(0.5f)));
+        // the skulls of SkullBlockEntityRenderer.getModels (heads on the head, vanilla HeadFeatureRenderer)
+        LAYERS.put("minecraft:skull#skull", () -> call(MODEL + "SkullEntityModel", "getSkullTexturedModelData"));
+        LAYERS.put("minecraft:skull#head", () -> call(MODEL + "SkullEntityModel", "getHeadTexturedModelData"));
+        LAYERS.put("minecraft:dragon_head#main", () -> call(MODEL + "DragonHeadEntityModel", "getTexturedModelData"));
+        LAYERS.put("minecraft:piglin_head#main", () -> of(call(MODEL + "PiglinHeadEntityModel", "getModelData"), 64, 64));
         LAYERS.put("minecraft:horse#armor", () -> of(call(MODEL + "HorseEntityModel", "getModelData", dilation(0.1f)), 64, 64));
         LAYERS.put("minecraft:trader_llama#main", () -> call(MODEL + "LlamaEntityModel", "getTexturedModelData", dilation(0)));
         simple("magma_cube", "MagmaCubeEntityModel");

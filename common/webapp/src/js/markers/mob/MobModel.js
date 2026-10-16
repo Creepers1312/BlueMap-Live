@@ -27,6 +27,7 @@ import {getLayerGeometries} from "./MobModelGeometry.js";
 import {ANIMATIONS, createTransform, resetTransform} from "./MobAnimations.js";
 import {creeperSwelling, creeperWhiteOverlay, deathAngle, isLayerShown, layerTextures, layerTint, slimeScale, VANILLA_MODELS} from "./MobTypes.js";
 import {ItemView} from "../player/ItemView.js";
+import {SKULLS, SkullView} from "./SkullView.js";
 import {itemPredicates} from "../player/PlayerItemPoses.js";
 import {ArmorView} from "./ArmorView.js";
 
@@ -268,6 +269,7 @@ export class MobModel extends Group {
      * @param fuse {number} - creeper: vanilla getClientFuseTime (0: not swelling)
      */
     animate(input, bodyYaw, deathTicks, hurt, fuse = 0) {
+        this.limbAngle = input.limbAngle; // the animation of skulls on the head (vanilla HeadFeatureRenderer)
         // vanilla CreeperEntityRenderer.getAnimationCounter: white flashing while the fuse burns
         const white = this.mobType.creeper ? creeperWhiteOverlay(fuse) : 0;
         if (white !== this.white) {
@@ -518,6 +520,9 @@ export class MobModel extends Group {
         view.anchor = anchor;
         view.babyGroup = baby;
         villager.add(view);
+        // skulls: an own model after the head-rotation (vanilla HeadFeatureRenderer, skull-branch)
+        view.skull = new SkullView(itemCache.textures, this.mobType.headItem === "villager");
+        blocks.add(view.skull);
         return view;
     }
 
@@ -536,7 +541,9 @@ export class MobModel extends Group {
             slot.anchor.rotation.set(head.pitch, head.yaw, head.roll);
         }
         slot.anchor.visible = this.visible && !!item;
-        slot.update(item ? item.id : null);
+        const skull = item && SKULLS[item.id] ? item.id : null;
+        slot.update(item && !skull ? item.id : null);
+        slot.skull.update(skull, this.limbAngle || 0);
     }
 
     /** @private */
@@ -568,7 +575,10 @@ export class MobModel extends Group {
             this.itemSlots.right.dispose();
             this.itemSlots.left.dispose();
         }
-        if (this.headSlot) this.headSlot.dispose();
+        if (this.headSlot) {
+            this.headSlot.skull.dispose();
+            this.headSlot.dispose();
+        }
         this.asset.listeners.delete(this.onAssetChanged);
         this.assetCache.release(this.asset);
         this.asset = null;

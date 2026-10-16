@@ -27,6 +27,7 @@ package de.bluecolored.bluemap.common.live;
 import com.flowpowered.math.vector.Vector3d;
 import com.google.gson.stream.JsonWriter;
 import de.bluecolored.bluemap.common.config.PluginConfig;
+import de.bluecolored.bluemap.common.plugin.items.ItemModelBaker;
 import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.Server;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
@@ -128,7 +129,8 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                         if (equipment.mainHand() != null) itemRequester.accept(equipment.mainHand().id());
                         if (equipment.offHand() != null) itemRequester.accept(equipment.offHand().id());
                         if (equipment.armor() != null) equipment.armor().textures().forEach(t -> itemRequester.accept(LivePlayersDataSupplier.TEXTURE_PREFIX + t));
-                        if (equipment.head() != null) itemRequester.accept(equipment.head().id());
+                        if (equipment.head() != null) itemRequester.accept(ItemModelBaker.SKULL_TEXTURES.containsKey(equipment.head().id()) ?
+                            LivePlayersDataSupplier.TEXTURE_PREFIX + ItemModelBaker.SKULL_TEXTURES.get(equipment.head().id()) : equipment.head().id());
                     }
                     entityRequester.accept(entity.type());
                     result.add(entity);

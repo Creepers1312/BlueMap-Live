@@ -26,8 +26,6 @@ package de.bluecolored.bluemap.fabric;
 
 import de.bluecolored.bluemap.common.live.Armor;
 import de.bluecolored.bluemap.common.live.HeldItem;
-import net.minecraft.block.AbstractSkullBlock;
-import net.minecraft.item.BlockItem;
 import net.minecraft.item.trim.ArmorTrim;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.DyedColorComponent;
@@ -68,13 +66,12 @@ final class FabricArmor {
     }
 
     /**
-     * vanilla HeadFeatureRenderer: an item on the head that is no helmet is rendered as item (display-mode "head"),
-     * e.g. a carved pumpkin or a block. Skulls (mob- and player-heads) have an own model and are not sampled.
+     * vanilla HeadFeatureRenderer: an item on the head that is no helmet, rendered as item (display-mode "head", e.g. a
+     * carved pumpkin or a block) or as skull-model (mob- and player-heads, the webapp knows the skull-items).
      */
     static @Nullable HeldItem headItem(LivingEntity entity) {
         ItemStack stack = entity.getEquippedStack(EquipmentSlot.HEAD);
         if (stack.isEmpty()) return null;
-        if (stack.getItem() instanceof BlockItem blockItem && blockItem.getBlock() instanceof AbstractSkullBlock) return null;
         if (stack.getItem() instanceof ArmorItem armorItem && armorItem.getSlotType() == EquipmentSlot.HEAD) return null;
         return FabricPlayer.toHeldItem(stack);
     }

@@ -675,3 +675,18 @@ test("warden: emissive layers with their parts and pulsating alphas (vanilla War
     near(bio.ownMaterial.opacity, 1, "bioluminescent layer");
     model.dispose();
 });
+
+test("skulls on the head: the skull-model of the item, rotated by 180, dragon-jaw and piglin-ears move (vanilla SkullBlockEntityRenderer)", async () => {
+    const {SKULLS, skullHeadRotation} = await import("../src/js/markers/mob/SkullView.js");
+    assert.equal(SKULLS["minecraft:zombie_head"].layer, "minecraft:skull#head", "with the hat-layer");
+    assert.equal(SKULLS["minecraft:creeper_head"].layer, "minecraft:skull#skull");
+    assert.equal(SKULLS["minecraft:dragon_head"].texture, "minecraft:entity/enderdragon/dragon");
+    const parts = {head: {pitch: 0, yaw: 0, roll: 0}, "head/jaw": {pitch: 0, yaw: 0, roll: 0}};
+    skullHeadRotation("dragon", parts, 2.5, 180, 0);
+    near(parts.head.yaw, PI, "turned by 180");
+    near(parts["head/jaw"].pitch, (Math.sin(2.5 * PI * 0.2) + 1) * 0.2, "jaw");
+    const piglin = {head: {pitch: 0, yaw: 0, roll: 0}, "head/left_ear": {roll: 0}, "head/right_ear": {roll: 0}};
+    skullHeadRotation("piglin", piglin, 0, 180, 0);
+    near(piglin["head/left_ear"].roll, -(1 + 2.5) * 0.2, "left ear");
+    near(piglin["head/right_ear"].roll, (1 + 2.5) * 0.2, "right ear");
+});
