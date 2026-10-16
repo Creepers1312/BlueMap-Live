@@ -167,6 +167,7 @@ public final class LivePlayersJson {
                     writeItem(json, equipment.offHand());
                 }
                 if (equipment.fishing()) json.name("fishing").value(true);
+                if (equipment.light() > 0) json.name("light").value(equipment.light());
                 if (equipment.armor() != null) writeArmor(json, equipment.armor());
                 if (equipment.head() != null) {
                     json.name("head");

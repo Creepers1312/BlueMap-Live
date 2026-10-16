@@ -36,9 +36,11 @@ import org.jetbrains.annotations.Nullable;
  * @param armor the worn armor, null if none
  * @param head an item worn on the head that is no helmet (vanilla HeadFeatureRenderer, e.g. a carved pumpkin or a
  *             block), null if none
+ * @param light the light the held and worn items emit (0..15, BlueMap Live dynamic lights: the luminance of the block
+ *              of a block-item, e.g. 14 for a torch), 0 if none
  */
 public record Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand, boolean leftHanded, boolean fishing,
-                        @Nullable Armor armor, @Nullable HeldItem head) {
+                        @Nullable Armor armor, @Nullable HeldItem head, int light) {
 
     public static final Equipment EMPTY = new Equipment(null, null, false, false);
 
@@ -51,8 +53,14 @@ public record Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand,
         this(mainHand, offHand, leftHanded, fishing, armor, null);
     }
 
+    public Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand, boolean leftHanded, boolean fishing,
+                     @Nullable Armor armor, @Nullable HeldItem head) {
+        this(mainHand, offHand, leftHanded, fishing, armor, head, 0);
+    }
+
     public Equipment {
         if (armor != null && armor.isEmpty()) armor = null;
+        light = Math.max(0, Math.min(15, light));
     }
 
 }

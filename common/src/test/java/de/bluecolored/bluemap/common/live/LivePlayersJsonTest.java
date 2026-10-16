@@ -135,6 +135,20 @@ public class LivePlayersJsonTest {
     }
 
     @Test
+    public void testDynamicLight() throws IOException {
+        LivePlayerState torch = new LivePlayerState(new Vector3d(0, 64, 0), new Vector3d(0, 0, 0), 0, Vector3d.ZERO, 0, 1L,
+                null, null, new Equipment(new HeldItem("minecraft:torch"), null, false, false, null, null, 14), null, null);
+        JsonObject root = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld", torch)));
+        assertEquals(14, root.getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonObject("equipment").get("light").getAsInt());
+        assertEquals(15, new Equipment(null, null, false, false, null, null, 40).light(), "clamped to 15");
+
+        LivePlayerState dark = new LivePlayerState(new Vector3d(0, 64, 0), new Vector3d(0, 0, 0), 0, Vector3d.ZERO, 0, 1L,
+                null, null, new Equipment(new HeldItem("minecraft:stick"), null, false, false), null, null);
+        JsonObject none = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld", dark)));
+        assertFalse(none.getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonObject("equipment").has("light"));
+    }
+
+    @Test
     public void testSleeping() throws IOException {
         JsonObject root = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld",
                 state(new MovementState(false, false, true, false, false, false, false, "north", 1.52)))));

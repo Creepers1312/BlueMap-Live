@@ -434,6 +434,8 @@ export class BlueMapApp {
             this.mapViewer.redraw,
             map.data.mapDataRoot + "/assets/items/"
         );
+        // BlueMap Live: dynamic lights of the players in the map-shader
+        this.playerMarkerManager.lightUniforms = this.mapViewer.data.uniforms;
         this.playerMarkerManager.setAutoUpdateInterval(0);
         return this.playerMarkerManager.update()
             .then(() => {

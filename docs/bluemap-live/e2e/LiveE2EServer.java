@@ -194,6 +194,7 @@ public class LiveE2EServer {
     /**
      * One server-sample: /control?uuid=..&name=..&x=..&y=..&z=..&pitch=..&yaw=..&bodyYaw=..&world=..&respawn=1
      * Movement-flags (default: standing on the ground): &sneaking=1&sprinting=1&ground=0&swimming=1&flying=1&fallFlying=1&riding=1
+     * Dynamic light of the held items (only for this sample): &light=0..15
      * Sleeping: &bed=north|east|south|west|(empty: unknown)&bedOffset=1.52
      * Vehicle (offset and yaws relative to the drawn vehicle-yaw): &vehicle=ENTITY_ID&vox=..&voy=..&voz=..&vbody=..&vhead=..
      * Velocity override (instead of the one derived from the samples): &vx=..&vy=..&vz=..
@@ -297,7 +298,7 @@ public class LiveE2EServer {
             Equipment equipment = new Equipment(
                     p.mainHand != null ? new HeldItem(p.mainHand, false, null, p.charged && p.mainHand.endsWith(":crossbow"), false) : null,
                     p.offHand != null ? new HeldItem(p.offHand) : null,
-                    p.leftHanded, false, p.armor
+                    p.leftHanded, false, p.armor, null, q.containsKey("light") ? Integer.parseInt(q.get("light")) : 0
             );
             ItemUse use = q.containsKey("use") ?
                     new ItemUse(q.get("use").equals("main"), q.getOrDefault("useAction", "none"), Integer.parseInt(q.getOrDefault("useTicks", "0"))) :

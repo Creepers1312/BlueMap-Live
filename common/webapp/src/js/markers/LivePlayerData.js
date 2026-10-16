@@ -119,6 +119,8 @@ export function parseEquipment(value) {
         armor: parseArmor(value.armor),
         // an item on the head that is no helmet (vanilla HeadFeatureRenderer)
         head: parseItem(value.head),
+        // dynamic lights: the light the items emit (0..15)
+        light: Number.isInteger(value.light) ? Math.max(0, Math.min(15, value.light)) : 0,
     };
 }
 

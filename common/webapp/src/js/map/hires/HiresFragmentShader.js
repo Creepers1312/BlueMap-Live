@@ -41,6 +41,9 @@ uniform float animationFrameIndex;
 uniform float animationInterpolationFrameIndex;
 uniform float animationInterpolation;
 uniform bool chunkBorders;
+// BlueMap Live: dynamic lights (xyz: position, w: light level), the block-light decreases by 1 per block distance
+uniform vec4 dynamicLights[8];
+uniform int dynamicLightCount;
 
 varying vec3 vPosition;
 varying vec3 vWorldPosition;
@@ -68,7 +71,13 @@ void main() {
 	color.rgb *= vAo;
 	
 	//apply light
-	float light = mix(vBlocklight, max(vSunlight, vBlocklight), sunlightStrength);
+	float blocklight = vBlocklight;
+	for (int i = 0; i < 8; i++) {
+		if (i >= dynamicLightCount) break;
+		vec4 dynamicLight = dynamicLights[i];
+		blocklight = max(blocklight, clamp(dynamicLight.w - length(vWorldPosition - dynamicLight.xyz), 0.0, 15.0));
+	}
+	float light = mix(blocklight, max(vSunlight, blocklight), sunlightStrength);
 	color.rgb *= mix(ambientLight, 1.0, light / 15.0);
 	
 	if (chunkBorders) {

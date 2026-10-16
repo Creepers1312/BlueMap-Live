@@ -24,6 +24,7 @@ import {
     bedTransform,
     SUPPORTED_PROTOCOL,
 } from "../src/js/markers/LivePlayerData.js";
+import {applyDynamicLights, dynamicBlockLight, LIGHT_HEIGHT, MAX_DYNAMIC_LIGHTS, playerLights} from "../src/js/markers/DynamicLights.js";
 
 const UUID = "069a79f4-44e9-4726-a5be-fca90e38aaf5";
 
@@ -278,7 +279,7 @@ test("held items are parsed and validated", () => {
     assert.equal(equipment.mainHand.id, "minecraft:diamond_sword");
     assert.equal(equipment.offHand, null);
     assert.equal(equipment.fishing, true);
-    assert.deepEqual(parseEquipment({}), {mainHand: null, offHand: null, leftHanded: false, fishing: false, armor: null, head: null}, "empty hands");
+    assert.deepEqual(parseEquipment({}), {mainHand: null, offHand: null, leftHanded: false, fishing: false, armor: null, head: null, light: 0}, "empty hands");
     assert.equal(parseEquipment({head: {id: "minecraft:carved_pumpkin"}}).head.id, "minecraft:carved_pumpkin", "item on the head");
 
     // armor: per slot the texture-layers (vanilla ArmorFeatureRenderer), invalid entries are dropped
@@ -343,4 +344,36 @@ test("sleeping players: the bed is parsed, the model is moved like vanilla Livin
     assert.deepEqual(bedTransform("north", 1.52, 30), {yaw: 270, x: -0, z: 1.52});
     assert.deepEqual(bedTransform("east", 1.52, 30), {yaw: 180, x: -1.52, z: -0});
     assert.deepEqual(bedTransform(null, 1.52, 30), {yaw: 30, x: 0, z: 0}, "unknown: the body-yaw");
+});
+
+test("dynamic lights: players with light-emitting items light the map (level - distance)", () => {
+    assert.equal(parseEquipment({light: 14}).light, 14);
+    assert.equal(parseEquipment({light: 99}).light, 15);
+    assert.equal(parseEquipment({light: "x"}).light, 0);
+
+    const torch = {x: 0, y: 65.62, z: 0, level: 14};
+    assert.equal(dynamicBlockLight(0, [torch], 0, 65.62, 0), 14, "at the light");
+    assert.ok(Math.abs(dynamicBlockLight(0, [torch], 4, 65.62, 3) - 9) < 1e-9, "5 blocks away: 14 - 5");
+    assert.equal(dynamicBlockLight(0, [torch], 20, 65, 0), 0, "out of range");
+    assert.equal(dynamicBlockLight(12, [torch], 4, 65.62, 3), 12, "the map is brighter there");
+
+    const marker = (light, x, foreign = false, visible = true) => ({
+        isPlayerMarker: true, visible, lastPlayerData: {foreign, equipment: {light}},
+        anchor: {position: {x, y: 64, z: 0}, yaw: 0},
+    });
+    const lights = playerLights([marker(14, 0), marker(0, 5), marker(15, 10, true), marker(10, 20, false, false), marker(15, 30)]);
+    assert.deepEqual(lights, [{x: 0, y: 64 + LIGHT_HEIGHT, z: 0, level: 14}, {x: 30, y: 64 + LIGHT_HEIGHT, z: 0, level: 15}],
+        "only shown players of this world with a light");
+    const many = playerLights(Array.from({length: 12}, (_, i) => marker(14, i * 10)), {x: 100, y: 0, z: 0});
+    assert.equal(many.length, MAX_DYNAMIC_LIGHTS);
+    assert.equal(many[0].x, 100, "the nearest to the camera first");
+
+    const vec = () => ({x: 0, y: 0, z: 0, w: 0, set(x, y, z, w) { Object.assign(this, {x, y, z, w}); }});
+    const uniforms = {dynamicLights: {value: Array.from({length: 8}, vec)}, dynamicLightCount: {value: 0}};
+    assert.equal(applyDynamicLights(uniforms, lights), true);
+    assert.equal(uniforms.dynamicLightCount.value, 2);
+    assert.equal(uniforms.dynamicLights.value[1].w, 15);
+    assert.equal(applyDynamicLights(uniforms, lights), false, "unchanged: no redraw needed");
+    assert.equal(applyDynamicLights(uniforms, []), true);
+    assert.equal(uniforms.dynamicLightCount.value, 0);
 });

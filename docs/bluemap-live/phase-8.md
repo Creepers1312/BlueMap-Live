@@ -79,6 +79,14 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 - Betäubter oder brüllender Verwüster.
 - Schwünge friedlicher Mobs, z. B. des Allays (deren Schwung läuft nur im Client).
 
+## 2b. Dynamische Lichter (Wunsch nach dem Test)
+
+Vanilla Minecraft hat keine dynamischen Lichter. Die Regel ist deshalb eine eigene Festlegung nach dem Vorbild der Mod LambDynamicLights:
+- **Leuchtstärke (Server):** ein Block-Item leuchtet so hell wie sein Block (`getDefaultState().getLuminance()`, z. B. Fackel 14, Laterne 15, Seelenfackel 10), ein Lavaeimer wie Lava (15). Es zählt das hellste Item aus Haupthand, Nebenhand und Kopf. Übertragen als `equipment.light`.
+- **Karte (Webapp):** Der Hires-Shader von BlueMap bekommt bis zu 8 Lichtquellen (Uniforms `dynamicLights`, `dynamicLightCount`). Pro Pixel steigt das Blocklicht auf `Stärke − Abstand in Blöcken` (Licht in Augenhöhe 1,62). Ohne Licht bleibt die Berechnung wie im Original.
+- **Nicht umgesetzt:** Wände halten das Licht nicht auf; Lowres-Kacheln (weit weg) und die Figuren selbst werden nicht heller; Mobs und fallengelassene Items leuchten nicht.
+- **Tests:** Node (Formel, Auswahl, Uniforms), JUnit (`equipment.light`), Browser: Nacht mit und ohne Fackel.
+
 ## 3. Vanilla-Code als Quelle (`VanillaAnimationDumpTest`)
 
 - **Was der Test tut:**

@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {Color, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, WebGLRenderer} from "three";
+import {Color, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, Vector4, WebGLRenderer} from "three";
 import {Map} from "./map/Map";
 import {SkyboxScene} from "./skybox/SkyboxScene";
 import {ControlsManager} from "./controls/ControlsManager";
@@ -63,6 +63,9 @@ export class MapViewer {
 				skyColor: { value: new Color(0.5, 0.5, 1) },
 				voidColor: { value: new Color(0, 0, 0) },
 				chunkBorders: { value: false },
+				// BlueMap Live: dynamic lights (players holding light-emitting items), see markers/DynamicLights.js
+				dynamicLights: { value: Array.from({length: 8}, () => new Vector4()) },
+				dynamicLightCount: { value: 0 },
 				hiresTileMap: {
 					value: {
 						map: null,

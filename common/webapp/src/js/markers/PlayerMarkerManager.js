@@ -29,6 +29,7 @@ import { PlayerSkinCache } from "./player/PlayerSkinCache";
 import { ItemAssetCache } from "./player/ItemAssetCache";
 import { WORLD_TIME_EVENT } from "./WorldTimeLighting";
 import { ENTITIES_STEPPED_EVENT, ENTITY_MARKER_SET_ID } from "./EntityMarkerManager";
+import { applyDynamicLights, playerLights } from "./DynamicLights";
 
 export const PLAYER_MARKER_SET_ID = "bm-players";
 
@@ -105,6 +106,11 @@ export class PlayerMarkerManager extends MarkerManager {
             if (noEntities) marker.attachTo(null);
             if (marker.stepAnimation(dt) && setVisible && marker.visible && marker.model.visible) active = true;
         });
+        // dynamic lights: players holding light-emitting items light the map (only shown players)
+        if (this.lightUniforms) {
+            const lights = setVisible ? playerLights(playerMarkerSet.markers.values()) : [];
+            if (applyDynamicLights(this.lightUniforms, lights)) active = true;
+        }
         if (active && this.redraw) this.redraw();
     }
 
@@ -171,6 +177,7 @@ export class PlayerMarkerManager extends MarkerManager {
     }
 
     dispose() {
+        if (this.lightUniforms) applyDynamicLights(this.lightUniforms, []);
         if (this.events) this.events.removeEventListener("bluemapRenderFrame", this.onRenderFrame);
         if (this.events) this.events.removeEventListener(ENTITIES_STEPPED_EVENT, this.onEntitiesStepped);
         this.dispatchWorldTime(null);

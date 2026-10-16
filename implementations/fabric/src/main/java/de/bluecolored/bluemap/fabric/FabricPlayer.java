@@ -39,14 +39,17 @@ import de.bluecolored.bluemap.common.plugin.text.Text;
 import de.bluecolored.bluemap.common.serverinterface.Gamemode;
 import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
+import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ChargedProjectilesComponent;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityPose;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
+import net.minecraft.item.BlockItem;
 import net.minecraft.item.CrossbowItem;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -228,11 +231,25 @@ public class FabricPlayer extends Player {
         Armor armor = FabricArmor.sample(player);
         if (armor.isEmpty()) armor = null;
         HeldItem head = FabricArmor.headItem(player);
+        // dynamic lights: the brightest of the held items and the item on the head
+        int light = Math.max(Math.max(luminance(mainHand), luminance(offHand)), luminance(player.getEquippedStack(EquipmentSlot.HEAD)));
         if (changed || leftHanded != equipment.leftHanded() || fishing != equipment.fishing() ||
-                !java.util.Objects.equals(armor, equipment.armor()) || !java.util.Objects.equals(head, equipment.head())) {
-            equipment = new Equipment(mainHandItem, offHandItem, leftHanded, fishing, armor, head);
+                !java.util.Objects.equals(armor, equipment.armor()) || !java.util.Objects.equals(head, equipment.head()) ||
+                light != equipment.light()) {
+            equipment = new Equipment(mainHandItem, offHandItem, leftHanded, fishing, armor, head, light);
         }
         return equipment;
+    }
+
+    /**
+     * The light an item emits for the dynamic lights (vanilla has none; like the mod LambDynamicLights): a block-item
+     * the luminance of its block (torch 14, lantern 15, soul torch 10, ...), a lava-bucket the luminance of lava.
+     */
+    static int luminance(ItemStack stack) {
+        if (stack.isEmpty()) return 0;
+        if (stack.getItem() instanceof BlockItem blockItem) return blockItem.getBlock().getDefaultState().getLuminance();
+        if (stack.isOf(Items.LAVA_BUCKET)) return Blocks.LAVA.getDefaultState().getLuminance();
+        return 0;
     }
 
     static @Nullable HeldItem toHeldItem(ItemStack stack) {

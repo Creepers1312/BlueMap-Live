@@ -298,6 +298,7 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q22 | Pferde auf Gras beobachten; ungezähmtes Pferd reiten, bis es steigt; galoppieren | Kopf senkt sich zum Grasen und nickt; Pferd steigt auf die Hinterbeine; beim Galopp nickt der Kopf und der Schweif hebt sich |
 | Q23 | Tier an der Leine führen; Leine an einen Zaun knoten; Boot an der Leine | Seil hängt durch zwischen Kopf des Tiers und Hand bzw. Knoten, folgt beim Laufen; Knoten am Zaun sichtbar |
 | Q24 | Nachts ins Bett legen (am besten zu zweit oder mit `/gamerule playersSleepingPercentage 200`, damit die Nacht nicht sofort vorbei ist) | Spieler liegt im Bett, Kopf am Kopfende, wie ein schlafender Dorfbewohner |
+| Q25 | Nachts mit Uhr-Knopf an: Fackel, Laterne, Lavaeimer in die Hand nehmen und herumlaufen | Karte um den Spieler wird heller (Fackel etwa 14 Blöcke Reichweite), wandert mit; ohne Licht wieder dunkel |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 
