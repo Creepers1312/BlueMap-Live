@@ -78,7 +78,8 @@ Das Entfernen beim Entladen von Chunks (`UNLOADED_TO_CHUNK`, `UNLOADED_WITH_PLAY
 | Node `npm test` | 140/140, neu `Particles.test.mjs` (15): Daten-Validierung, Sprite-Auswahl, Explosion und Emitter (6 × 8), neue Partikel erst ab dem nächsten Tick, Trankwirbel (Farbe, Alpha, Wahrscheinlichkeiten), Wolke, Wurftrank, Tod, Obergrenzen, Feuer-Ebenen, Atlas, geplantes Entfernen ohne Einfluss auf die Uhr |
 | JUnit lokal | 80/80, neu `LiveParticlesTest` (JSON von Partikeln und Effekten, Effekt-Log), Effekte im Umkreis und Texturanforderung im Data-Supplier, Texturfilter für Partikel |
 | Browser `particles-e2e.mjs` | 13/13: kleine und große Explosion (Pixel), einmalige Anzeige, Wurftrank (Pixel), Trankwirbel, Verweilwolke (Pixel), brennender Mob (Pixel, animiert), brennender Spieler mit Wirbeln, Rauch beim Tod, ausgeblendetes Set, Entfernen zusammen mit der Explosion bei 750 ms Glättung, keine alten Effekte nach dem Neuladen |
-| Browser übrige Suiten | siehe unten |
+| Browser `entities`, `mobs`, `playback`, `player`, `animation`, `items`, `worldtime` | 12/12, 15/15, 6/6, 21/22, 19/19, 16/16, 9/9. `player`: der bekannte, gelegentlich fehlschlagende Schritt „skin (slim)“ (`phase-8.md`). `mobs`: Die Prüfung „Rüstungstexturen freigegeben“ zählt die Partikeltexturen nicht mit; sie bleiben nach dem ersten Partikel (hier der Rauch beim Tod) geladen. |
+| Regression gegen das Original | in dieser Phase nicht erneut ausgeführt |
 
 Die Fabric-Seite (`FabricParticles`) wird nur im CI kompiliert; die Erkennung der Explosionen ist nicht automatisch gegen ein laufendes Minecraft getestet.
 

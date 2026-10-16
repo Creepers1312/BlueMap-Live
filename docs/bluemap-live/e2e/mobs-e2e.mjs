@@ -274,7 +274,9 @@ await step("armor: a zombie and a player wear helmet and dyed leather-leggings (
     assert.ok(await countColor("48-zombie-armor", await project(15, 0.5), COLORS.leather, 60) > 50, "dyed leggings pixels");
     await control({removeEntity: 15});
     await page.waitForFunction(() => !window.bluemap.mapViewer.markers.markerSets.get("bm-entities").markers.has("bm-entity-15"), null, {timeout: 10000});
-    assert.equal(await page.evaluate(() => window.bluemap.entityMarkerManager.itemCache.textures.entries.size), 0, "armor-textures released");
+    // (the particle-textures stay loaded once a particle was shown, e.g. the death-poof of an earlier step)
+    assert.equal(await page.evaluate(() => [...window.bluemap.entityMarkerManager.itemCache.textures.entries.keys()]
+        .filter(key => !key.startsWith("minecraft:particle/") && !key.startsWith("minecraft:block/fire_")).length), 0, "armor-textures released");
 
     const A = "00000000-0000-0000-0000-00000000a001";
     await control({uuid: A, name: "Armored", x: 8.5, y: 64, z: 9.5, yaw: 0, pitch: 0, armor: "head:iron,legs:leather:3355ff"});

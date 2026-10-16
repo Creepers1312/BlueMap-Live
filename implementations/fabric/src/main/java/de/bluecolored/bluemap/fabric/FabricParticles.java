@@ -153,7 +153,8 @@ final class FabricParticles {
                 if (entity instanceof PotionEntity potion && entity.getY() > entity.getWorld().getBottomY() - 64) {
                     PotionContentsComponent contents = potion.getStack().getOrDefault(DataComponentTypes.POTION_CONTENTS,
                             PotionContentsComponent.DEFAULT);
-                    boolean instant = contents.potion().isPresent() && contents.potion().get().value().hasInstantEffect();
+                    // the potion-component (comp_2378 and RegistryEntry.comp_349, not named in these yarn-mappings), like PotionEntity.onCollision
+                    boolean instant = contents.comp_2378().isPresent() && contents.comp_2378().get().comp_349().hasInstantEffect();
                     Vec3d center = Vec3d.ofBottomCenter(entity.getBlockPos());
                     return log.add(instant ? LiveEffect.INSTANT_SPLASH : LiveEffect.SPLASH, toVector(center), 0, false,
                             contents.getColor(), now);
