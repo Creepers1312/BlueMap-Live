@@ -369,10 +369,11 @@ public class FabricMod implements ModInitializer, Server {
         if (++liveEntitySampleTicks < getPlayerUpdateIntervalTicks()) return;
         liveEntitySampleTicks = 0;
 
-        // the time and weather of the worlds with a day-night-cycle (cheap: a few field-reads per world)
+        // the time and weather of the worlds with a day-night-cycle (cheap: a few field-reads per world);
+        // the nether and the end have a fixed time
         Map<Key, LiveWorldTime> times = new HashMap<>();
         for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
-            if (!world.getDimension().hasSkyLight() || world.getDimension().hasFixedTime()) continue;
+            if (world.getDimension().hasFixedTime()) continue;
             times.put(getServerWorld(world).getDimension(), new LiveWorldTime(
                     Math.floorMod(world.getTimeOfDay(), 24000L),
                     world.getRainGradient(1f),

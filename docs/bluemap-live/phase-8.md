@@ -9,7 +9,7 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 ## 1. Tag-Nacht-Zyklus der Welt
 
 **Server** (`FabricMod`, Server-Thread, im Takt der Live-Daten):
-- Für jede Welt mit Himmelslicht und ohne feste Zeit (Oberwelt, nicht Nether und Ende) werden gelesen:
+- Für jede Welt ohne feste Zeit (Oberwelt, nicht Nether und Ende) werden gelesen:
   - die Tageszeit (`getTimeOfDay() mod 24000`)
   - Regen- und Gewitterstärke
   - die Spielregel `doDaylightCycle`
