@@ -213,11 +213,11 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | I17 | Nah an den Spieler heranzoomen, dann weit herauszoomen | nah: Kopfbild ausgeblendet, nur der Name; fern: Kopfbild und Name wie bisher |
 | I18 | Mod-Liste (Mod Menu) | Name „BlueMap Live“, Beschreibung mit Hinweis auf den inoffiziellen Fork |
 
-**Entities (Release 0.2.0, `phase-5.md`, alle offen)**
+**Entities (Release 0.2.0, `phase-5.md`, offen außer N1)**
 
 | # | Prüfung | Erwartung |
 |---|---|---|
-| N1 | Items fallen lassen (Q), in der Nähe auf die Karte schauen | Items liegen schwebend und drehend am Boden; beim Aufheben verschwinden sie |
+| N1 | Items fallen lassen (Q), in der Nähe auf die Karte schauen | Items liegen schwebend und drehend am Boden; beim Aufheben verschwinden sie **Vom Nutzer bestätigt** (nach dem Fix der Asset-Versionierung: Größe und Drehung stimmen) |
 | N2 | Block mit vielen Drops abbauen, Truhe mit Items zerstören | Viele Items gleichzeitig, kein Ruckeln der Karte |
 | N3 | Schneebälle, Eier, Enderperle, Wurftrank werfen | Fliegende Gegenstände sind sichtbar und zeigen zur Kamera |
 | N4 | Mit dem Bogen schießen, Pfeil im Block stecken lassen | Pfeil sieht aus wie in Minecraft (dünnes Kreuz mit Federn), fliegt flüssig im Bogen und neigt sich im Fallen; steckender Pfeil bleibt mit seiner Neigung |
