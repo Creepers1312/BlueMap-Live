@@ -236,7 +236,7 @@ Object.assign(MOB_TYPES, {
     "minecraft:breeze": simple("breeze", "minecraft:breeze#main", E + "breeze/breeze"),
     "minecraft:camel": simple("camel", "minecraft:camel#main", E + "camel/camel"),
     "minecraft:cat": {
-        ...simple("cat", "minecraft:cat#main", mob => E + "cat/" + (mob.variant || "tabby"), {scale: 0.8}),
+        ...simple("cat", "minecraft:cat#main", mob => E + "cat/" + (mob.variant || "tabby"), {scale: 0.8, catPose: true}),
         layers: [
             {model: "minecraft:cat#main", texture: mob => E + "cat/" + (mob.variant || "tabby")},
             // vanilla CatCollarFeatureRenderer: tamed cats, the collar-model (dilation 0.01) in the collar-color
@@ -301,7 +301,8 @@ Object.assign(MOB_TYPES, {
         ],
     },
     "minecraft:magma_cube": simple("slime", "minecraft:magma_cube#main", E + "slime/magmacube", {slime: true}),
-    "minecraft:panda": simple("panda", "minecraft:panda#main", mob => E + "panda/" + (mob.variant && mob.variant !== "normal" ? mob.variant + "_panda" : "panda")),
+    "minecraft:panda": simple("panda", "minecraft:panda#main", mob => E + "panda/" + (mob.variant && mob.variant !== "normal" ? mob.variant + "_panda" : "panda"),
+        {pandaPose: true}), // vanilla PandaEntityRenderer.setupTransforms
     "minecraft:parrot": simple("parrot", "minecraft:parrot#main", mob => E + "parrot/parrot_" + (mob.variant === "gray" ? "grey" : mob.variant || "red_blue")),
     "minecraft:phantom": {
         animation: "phantom",

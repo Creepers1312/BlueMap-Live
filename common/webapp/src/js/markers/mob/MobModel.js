@@ -316,7 +316,7 @@ export class MobModel extends Group {
         this.poseGroup.rotation.set(0, bed && !dying ? MathUtils.degToRad(270) : 0, 0);
         // vanilla PandaEntityRenderer.setupTransforms: sitting (up by 0.8, tilted back, down by 1), lying on the back
         // (up by 1.3, turned over); T1 * R * T2 as one group: position T1 + R * T2
-        const pandaPose = input.panda;
+        const pandaPose = this.mobType.pandaPose ? input.panda : null;
         if (pandaPose && (pandaPose.sit > 0 || pandaPose.lie > 0)) {
             const pitch = input.entityPitch || 0;
             let angle = 0, y = 0, z = 0;
@@ -336,7 +336,7 @@ export class MobModel extends Group {
             this.poseGroup.rotation.x = angle;
         }
         // vanilla CatEntityRenderer.setupTransforms: the lying cat is moved and rolled to its side
-        const catSleep = input.cat ? input.cat.sleep : 0;
+        const catSleep = this.mobType.catPose && input.cat ? input.cat.sleep : 0;
         if (catSleep > 0) {
             this.poseGroup.position.set(0.4 * catSleep, 0.15 * catSleep, 0.1 * catSleep);
             this.poseGroup.rotation.z = MathUtils.degToRad(90 * catSleep);

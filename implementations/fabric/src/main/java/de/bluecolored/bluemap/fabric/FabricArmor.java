@@ -98,7 +98,9 @@ final class FabricArmor {
         } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
             // the vanilla layers of the material: <id>_layer_1/2, leather with a dyeable layer and an overlay
             layers.clear();
-            String id = material.getKey().map(key -> key.getValue().toString()).orElse(null);
+            String id = material.getKey()
+                    .filter(key -> key.getRegistry().getPath().equals("armor_material"))
+                    .map(key -> key.getValue().toString()).orElse(null);
             if (id == null) return null;
             int colon = id.indexOf(':');
             String base = id.substring(0, colon) + ":models/armor/" + id.substring(colon + 1) + "_layer_" + (innerModel ? 2 : 1);
@@ -131,15 +133,32 @@ final class FabricArmor {
 
     /** ArmorItem.getMaterial(): the registry-entry of the armor-material */
     private static RegistryEntry<?> materialEntry(ArmorItem item) throws ReflectiveOperationException {
-        if (materialMethod == null) {
-            for (Method method : ArmorItem.class.getDeclaredMethods()) {
-                if (method.getReturnType() == RegistryEntry.class && method.getParameterCount() == 0 &&
-                        java.lang.reflect.Modifier.isPublic(method.getModifiers()) &&
-                        (materialMethod == null || method.getName().equals("getMaterial"))) materialMethod = method;
+        if (materialMethod != null) return (RegistryEntry<?>) materialMethod.invoke(item);
+        // ArmorItem has a second public no-arg method that returns a RegistryEntry (getEquipSound), and in a
+        // production-environment the names are intermediary-names: by the generic return-type
+        // RegistryEntry<ArmorMaterial>, or else by the value of the returned entry
+        List<Method> candidates = new ArrayList<>();
+        for (Method method : ArmorItem.class.getDeclaredMethods()) {
+            if (method.getReturnType() != RegistryEntry.class || method.getParameterCount() != 0 ||
+                    !java.lang.reflect.Modifier.isPublic(method.getModifiers())) continue;
+            if (method.getGenericReturnType() instanceof java.lang.reflect.ParameterizedType type &&
+                    type.getActualTypeArguments().length == 1 && type.getActualTypeArguments()[0] == ArmorMaterial.class) {
+                materialMethod = method;
+                return (RegistryEntry<?>) method.invoke(item);
             }
-            if (materialMethod == null) throw new NoSuchMethodException("ArmorItem.getMaterial");
+            candidates.add(method);
         }
-        return (RegistryEntry<?>) materialMethod.invoke(item);
+        for (Method method : candidates) {
+            RegistryEntry<?> entry = (RegistryEntry<?>) method.invoke(item);
+            try {
+                entryValue(entry);
+            } catch (NoSuchMethodException notArmor) {
+                continue;
+            }
+            materialMethod = method;
+            return entry;
+        }
+        throw new NoSuchMethodException("ArmorItem.getMaterial");
     }
 
     /** RegistryEntry.value(): found as the no-arg method that returns the ArmorMaterial */
@@ -162,12 +181,20 @@ final class FabricArmor {
         return (List<?>) layersAccessor.invoke(material);
     }
 
-    /** ArmorMaterial.Layer.getTexture(boolean secondLayer) */
-    private static Method layerTexture(Object layer) throws NoSuchMethodException {
+    /**
+     * ArmorMaterial.Layer.getTexture(boolean secondLayer): the public method (boolean) -> Identifier whose result is a
+     * texture-path (textures/....png); the layer has a second one with this signature (getTextureId)
+     */
+    private static Method layerTexture(Object layer) throws ReflectiveOperationException {
         if (textureMethod == null) {
             for (Method method : layer.getClass().getMethods()) {
-                if (method.getReturnType() == Identifier.class && method.getParameterCount() == 1 &&
-                        method.getParameterTypes()[0] == boolean.class) textureMethod = method;
+                if (method.getReturnType() != Identifier.class || method.getParameterCount() != 1 ||
+                        method.getParameterTypes()[0] != boolean.class) continue;
+                Object result = method.invoke(layer, false);
+                if (result instanceof Identifier id && textureKey(id) != null) {
+                    textureMethod = method;
+                    break;
+                }
             }
             if (textureMethod == null) throw new NoSuchMethodException("ArmorMaterial.Layer.getTexture");
         }
@@ -176,7 +203,14 @@ final class FabricArmor {
 
     /** ArmorMaterial.Layer.isDyeable() */
     private static Method layerDyeable(Object layer) throws NoSuchMethodException {
-        if (dyeableMethod == null) dyeableMethod = layer.getClass().getMethod("isDyeable");
+        if (dyeableMethod == null) {
+            // the only public no-arg boolean method of the record ArmorMaterial.Layer (besides equals(Object))
+            for (Method method : layer.getClass().getDeclaredMethods()) {
+                if (method.getReturnType() == boolean.class && method.getParameterCount() == 0 &&
+                        java.lang.reflect.Modifier.isPublic(method.getModifiers())) dyeableMethod = method;
+            }
+            if (dyeableMethod == null) throw new NoSuchMethodException("ArmorMaterial.Layer.isDyeable");
+        }
         return dyeableMethod;
     }
 

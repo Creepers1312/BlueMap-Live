@@ -726,3 +726,14 @@ test("slime: squashed on landing, stretched when jumping (vanilla SlimeEntity.ti
     near(-marker.view.flip.scale.y, 0.999 * 2, "size 2 at rest");
     marker.dispose();
 });
+
+test("poses: the renderer-transforms of the panda and the cat only for them (a sitting wolf is not tilted)", () => {
+    const cache = fakeMobCache({"minecraft:entity/wolf/wolf_tame": 1});
+    const wolf = new MobModel("minecraft:wolf", MOB_TYPES["minecraft:wolf"], cache, null);
+    wolf.setState(parseMob({flags: ["sitting", "tame"]}), {mainHand: null, offHand: null, leftHanded: false, armor: null});
+    wolf.animate(input({flags: new Set(["sitting", "tame"]), panda: {sit: 1, lie: 0}, cat: {sleep: 1, tailCurl: 1, headDown: 0}}), 0, 0, false);
+    near(wolf.poseGroup.rotation.x, 0, "no panda-tilt");
+    near(wolf.poseGroup.rotation.z, 0, "no cat-roll");
+    near(wolf.poseGroup.position.length(), 0, "no offset");
+    wolf.dispose();
+});
