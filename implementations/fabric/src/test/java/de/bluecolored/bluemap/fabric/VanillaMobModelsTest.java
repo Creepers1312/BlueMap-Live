@@ -293,7 +293,7 @@ public class VanillaMobModelsTest {
         simple("warden", "WardenEntityModel");
         simple("witch", "WitchEntityModel");
         LAYERS.put("minecraft:wither#main", () -> call(MODEL + "WitherEntityModel", "getTexturedModelData", dilation(0)));
-        LAYERS.put("minecraft:wolf#main", () -> call(MODEL + "WolfEntityModel", "getTexturedModelData", dilation(0)));
+        LAYERS.put("minecraft:wolf#main", () -> of(call(MODEL + "WolfEntityModel", "getTexturedModelData", dilation(0)), 64, 32));
     }
 
     private static void simple(String mob, String modelClass) {

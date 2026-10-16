@@ -31,6 +31,12 @@ import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.core.logger.Logger;
 import net.minecraft.block.BlockState;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.VariantHolder;
+import net.minecraft.entity.mob.Angerable;
+import net.minecraft.entity.passive.HorseEntity;
+import net.minecraft.entity.passive.TameableEntity;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.StringIdentifiable;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.entity.mob.AbstractPiglinEntity;
@@ -142,6 +148,8 @@ final class FabricMobs {
             variant[0] = villagerVariant(villager.getVillagerData());
         } else if (entity instanceof ZombieVillagerEntity zombieVillager) {
             variant[0] = villagerVariant(zombieVillager.getVillagerData());
+        } else if (entity instanceof HorseEntity horse) {
+            variant[0] = name(horse.getVariant()) + "/" + name(horse.getMarking());
         } else if (entity instanceof AbstractPiglinEntity piglin) {
             switch (piglin.getActivity()) {
                 case ADMIRING_ITEM -> flags.add("admiring");
@@ -151,7 +159,26 @@ final class FabricMobs {
                 case CROSSBOW_CHARGE -> flags.add("crossbow_charge");
                 default -> {}
             }
+        } else if (entity instanceof VariantHolder<?> holder) {
+            // cat, wolf, frog, axolotl, fox, llama, parrot, rabbit, tropical fish, ...: the name of the variant
+            variant[0] = name(holder.getVariant());
         }
+
+        // common states that change the model or the texture
+        if (entity instanceof TameableEntity tameable) {
+            if (tameable.isTamed()) flags.add("tame");
+            if (tameable.isInSittingPose()) flags.add("sitting");
+        }
+        if (entity instanceof Angerable angerable && angerable.hasAngerTime()) flags.add("angry");
+    }
+
+    /** the name of a variant: registry-key-path, StringIdentifiable or enum-name (lower case) */
+    private static @Nullable String name(@Nullable Object variant) {
+        if (variant == null) return null;
+        if (variant instanceof RegistryEntry<?> entry) return entry.getKey().map(key -> key.getValue().getPath()).orElse(null);
+        if (variant instanceof StringIdentifiable identifiable) return identifiable.asString();
+        if (variant instanceof Enum<?> e) return e.name().toLowerCase(java.util.Locale.ROOT);
+        return null;
     }
 
     /** the default block-model of a block-state: "minecraft:block/red_mushroom" (the webapp falls back to the item-model) */
