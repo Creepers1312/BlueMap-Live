@@ -34,6 +34,7 @@ import de.bluecolored.bluemap.common.config.PluginConfig;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.LiveEffect;
 import de.bluecolored.bluemap.common.live.LiveEffectLog;
+import de.bluecolored.bluemap.common.live.LiveBlockLog;
 import de.bluecolored.bluemap.common.live.OpenContainer;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.common.live.LiveMobState;
@@ -104,6 +105,8 @@ public class FabricMod implements ModInitializer, Server {
     private volatile Map<Key, LiveWorldTime> liveWorldTimes = Map.of();
     // BlueMap Live: the recent explosions and splash-potions per world
     private final Map<Key, LiveEffectLog> liveEffects = new ConcurrentHashMap<>();
+    // BlueMap Live: the block-changes per world (previews until the tile is rendered again)
+    private final Map<Key, LiveBlockLog> liveBlockChanges = new ConcurrentHashMap<>();
     // BlueMap Live: the opened chests per world
     private final FabricContainers containers = new FabricContainers();
     private volatile Map<Key, List<OpenContainer>> openContainers = Map.of();
@@ -204,6 +207,7 @@ public class FabricMod implements ModInitializer, Server {
 
         ServerTickEvents.END_SERVER_TICK.register((MinecraftServer server) -> {
             if (server == this.serverInstance) {
+                this.flushBlockChanges(server);
                 this.trackSwings(server);
                 this.updateSomePlayers();
                 this.sampleLiveEntities(server);
@@ -512,6 +516,26 @@ public class FabricMod implements ModInitializer, Server {
         if (config == null || !config.isLiveEntities() || !config.isLivePlayerMarkers()) return;
         LiveEffectLog log = liveEffects.computeIfAbsent(getServerWorld(world).getDimension(), key -> new LiveEffectLog());
         FabricParticles.onRemoved(entity, log, System.currentTimeMillis());
+    }
+
+    /** the block-changes of the tick (see FabricBlockChanges), only call on the server-thread */
+    private void flushBlockChanges(MinecraftServer server) {
+        BlueMapService blueMap = pluginInstance.getBlueMap();
+        PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
+        boolean enabled = config != null && config.isLiveBlockPreviewEnabled() && config.isLivePlayerMarkers() &&
+                !server.getPlayerManager().getPlayerList().isEmpty();
+        if (enabled != FabricBlockChanges.isListening()) FabricBlockChanges.setListening(enabled);
+        if (!enabled) return;
+        List<net.minecraft.server.world.ServerWorld> worlds = new ArrayList<>();
+        server.getWorlds().forEach(worlds::add);
+        FabricBlockChanges.flush(worlds, world -> liveBlockChanges.computeIfAbsent(getServerWorld(world).getDimension(),
+                key -> new LiveBlockLog()), config.getLiveBlockPreviewRadius(), System.currentTimeMillis());
+    }
+
+    @Override
+    public List<LiveBlockLog.Change> getLiveBlockChanges(ServerWorld world) {
+        LiveBlockLog log = liveBlockChanges.get(world.getDimension());
+        return log != null ? log.recent(System.currentTimeMillis()) : List.of();
     }
 
     @Override

@@ -51,6 +51,12 @@ public final class LiveEntitiesJson {
 
     public static void write(JsonWriter json, long serverTime, int updateInterval, Collection<LiveEntityState> entities,
                              Collection<LiveEffect> effects, Collection<OpenContainer> containers) throws IOException {
+        write(json, serverTime, updateInterval, entities, effects, containers, List.of());
+    }
+
+    public static void write(JsonWriter json, long serverTime, int updateInterval, Collection<LiveEntityState> entities,
+                             Collection<LiveEffect> effects, Collection<OpenContainer> containers,
+                             Collection<LiveBlockLog.Change> blocks) throws IOException {
         json.beginObject();
         json.name("protocol").value(PROTOCOL_VERSION);
         json.name("serverTime").value(serverTime);
@@ -111,6 +117,8 @@ public final class LiveEntitiesJson {
             json.endArray();
         }
 
+        if (!blocks.isEmpty()) writeBlocks(json, blocks);
+
         if (!containers.isEmpty()) {
             json.name("containers").beginArray();
             for (OpenContainer container : containers) {
@@ -126,6 +134,40 @@ public final class LiveEntitiesJson {
             json.endArray();
         }
 
+        json.endObject();
+    }
+
+    /**
+     * The block-changes: <code>{"palette": [states], "changes": [[id, x, y, z, state, down, up, north, south, west, east,
+     * time], ...]}</code>, the states as indices into the palette, -1 for an air-neighbor
+     */
+    private static void writeBlocks(JsonWriter json, Collection<LiveBlockLog.Change> blocks) throws IOException {
+        java.util.Map<String, Integer> palette = new java.util.LinkedHashMap<>();
+        java.util.function.ToIntFunction<String> index = state -> state == null ? -1 :
+                palette.computeIfAbsent(state, s -> palette.size());
+        List<int[]> rows = new java.util.ArrayList<>();
+        List<long[]> ids = new java.util.ArrayList<>();
+        for (LiveBlockLog.Change change : blocks) {
+            int[] row = new int[10];
+            row[0] = change.x(); row[1] = change.y(); row[2] = change.z();
+            row[3] = index.applyAsInt(change.state());
+            for (int i = 0; i < 6; i++) row[4 + i] = change.neighbors() == null ? -1 : index.applyAsInt(change.neighbors()[i]);
+            rows.add(row);
+            ids.add(new long[] {change.id(), change.time()});
+        }
+        json.name("blocks").beginObject();
+        json.name("palette").beginArray();
+        for (String state : palette.keySet()) json.value(state);
+        json.endArray();
+        json.name("changes").beginArray();
+        for (int i = 0; i < rows.size(); i++) {
+            json.beginArray();
+            json.value(ids.get(i)[0]);
+            for (int value : rows.get(i)) json.value(value);
+            json.value(ids.get(i)[1]);
+            json.endArray();
+        }
+        json.endArray();
         json.endObject();
     }
 

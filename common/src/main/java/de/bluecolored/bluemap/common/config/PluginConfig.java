@@ -60,6 +60,8 @@ public class PluginConfig {
 
     private boolean liveBlockUpdates = true;
     private int liveBlockUpdateCooldown = 10;
+    private boolean liveBlockPreview = true;
+    private int liveBlockPreviewRadius = 96;
 
     private int playerRenderLimit = -1;
 
@@ -94,6 +96,16 @@ public class PluginConfig {
      */
     public Duration getLiveBlockUpdateCooldown() {
         return Duration.ofSeconds(Math.max(1, Math.min(3600, liveBlockUpdateCooldown)));
+    }
+
+    /** BlueMap Live: the radius around the shown players in which block-changes are previewed. Clamped to 0 .. 256. */
+    public int getLiveBlockPreviewRadius() {
+        return Math.max(0, Math.min(256, liveBlockPreviewRadius));
+    }
+
+    /** if block-changes are previewed (needs live-block-updates, the previews are confirmed by the rendered tiles) */
+    public boolean isLiveBlockPreviewEnabled() {
+        return liveBlockUpdates && liveBlockPreview && getLiveBlockPreviewRadius() > 0;
     }
 
     /** the cooldown of a region between two renders (shorter with live-block-updates) */

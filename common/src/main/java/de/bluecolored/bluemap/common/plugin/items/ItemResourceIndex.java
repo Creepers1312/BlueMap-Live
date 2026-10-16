@@ -57,6 +57,8 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
     );
 
     private final Map<String, String> models = new HashMap<>();
+    /** BlueMap Live: the blockstate-files (block-previews of changed blocks) */
+    private final Map<String, String> blockStates = new HashMap<>();
     private final Map<String, byte[]> textures = new HashMap<>();
 
     /**
@@ -76,6 +78,10 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
 
     void putModel(String key, String json) {
         models.putIfAbsent(key, json);
+    }
+
+    void putBlockState(String key, String json) {
+        blockStates.putIfAbsent(key, json);
     }
 
     void putTexture(String key, byte[] png) {
@@ -98,6 +104,21 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
                                     models.put(key, Files.readString(file, StandardCharsets.UTF_8));
                                 } catch (IOException ex) {
                                     Logger.global.logDebug("Failed to read model '" + file + "': " + ex);
+                                }
+                            });
+                }
+
+                Path blockStatesRoot = namespaceRoot.resolve("blockstates");
+                try (Stream<Path> files = Pack.walk(blockStatesRoot)) {
+                    files.filter(file -> file.getFileName().toString().endsWith(".json"))
+                            .filter(Files::isRegularFile)
+                            .forEach(file -> {
+                                String key = namespace + ":" + relativeKey(blockStatesRoot, file, ".json");
+                                if (blockStates.containsKey(key)) return;
+                                try {
+                                    blockStates.put(key, Files.readString(file, StandardCharsets.UTF_8));
+                                } catch (IOException ex) {
+                                    Logger.global.logDebug("Failed to read blockstate '" + file + "': " + ex);
                                 }
                             });
                 }
@@ -153,6 +174,11 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
     }
 
     @Override
+    public @Nullable String blockStateJson(String key) {
+        return blockStates.get(key);
+    }
+
+    @Override
     public @Nullable BufferedImage texture(String key) {
         byte[] png = textures.get(key);
         if (png == null) return null;
@@ -162,7 +188,8 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
 
             // animated textures are vertical strips of square frames: use the first frame (entity-textures are never animated)
             int w = image.getWidth(), h = image.getHeight();
-            if (h > w && h % w == 0 && !key.contains(":entity/")) image = image.getSubimage(0, 0, w, w);
+            if (h > w && h % w == 0 && !key.contains(":entity/") && !key.startsWith("minecraft:block/fire_"))
+                image = image.getSubimage(0, 0, w, w);
 
             // always 32-bit ARGB, so the alpha-channel can be read the same way for all images
             BufferedImage argb = new BufferedImage(image.getWidth(), image.getHeight(), BufferedImage.TYPE_INT_ARGB);

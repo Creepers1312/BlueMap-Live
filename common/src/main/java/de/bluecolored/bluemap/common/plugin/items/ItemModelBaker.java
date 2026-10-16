@@ -67,6 +67,10 @@ public class ItemModelBaker {
         @Nullable String modelJson(String key);
         /** the texture-image (key e.g. <code>minecraft:item/bow</code>), only the first frame of animated textures, null if there is none */
         @Nullable BufferedImage texture(String key);
+        /** the json of a blockstate-file (key e.g. <code>minecraft:oak_stairs</code>), null if there is none */
+        default @Nullable String blockStateJson(String key) {
+            return null;
+        }
         /** the keys of all textures in a folder (e.g. <code>minecraft:entity/villager/</code>, including sub-folders), sorted */
         default List<String> textureKeys(String folder) {
             return List.of();
@@ -439,6 +443,14 @@ public class ItemModelBaker {
 
     /** creates the faces like BlueMaps ResourceModelRenderer (same corner-order, uv-mapping and face-rotation) */
     private void bakeElement(Element element, Model model, Textures textures, List<float[]> quads) {
+        bakeElement(element, model, textures, quads, null);
+    }
+
+    /**
+     * @param variant BlueMap Live (block-previews): the transformation of the blockstate-variant (in blocks), null for
+     *                items; with a variant the quads get a 23rd value: the (turned) cullface, see {@link #CULLFACE_CODES}
+     */
+    private void bakeElement(Element element, Model model, Textures textures, List<float[]> quads, @Nullable MatrixM4f variant) {
         Vector3f from = element.getFrom(), to = element.getTo();
         float minX = from.getX(), minY = from.getY(), minZ = from.getZ();
         float maxX = to.getX(), maxY = to.getY(), maxZ = to.getZ();
@@ -478,13 +490,15 @@ public class ItemModelBaker {
             float[][] rawUvs = {{u1, v2}, {u2, v2}, {u2, v1}, {u1, v1}};
             int steps = Math.floorMod(Math.floorDiv(face.getRotation(), 90), 4);
 
-            float[] quad = new float[22];
+            float[] quad = new float[variant != null ? 23 : 22];
             for (int i = 0; i < 4; i++) {
                 vertex.set(q[i].x, q[i].y, q[i].z);
                 vertex.transform(rotation);
-                quad[i * 3] = round(vertex.x / 16f);
-                quad[i * 3 + 1] = round(vertex.y / 16f);
-                quad[i * 3 + 2] = round(vertex.z / 16f);
+                vertex.set(vertex.x / 16f, vertex.y / 16f, vertex.z / 16f);
+                if (variant != null) vertex.transform(variant);
+                quad[i * 3] = round(vertex.x);
+                quad[i * 3 + 1] = round(vertex.y);
+                quad[i * 3 + 2] = round(vertex.z);
 
                 float[] faceUv = rawUvs[(steps + i) % 4];
                 quad[12 + i * 2] = round(faceUv[0]);
@@ -492,6 +506,7 @@ public class ItemModelBaker {
             }
             quad[20] = texture;
             quad[21] = face.getTintindex();
+            if (variant != null) quad[22] = cullfaceCode(face.getCullface(), variant);
             quads.add(quad);
         }
     }
@@ -613,12 +628,126 @@ public class ItemModelBaker {
         return Math.round(value * 10000f) / 10000f;
     }
 
+    // ---- blocks (BlueMap Live: previews of changed blocks, see docs/bluemap-live/phase-11.md) ----
+
+    /** 0: no cullface, 1..6: down, up, north, south, west, east */
+    static final Direction[] CULLFACE_CODES = {null, Direction.DOWN, Direction.UP, Direction.NORTH, Direction.SOUTH,
+            Direction.WEST, Direction.EAST};
+
+    private final VectorM3f cullfaceVector = new VectorM3f(0, 0, 0);
+
+    /** the cullface turned like the variant (vanilla turns the cullface with the model) */
+    private int cullfaceCode(@Nullable Direction cullface, MatrixM4f variant) {
+        if (cullface == null) return 0;
+        var v = cullface.toVector();
+        cullfaceVector.set(v.getX(), v.getY(), v.getZ());
+        cullfaceVector.rotateAndScale(variant);
+        int best = 0;
+        float bestDot = 0.5f;
+        for (int i = 1; i < CULLFACE_CODES.length; i++) {
+            var d = CULLFACE_CODES[i].toVector();
+            float dot = cullfaceVector.x * d.getX() + cullfaceVector.y * d.getY() + cullfaceVector.z * d.getZ();
+            if (dot > bestDot) {
+                bestDot = dot;
+                best = i;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * The block-asset of a block-state: all quads of the models of its blockstate-variants (like BlueMaps renderer:
+     * variants by the conditions, the weighted variant of the block at 0, 0, 0, uv-lock is not applied), in blocks,
+     * with the cullface of each quad, and if the block is a full opaque cube (it hides the faces of its neighbors).
+     * @param state e.g. <code>minecraft:oak_stairs[facing=east,half=bottom,shape=straight,waterlogged=false]</code>
+     */
+    public String bakeBlock(String state) throws IOException {
+        de.bluecolored.bluemap.core.world.BlockState blockState = de.bluecolored.bluemap.core.world.BlockState.fromString(state);
+        Textures textures = new Textures();
+        List<float[]> quads = new ArrayList<>();
+
+        String json = resources.blockStateJson(blockState.getId().getFormatted());
+        if (json != null && !blockState.isAir()) {
+            de.bluecolored.bluemap.core.resources.pack.resourcepack.blockstate.BlockState definition = null;
+            try {
+                definition = ResourcesGson.INSTANCE.fromJson(json,
+                        de.bluecolored.bluemap.core.resources.pack.resourcepack.blockstate.BlockState.class);
+            } catch (RuntimeException ignored) {}
+            if (definition != null) {
+                List<de.bluecolored.bluemap.core.resources.pack.resourcepack.blockstate.Variant> variants = new ArrayList<>();
+                definition.forEach(blockState, 0, 0, 0, variants::add);
+                for (var variant : variants) {
+                    ResolvedModel resolved = resolve(variant.getModel().getFormatted());
+                    if (resolved == null || resolved.elements == null || resolved.elements.isEmpty()) continue;
+                    JsonObject modelJson = new JsonObject();
+                    modelJson.add("textures", resolved.textures);
+                    modelJson.add("elements", resolved.elements);
+                    Model parsed;
+                    try {
+                        parsed = ResourcesGson.INSTANCE.fromJson(modelJson, Model.class);
+                    } catch (RuntimeException ex) {
+                        continue;
+                    }
+                    if (parsed == null || parsed.getElements() == null) continue;
+                    for (Element element : parsed.getElements()) {
+                        if (element == null) continue;
+                        bakeElement(element, parsed, textures, quads, variant.getTransformMatrix());
+                        if (quads.size() > MAX_QUADS) break;
+                    }
+                }
+            }
+        }
+
+        StringWriter out = new StringWriter();
+        try (JsonWriter writer = new JsonWriter(out)) {
+            writer.beginObject();
+            writer.name("format").value(FORMAT_VERSION);
+            writer.name("state").value(state);
+            writer.name("full").value(isFullCube(quads, textures));
+            writer.name("textures").beginArray();
+            for (String dataUrl : textures.dataUrls) writer.value(dataUrl);
+            writer.endArray();
+            writer.name("quads").beginArray();
+            for (float[] quad : quads) {
+                for (float value : quad) {
+                    if (value == Math.rint(value)) writer.value((long) value);
+                    else writer.value(value);
+                }
+            }
+            writer.endArray();
+            writer.endObject();
+        }
+        return out.toString();
+    }
+
+    /** a full cube: on all 6 sides a whole face with that cullface and an opaque texture */
+    private boolean isFullCube(List<float[]> quads, Textures textures) {
+        boolean[] sides = new boolean[7];
+        for (float[] quad : quads) {
+            int cullface = (int) quad[22];
+            if (cullface == 0 || !textures.opaque.getOrDefault((int) quad[20], false)) continue;
+            float minX = 1, minY = 1, minZ = 1, maxX = 0, maxY = 0, maxZ = 0;
+            for (int i = 0; i < 4; i++) {
+                minX = Math.min(minX, quad[i * 3]); maxX = Math.max(maxX, quad[i * 3]);
+                minY = Math.min(minY, quad[i * 3 + 1]); maxY = Math.max(maxY, quad[i * 3 + 1]);
+                minZ = Math.min(minZ, quad[i * 3 + 2]); maxZ = Math.max(maxZ, quad[i * 3 + 2]);
+            }
+            // two of the three axes span the whole block
+            int spans = (minX <= 0 && maxX >= 1 ? 1 : 0) + (minY <= 0 && maxY >= 1 ? 1 : 0) + (minZ <= 0 && maxZ >= 1 ? 1 : 0);
+            if (spans >= 2) sides[cullface] = true;
+        }
+        for (int i = 1; i < 7; i++) if (!sides[i]) return false;
+        return true;
+    }
+
     // ---- textures ----
 
     /** the textures of one asset, each one only once */
     static final class Textures {
         final Map<String, Integer> indices = new HashMap<>();
         final List<String> dataUrls = new ArrayList<>();
+        /** per texture-index: if all pixels are opaque */
+        final Map<Integer, Boolean> opaque = new HashMap<>();
 
         /** @return the index of the texture, -1 if it does not exist */
         int add(String key, Resources resources) {
@@ -633,11 +762,21 @@ public class ItemModelBaker {
                     ImageIO.write(image, "png", out);
                     dataUrls.add("data:image/png;base64," + Base64.getEncoder().encodeToString(out.toByteArray()));
                     result = dataUrls.size() - 1;
+                    opaque.put(result, isOpaque(image));
                 } catch (IOException ignored) {}
             }
             indices.put(key, result);
             return result;
         }
+    }
+
+    private static boolean isOpaque(BufferedImage image) {
+        for (int x = 0; x < image.getWidth(); x++) {
+            for (int y = 0; y < image.getHeight(); y++) {
+                if ((image.getRGB(x, y) >>> 24) < 255) return false;
+            }
+        }
+        return true;
     }
 
     // ---- output ----

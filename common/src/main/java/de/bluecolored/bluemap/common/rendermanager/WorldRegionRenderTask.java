@@ -268,6 +268,32 @@ public class WorldRegionRenderTask implements MapRenderTask {
         map.save(TimeUnit.MINUTES.toMillis(1));
     }
 
+    /**
+     * BlueMap Live: the chunks of a tile with the timestamp of the rendered data (this region: the current
+     * region-file-timestamps, other regions: the last rendered ones), <code>[x, z, time, ...]</code>
+     */
+    private int[] renderedChunkTimes(Vector2i tile) {
+        int[] hashes = chunkHashes;
+        int minX = tileGrid.getCellMinX(tile.getX(), chunkGrid), maxX = tileGrid.getCellMaxX(tile.getX(), chunkGrid),
+                minZ = tileGrid.getCellMinY(tile.getY(), chunkGrid), maxZ = tileGrid.getCellMaxY(tile.getY(), chunkGrid);
+        List<Integer> result = new ArrayList<>();
+        for (int chunkX = minX; chunkX <= maxX && result.size() < 3 * 64; chunkX++) {
+            for (int chunkZ = minZ; chunkZ <= maxZ && result.size() < 3 * 64; chunkZ++) {
+                int time;
+                if (hashes != null && chunkX >= chunkMin.getX() && chunkX <= chunkMax.getX() &&
+                        chunkZ >= chunkMin.getY() && chunkZ <= chunkMax.getY()) {
+                    time = hashes[chunkIndex(chunkX - chunkMin.getX(), chunkZ - chunkMin.getY())];
+                } else {
+                    time = map.getMapChunkState().get(chunkX, chunkZ);
+                }
+                result.add(chunkX);
+                result.add(chunkZ);
+                result.add(time);
+            }
+        }
+        return result.stream().mapToInt(Integer::intValue).toArray();
+    }
+
     /** BlueMap Live: at most this many tiles of one task save their lowres-tiles at once */
     static final int LIVE_LOWRES_SAVE_LIMIT = 16;
 
@@ -275,7 +301,7 @@ public class WorldRegionRenderTask implements MapRenderTask {
     private final List<Vector2i> updatedTiles = new ArrayList<>();
 
     private void updated(Vector2i tile) {
-        LiveTileLog.of(map.getId()).hires(tile.getX(), tile.getY(), System.currentTimeMillis());
+        LiveTileLog.of(map.getId()).hires(tile.getX(), tile.getY(), System.currentTimeMillis(), renderedChunkTimes(tile));
         synchronized (updatedTiles) {
             if (updatedTiles.size() <= LIVE_LOWRES_SAVE_LIMIT) updatedTiles.add(tile);
         }

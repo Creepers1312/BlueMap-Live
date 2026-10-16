@@ -47,8 +47,13 @@ public class LiveTileLog {
     /** a protection against huge amounts (e.g. a full render): older entries are dropped */
     public static final int MAX_ENTRIES = 2048;
 
-    /** a hires-tile that was rendered (hires), or whose lowres-tiles were saved (lowres) */
-    public record Entry(long id, int x, int z, boolean lowres, long time) {}
+    /**
+     * A hires-tile that was rendered (hires), or whose lowres-tiles were saved (lowres).
+     * @param chunks hires: the chunks of the tile with the time (epoch-seconds) the rendered chunk-data was saved
+     *               (the region-file timestamp): <code>[x, z, time, x, z, time, ...]</code>, so the webapp knows which
+     *               block-changes the tile shows (see BlockPreview.js); empty if unknown
+     */
+    public record Entry(long id, int x, int z, boolean lowres, long time, int[] chunks) {}
 
     private static final Map<String, LiveTileLog> LOGS = new ConcurrentHashMap<>();
     private static volatile boolean enabled = true;
@@ -71,16 +76,20 @@ public class LiveTileLog {
     private long nextId = 1;
 
     public synchronized void hires(int x, int z, long time) {
-        add(x, z, false, time);
+        hires(x, z, time, new int[0]);
+    }
+
+    public synchronized void hires(int x, int z, long time, int[] chunks) {
+        add(x, z, false, time, chunks);
     }
 
     public synchronized void lowres(int x, int z, long time) {
-        add(x, z, true, time);
+        add(x, z, true, time, new int[0]);
     }
 
-    private void add(int x, int z, boolean lowres, long time) {
+    private void add(int x, int z, boolean lowres, long time, int[] chunks) {
         if (!enabled) return;
-        entries.addLast(new Entry(nextId++, x, z, lowres, time));
+        entries.addLast(new Entry(nextId++, x, z, lowres, time, chunks));
         while (entries.size() > MAX_ENTRIES) entries.removeFirst();
     }
 
@@ -117,6 +126,11 @@ public class LiveTileLog {
             json.name("x").value(entry.x());
             json.name("z").value(entry.z());
             if (entry.lowres()) json.name("lowres").value(true);
+            if (entry.chunks().length > 0) {
+                json.name("chunks").beginArray();
+                for (int value : entry.chunks()) json.value(value);
+                json.endArray();
+            }
             json.endObject();
         }
         json.endArray();

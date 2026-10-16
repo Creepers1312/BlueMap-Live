@@ -16,6 +16,13 @@ val yarnMappings = "${minecraftVersion}+build.1"
 val fabricLoaderVersion = "0.17.2"
 val fabricApiVersion = "0.100.1+${minecraftVersion}"
 
+// BlueMap Live: the mixin for the block-changes (see docs/bluemap-live/phase-11.md)
+loom {
+    mixin {
+        defaultRefmapName.set("bluemap_live-refmap.json")
+    }
+}
+
 val shadowInclude: Configuration by configurations.creating
 configurations.api.get().extendsFrom(shadowInclude)
 

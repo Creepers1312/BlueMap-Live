@@ -86,6 +86,9 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
         this.itemRequester = itemRequester;
     }
 
+    /** requests with this prefix are block-states (the java ItemAssetUpdater.BLOCK_PREFIX) */
+    public static final String BLOCK_PREFIX = "block:";
+
     /** the textures of the particles (cheap if they were requested before) */
     static void requestParticleTextures(Consumer<String> itemRequester) {
         for (String texture : ParticleState.TEXTURES) itemRequester.accept(LivePlayersDataSupplier.TEXTURE_PREFIX + texture);
@@ -101,6 +104,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
         List<LiveEntityState> result = new ArrayList<>();
         List<LiveEffect> effects = new ArrayList<>();
         List<OpenContainer> containers = new ArrayList<>();
+        List<LiveBlockLog.Change> blocks = new ArrayList<>();
         if (config.isLiveEntities() && config.isLivePlayerMarkers() && serverWorld != null) {
 
             // the positions of the players that are shown on this map
@@ -133,6 +137,25 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                             break;
                         }
                     }
+                }
+
+                // block-changes (previews until the tile is rendered again)
+                if (config.isLiveBlockPreviewEnabled()) {
+                    double blockRadius = config.getLiveBlockPreviewRadius();
+                    double blockRadiusSquared = blockRadius * blockRadius;
+                    java.util.Set<String> states = new java.util.HashSet<>();
+                    for (LiveBlockLog.Change change : server.getLiveBlockChanges(serverWorld)) {
+                        Vector3d center = new Vector3d(change.x() + 0.5, change.y() + 0.5, change.z() + 0.5);
+                        for (Vector3d player : players) {
+                            if (player.distanceSquared(center) <= blockRadiusSquared) {
+                                blocks.add(change);
+                                states.add(change.state());
+                                if (change.neighbors() != null) for (String n : change.neighbors()) if (n != null) states.add(n);
+                                break;
+                            }
+                        }
+                    }
+                    for (String state : states) itemRequester.accept(BLOCK_PREFIX + state);
                 }
 
                 for (OpenContainer container : server.getOpenContainers(serverWorld)) {
@@ -170,7 +193,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
 
         try (StringWriter jsonString = new StringWriter();
              JsonWriter json = new JsonWriter(jsonString)) {
-            LiveEntitiesJson.write(json, System.currentTimeMillis(), updateIntervalMillis, result, effects, containers);
+            LiveEntitiesJson.write(json, System.currentTimeMillis(), updateIntervalMillis, result, effects, containers, blocks);
             json.flush();
             return jsonString.toString();
         } catch (IOException ex) {

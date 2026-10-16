@@ -60,6 +60,7 @@ public class ItemAssetUpdater {
     private final Set<String> requested = ConcurrentHashMap.newKeySet();
     private final Set<String> requestedEntities = ConcurrentHashMap.newKeySet();
     private final Set<String> requestedTextures = ConcurrentHashMap.newKeySet();
+    private final Set<String> requestedBlocks = ConcurrentHashMap.newKeySet();
     private @Nullable ItemModelBaker.Resources resources;
     private long lastResourcesUse = 0;
 
@@ -118,6 +119,7 @@ public class ItemAssetUpdater {
      */
     public CompletableFuture<Void> request(String itemId) {
         if (itemId.startsWith(TEXTURE_PREFIX)) return requestTexture(itemId.substring(TEXTURE_PREFIX.length()));
+        if (itemId.startsWith(BLOCK_PREFIX)) return requestBlock(itemId.substring(BLOCK_PREFIX.length()));
         if (requested.contains(itemId) || requested.size() >= MAX_ITEMS) return CompletableFuture.completedFuture(null);
         if (!ItemModelBaker.Key.isValid(itemId)) return CompletableFuture.completedFuture(null);
         if (!requested.add(itemId)) return CompletableFuture.completedFuture(null);
@@ -127,6 +129,58 @@ public class ItemAssetUpdater {
                 if (!write(itemId)) requested.remove(itemId); // not ready yet, try again with the next request
             } catch (Exception ex) {
                 Logger.global.logWarning("Failed to create the item-asset for '" + itemId + "': " + ex);
+            }
+        }, executor);
+    }
+
+    /** requests with this prefix are block-states (see {@link #requestBlock}) */
+    public static final String BLOCK_PREFIX = "block:";
+
+    private static final java.util.regex.Pattern BLOCK_STATE = java.util.regex.Pattern.compile(
+            "[a-z0-9_.-]+:[a-z0-9_./-]+(\\[[a-z0-9_]+=[a-z0-9_]+(,[a-z0-9_]+=[a-z0-9_]+)*])?");
+
+    /** if the block-state is valid (and normalized: properties sorted by name) */
+    public static boolean isValidBlockState(String state) {
+        return state.length() <= 512 && BLOCK_STATE.matcher(state).matches();
+    }
+
+    /**
+     * <code>minecraft:oak_stairs[facing=east,half=bottom]</code> -> <code>blocks/minecraft/oak_stairs/facing_east__half_bottom.json</code>
+     * (the webapp builds the same name, see BlockPreview.js), <code>blocks/minecraft/stone/default.json</code> without properties
+     */
+    public static String blockAssetName(String state) {
+        int bracket = state.indexOf('[');
+        String id = bracket < 0 ? state : state.substring(0, bracket);
+        ItemModelBaker.Key key = ItemModelBaker.Key.parse(id);
+        String properties = bracket < 0 ? "default" :
+                state.substring(bracket + 1, state.length() - 1).replace('=', '_').replace(",", "__");
+        return "blocks/" + key.namespace() + "/" + key.path() + "/" + properties + ".json";
+    }
+
+    /**
+     * BlueMap Live: makes sure the block-asset of a block-state exists (previews of changed blocks, see
+     * {@link ItemModelBaker#bakeBlock}).
+     */
+    public CompletableFuture<Void> requestBlock(String state) {
+        if (!isValidBlockState(state)) return CompletableFuture.completedFuture(null);
+        if (requestedBlocks.size() >= MAX_ITEMS || !requestedBlocks.add(state)) return CompletableFuture.completedFuture(null);
+
+        return CompletableFuture.runAsync(() -> {
+            try {
+                Collection<MapStorage> mapStorages = storages.get();
+                ItemModelBaker.Resources resources = mapStorages != null ? getResources() : null;
+                if (resources == null) {
+                    requestedBlocks.remove(state); // not ready yet
+                    return;
+                }
+                byte[] json = new ItemModelBaker(resources).bakeBlock(state).getBytes(StandardCharsets.UTF_8);
+                for (MapStorage storage : mapStorages) {
+                    try (OutputStream out = storage.asset(blockAssetName(state)).write()) {
+                        out.write(json);
+                    }
+                }
+            } catch (Exception ex) {
+                Logger.global.logWarning("Failed to create the block-asset for '" + state + "': " + ex);
             }
         }, executor);
     }

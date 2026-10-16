@@ -145,6 +145,14 @@ public interface Server {
     }
 
     /**
+     * The recent block-changes in a world (BlueMap Live), oldest first.
+     * Platforms that do not support this return an empty list.
+     */
+    default List<de.bluecolored.bluemap.common.live.LiveBlockLog.Change> getLiveBlockChanges(ServerWorld world) {
+        return List.of();
+    }
+
+    /**
      * The opened containers (chests) in a world whose lids the webapp animates (BlueMap Live).
      * Platforms that do not support this return an empty list.
      */
