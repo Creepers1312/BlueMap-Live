@@ -266,7 +266,9 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 - Bestätigt: Tag-Nacht-Zyklus, Gegenstände auf dem Kopf, Tropenfische, Schlagposen, Rüstung, Pandas, Verzauberungsglanz, Sitzpose (nach den Korrekturen unten); Gesamturteil „läuft und passt“.
 - Dabei gefunden und behoben: Rüstung fehlte im fertigen Spiel, sitzende Wölfe und Katzen waren um 90° gekippt, Pandas fehlten (gleiche Ursache), der Glanz stand still.
 - Ebenfalls bestätigt: springende Slimes, Warden, Halsbänder, Pferderüstung.
-- Nicht einzeln zurückgemeldet: Lama-Teppiche, Verzierungen, Köpfe (Schädel), Schlafen im Bett.
+- Danach gemeldet und behoben: Reitpose fehlte; Reiter und Pferd liefen auseinander; Boote fehlten; beim Pferd fehlten Grasen, Steigen und Galopp.
+- Bestätigt nach diesen Korrekturen: „okay klappt“ (Pferdeanimation, Reiten).
+- Nicht einzeln zurückgemeldet: Lama-Teppiche, Verzierungen, Köpfe (Schädel), Schlafen im Bett, Boote und Loren (Q21).
 
 | # | Prüfung | Erwartung |
 |---|---|---|
