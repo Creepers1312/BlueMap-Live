@@ -310,6 +310,9 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q33 | Truhe, Fallentruhe, Doppeltruhe und Endertruhe öffnen und wieder schließen | Deckel klappt auf der Karte auf und zu wie im Spiel, mit der richtigen Textur; geschlossen wieder normal |
 | Q34 | Fass öffnen | Nach etwa 10–20 s zeigt das Fass auf der Karte den offenen Deckel (Blockzustand) |
 | Q35 | `live-block-updates: false` in `plugin.conf`, `/bluemap reload` | Karte verhält sich wie im Original (Änderungen erst nach Minuten bzw. mit „Karte aktualisieren“) |
+| Q36 | Karte offen, im Spiel schnell hintereinander Blöcke setzen und abbauen (auch Treppen, Glas, Stufen), TNT zünden, Wasser fließen lassen | Gesetzte und abgebaute Blöcke erscheinen nach unter 1–2 s als Vorschau; nach 10–20 s wird die Kachel geladen, ohne Sprung zurück; Treppen/Stufen in richtiger Richtung |
+| Q37 | `live-block-preview: false` in `plugin.conf`, `/bluemap reload` | Keine Sofort-Vorschau mehr, Änderungen kommen wie in Q32 nach 10–20 s |
+| Q38 | Fackel in der Hand halten und Feuer anschauen (brennender Zombie) | Flammen sind animiert (vorher nur ein Standbild) |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 
