@@ -150,8 +150,9 @@ final class FabricMobs {
         HeldItem mainHand = FabricPlayer.toHeldItem(entity.getMainHandStack());
         HeldItem offHand = FabricPlayer.toHeldItem(entity.getOffHandStack());
         Armor armor = FabricArmor.sample(entity);
-        Equipment equipment = mainHand != null || offHand != null || !armor.isEmpty() ?
-                new Equipment(mainHand, offHand, entity.getMainArm() == Arm.LEFT, false, armor) : null;
+        HeldItem head = FabricArmor.headItem(entity);
+        Equipment equipment = mainHand != null || offHand != null || !armor.isEmpty() || head != null ?
+                new Equipment(mainHand, offHand, entity.getMainArm() == Arm.LEFT, false, armor, head) : null;
 
         return new LiveMobState(
                 entity.bodyYaw,

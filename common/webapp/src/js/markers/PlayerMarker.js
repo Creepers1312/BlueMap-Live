@@ -164,6 +164,7 @@ export class PlayerMarker extends Marker {
 
         this.updateSkin(markerData.skin);
         this.model.setArmor(markerData.equipment ? markerData.equipment.armor : null);
+        this.model.setHeadItem(markerData.equipment ? markerData.equipment.head : null);
 
         // update name
         let name = markerData.name || this.data.playerUuid;

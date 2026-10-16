@@ -613,3 +613,17 @@ test("poses: sitting and lying panda, standing polar bear like the vanilla model
     near(model.poseGroup.position.y, 1.3, "lifted by 1.3");
     model.dispose();
 });
+
+test("head-items: a carved pumpkin on the head follows the head (vanilla HeadFeatureRenderer)", () => {
+    const cache = fakeMobCache({"minecraft:entity/zombie/zombie": 1});
+    const items = {acquire: () => ({state: "loading", listeners: new Set(), models: []}), release() {}, retry() {}};
+    const zombie = new MobModel("minecraft:zombie", MOB_TYPES["minecraft:zombie"], cache, null);
+    assert.equal(zombie.headSlot, null, "no item-cache: no slot");
+    zombie.dispose();
+
+    assert.equal(MOB_TYPES["minecraft:zombie"].headItem, true);
+    assert.equal(MOB_TYPES["minecraft:villager"].headItem, "villager");
+    assert.equal(MOB_TYPES["minecraft:giant"].headItem, false, "the giant-renderer has no head-feature");
+    assert.deepEqual(MOB_TYPES["minecraft:piglin"].headItemScale, [1.0019531, 1, 1.0019531]);
+    assert.equal(MOB_TYPES["minecraft:cow"].headItem, undefined);
+});

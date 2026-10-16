@@ -296,6 +296,29 @@ export class PlayerModel extends Group {
         if (this.armor) this.armor.update(armor);
     }
 
+    /**
+     * vanilla HeadFeatureRenderer: an item on the head that is no helmet (e.g. a carved pumpkin), in the vanilla
+     * model-space of the head: translate (0, -0.25, 0), y 180°, scale (0.625, -0.625, -0.625), the item (mode "head")
+     * @param item {{id: string} | null}
+     */
+    setHeadItem(item) {
+        if (!this.itemCache) return;
+        if (!this.headItem) {
+            const blocks = new Group();
+            blocks.name = "head-item";
+            blocks.scale.setScalar(16);
+            this.armorAnchor("head").add(blocks);
+            const head = new Group();
+            head.position.set(0, -0.25, 0);
+            head.rotation.set(0, Math.PI, 0);
+            head.scale.set(0.625, -0.625, -0.625);
+            blocks.add(head);
+            this.headItem = new ItemView(this.itemCache, "head");
+            head.add(this.headItem);
+        }
+        this.headItem.update(item ? item.id : null);
+    }
+
     /** @private */
     armorAnchor(boneName) {
         if (!boneName) return null;
@@ -315,6 +338,7 @@ export class PlayerModel extends Group {
      */
     dispose() {
         if (this.armor) this.armor.dispose();
+        if (this.headItem) this.headItem.dispose();
         for (const slot of Object.values(this.itemSlots)) slot.dispose();
         this.skinCache.defaultSkinListeners.delete(this.onSkinStateChanged);
         if (this.skin) {

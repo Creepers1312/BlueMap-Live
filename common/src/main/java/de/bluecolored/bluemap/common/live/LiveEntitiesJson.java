@@ -110,7 +110,8 @@ public final class LiveEntitiesJson {
             json.endArray();
         }
         Equipment equipment = mob.equipment();
-        if (equipment != null && (equipment.mainHand() != null || equipment.offHand() != null || equipment.armor() != null)) {
+        if (equipment != null && (equipment.mainHand() != null || equipment.offHand() != null || equipment.armor() != null ||
+                equipment.head() != null)) {
             json.name("equipment").beginObject();
             if (equipment.mainHand() != null) {
                 json.name("mainHand");
@@ -122,6 +123,10 @@ public final class LiveEntitiesJson {
             }
             if (equipment.leftHanded()) json.name("mainArm").value("left"); // like the players
             if (equipment.armor() != null) LivePlayersJson.writeArmor(json, equipment.armor());
+            if (equipment.head() != null) {
+                json.name("head");
+                LivePlayersJson.writeItem(json, equipment.head());
+            }
             json.endObject();
         }
         json.endObject();

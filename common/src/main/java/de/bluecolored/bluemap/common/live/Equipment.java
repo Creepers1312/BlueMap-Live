@@ -34,14 +34,21 @@ import org.jetbrains.annotations.Nullable;
  * @param leftHanded true if the main hand of the player is the left one
  * @param fishing true if the player has cast a fishing rod
  * @param armor the worn armor, null if none
+ * @param head an item worn on the head that is no helmet (vanilla HeadFeatureRenderer, e.g. a carved pumpkin or a
+ *             block), null if none
  */
 public record Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand, boolean leftHanded, boolean fishing,
-                        @Nullable Armor armor) {
+                        @Nullable Armor armor, @Nullable HeldItem head) {
 
     public static final Equipment EMPTY = new Equipment(null, null, false, false);
 
     public Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand, boolean leftHanded, boolean fishing) {
         this(mainHand, offHand, leftHanded, fishing, null);
+    }
+
+    public Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand, boolean leftHanded, boolean fishing,
+                     @Nullable Armor armor) {
+        this(mainHand, offHand, leftHanded, fishing, armor, null);
     }
 
     public Equipment {

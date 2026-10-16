@@ -117,6 +117,8 @@ export function parseEquipment(value) {
         leftHanded: value.mainArm === "left",
         fishing: value.fishing === true,
         armor: parseArmor(value.armor),
+        // an item on the head that is no helmet (vanilla HeadFeatureRenderer)
+        head: parseItem(value.head),
     };
 }
 

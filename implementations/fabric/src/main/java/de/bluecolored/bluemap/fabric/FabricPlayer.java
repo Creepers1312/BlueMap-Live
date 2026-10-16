@@ -223,9 +223,10 @@ public class FabricPlayer extends Player {
         boolean fishing = player.fishHook != null;
         Armor armor = FabricArmor.sample(player);
         if (armor.isEmpty()) armor = null;
+        HeldItem head = FabricArmor.headItem(player);
         if (changed || leftHanded != equipment.leftHanded() || fishing != equipment.fishing() ||
-                !java.util.Objects.equals(armor, equipment.armor())) {
-            equipment = new Equipment(mainHandItem, offHandItem, leftHanded, fishing, armor);
+                !java.util.Objects.equals(armor, equipment.armor()) || !java.util.Objects.equals(head, equipment.head())) {
+            equipment = new Equipment(mainHandItem, offHandItem, leftHanded, fishing, armor, head);
         }
         return equipment;
     }

@@ -42,7 +42,7 @@ export const MAX_ATTEMPTS = 15;
  * (e.g. item-assets of 0.1.0 without the ground-transformation) would be used after an update. Increase it whenever the
  * content of the item-, entity- or mob-assets changes.
  */
-export const ASSET_VERSION = 3;
+export const ASSET_VERSION = 4;
 
 /**
  * @param baseUrl {string | null}
@@ -341,7 +341,8 @@ export class ItemAssetCache {
         const result = {
             type: model.type,
             predicate: model.predicate && typeof model.predicate === "object" ? model.predicate : null,
-            display: {right: display.right || null, left: display.left || display.right || null, ground: display.ground || null},
+            display: {right: display.right || null, left: display.left || display.right || null, ground: display.ground || null,
+                head: display.head || null},
             parts: [],
         };
 

@@ -63,14 +63,8 @@ const tempVector = new Vector3();
  * <p>Flying projectiles and thrown items are predicted between the samples with the vanilla physics (velocity, drag,
  * gravity per tick), every new sample only corrects the position smoothly. Dropped items are interpolated.</p>
  */
-/** the change of the cat-poses per tick (vanilla CatEntity.update*Animation) */
-const CAT_POSE_RATE = 0.1;
-/** the change of the panda-poses per tick (vanilla PandaEntity.update*Animation) */
-const PANDA_POSE_RATE = 0.15;
-/** vanilla PolarBearEntity: warningAnimationProgress runs up to 6 ticks, getWarningAnimationProgress divides by 6 */
-const WARNING_RATE = 1 / 6;
-
-const approach = (value, target, step) => value < target ? Math.min(target, value + step) : Math.max(target, value - step);
+/** a pose-progress (0..1) that runs up while active and down otherwise, per tick */
+const progress = (value, active, up, down, ticks) => active ? Math.min(1, value + up * ticks) : Math.max(0, value - down * ticks);
 
 export class EntityMarker extends Marker {
 
@@ -253,6 +247,7 @@ export class EntityMarker extends Marker {
                 offHand: equipment ? equipment.offHand : null,
                 leftHanded: !!(equipment && equipment.leftHanded),
                 armor: equipment ? equipment.armor : null,
+                head: equipment ? equipment.head : null,
             });
         } else if (this.view && this.view.isPlaceholderModel) {
             this.view.setSize(mob.width, mob.height);
@@ -400,13 +395,16 @@ export class EntityMarker extends Marker {
         this.attackTicks = Math.max(0, this.attackTicks - ticks);
         const catPose = this.catPose;
         const lying = mob.flags.has("lying");
-        catPose.sleep = approach(catPose.sleep, lying ? 1 : 0, CAT_POSE_RATE * ticks);
-        catPose.tailCurl = approach(catPose.tailCurl, lying ? 1 : 0, CAT_POSE_RATE * ticks);
-        catPose.headDown = approach(catPose.headDown, mob.flags.has("head_down") ? 1 : 0, CAT_POSE_RATE * ticks);
+        // vanilla CatEntity.updateSleepAnimation / updateHeadDownAnimation (per tick: up, down)
+        catPose.sleep = progress(catPose.sleep, lying, 0.15, 0.22, ticks);
+        catPose.tailCurl = progress(catPose.tailCurl, lying, 0.08, 0.13, ticks);
+        catPose.headDown = progress(catPose.headDown, mob.flags.has("head_down"), 0.1, 0.13, ticks);
+        // vanilla PandaEntity.updateSittingAnimation / updateLieOnBackAnimation
         const pandaPose = this.pandaPose;
-        pandaPose.sit = approach(pandaPose.sit, mob.flags.has("sitting") ? 1 : 0, PANDA_POSE_RATE * ticks);
-        pandaPose.lie = approach(pandaPose.lie, mob.flags.has("lying_on_back") ? 1 : 0, PANDA_POSE_RATE * ticks);
-        this.warning = approach(this.warning, mob.flags.has("warning") ? 1 : 0, WARNING_RATE * ticks);
+        pandaPose.sit = progress(pandaPose.sit, mob.flags.has("sitting"), 0.15, 0.19, ticks);
+        pandaPose.lie = progress(pandaPose.lie, mob.flags.has("lying_on_back"), 0.15, 0.19, ticks);
+        // vanilla PolarBearEntity.tick: warningAnimationProgress +-1 per tick up to 6, getWarningAnimationProgress / 6
+        this.warning = progress(this.warning, mob.flags.has("warning"), 1 / 6, 1 / 6, ticks);
         if (dying) this.deathTicks = Math.min(DEATH_TICKS, this.deathTicks + ticks);
 
         // vanilla ChickenEntity.tickMovement: the wings flap in the air (per tick)

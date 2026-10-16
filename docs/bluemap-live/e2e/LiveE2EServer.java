@@ -219,14 +219,15 @@ public class LiveE2EServer {
         //           /control?removeEntity=ID
         if (q.containsKey("entity")) {
             int id = Integer.parseInt(q.get("entity"));
-            // mobs: &mob=1&bodyYaw=..&headYaw=..&hurt=TICKS&death=TICKS&baby=1&variant=..&size=..&flags=a,b&main=ITEM&left=1&w=..&h=..&swing=TICKS&attack=TICKS
+            // mobs: &mob=1&bodyYaw=..&headYaw=..&hurt=TICKS&death=TICKS&baby=1&variant=..&size=..&flags=a,b&main=ITEM&left=1&w=..&h=..&swing=TICKS&attack=TICKS&head=ITEM
             LiveMobState mob = null;
             if ("1".equals(q.get("mob"))) {
                 HeldItem main = q.containsKey("main") ? new HeldItem(q.get("main")) : null;
                 mob = new LiveMobState(d(q, "bodyYaw"), q.containsKey("headYaw") ? d(q, "headYaw") : d(q, "bodyYaw"),
                         (int) d(q, "hurt"), (int) d(q, "death"), "1".equals(q.get("baby")),
-                        main != null || q.containsKey("armor") ? new Equipment(main, null, "1".equals(q.get("left")), false,
-                                q.containsKey("armor") ? armor(q.get("armor")) : null) : null,
+                        main != null || q.containsKey("armor") || q.containsKey("head") ? new Equipment(main, null, "1".equals(q.get("left")), false,
+                                q.containsKey("armor") ? armor(q.get("armor")) : null,
+                                q.containsKey("head") ? new HeldItem(q.get("head")) : null) : null,
                         q.get("variant"), (int) d(q, "size"),
                         q.containsKey("w") ? d(q, "w") : 0.6, q.containsKey("h") ? d(q, "h") : 1.95,
                         q.containsKey("models") ? List.of(q.get("models").split(";")) : List.of(),

@@ -15,7 +15,7 @@ const OUT = process.env.E2E_OUT || "e2e-out";
 mkdirSync(OUT, {recursive: true});
 
 // the colors of E2EItemResources (rgb)
-const COLORS = {mushroom: [255, 32, 128], grass: [64, 255, 64], iron: [160, 255, 0], leather: [51, 85, 255], zombie: [48, 144, 96], cow: [128, 64, 32], wool: [132, 34, 28], villager: [192, 128, 64], farmer: [255, 0, 192], sword: [0, 255, 255]};
+const COLORS = {stone: [255, 128, 0], mushroom: [255, 32, 128], grass: [64, 255, 64], iron: [160, 255, 0], leather: [51, 85, 255], zombie: [48, 144, 96], cow: [128, 64, 32], wool: [132, 34, 28], villager: [192, 128, 64], farmer: [255, 0, 192], sword: [0, 255, 255]};
 
 const results = [];
 async function step(name, fn) {
@@ -349,6 +349,17 @@ await step("tropical fish: the body in the base-color, the pattern over it in th
     const blue = await countColor("61-fish-pattern", await project(22, 0.2), [58, 179, 218], 60);
     assert.ok(blue > 10, `light-blue pattern pixels: ${blue}`);
     await control({removeEntity: 22});
+});
+
+await step("head-item: a block on the head of a zombie follows the head (vanilla HeadFeatureRenderer)", async () => {
+    await mob(23, "minecraft:zombie", 8.5, 9.5, {bodyYaw: 0, head: "minecraft:stone"});
+    await waitForEntity(23, "m.view.visible && m.view.headSlot.itemId === 'minecraft:stone' && m.view.headSlot.content.children.length > 0", 10000);
+    await sleep(800);
+    const stone = await countColor("62-head-stone", await project(23, 1.9), COLORS.stone, 70);
+    assert.ok(stone > 30, `stone pixels on the head: ${stone}`);
+    const below = await countColor("62-head-stone", await project(23, 0.6), COLORS.stone, 25);
+    assert.ok(below < 5, `not at the legs: ${below}`);
+    await control({removeEntity: 23});
 });
 
 await step("no uncaught errors", async () => {

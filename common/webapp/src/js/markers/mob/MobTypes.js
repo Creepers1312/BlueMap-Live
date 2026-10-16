@@ -64,12 +64,17 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  *     slime?: boolean,                  scaled by the size (vanilla SlimeEntityRenderer)
  *     creeper?: boolean,                swells before the explosion (vanilla CreeperEntityRenderer)
  *     mushrooms?: boolean,              the mushrooms of the mooshroom (block-model from mob.models)
- *     carriedBlock?: boolean            the block of the enderman (block-model from mob.models)
+ *     carriedBlock?: boolean,           the block of the enderman (block-model from mob.models)
+ *     headItem?: boolean | "villager",  vanilla HeadFeatureRenderer: an item on the head (villager: 3 px higher)
+ *     headItemScale?: number[]          the scale the renderer passes to the HeadFeatureRenderer
  * }}
  */
 
+/** vanilla PiglinEntityRenderer: the HeadFeatureRenderer-scale */
+const PIGLIN_HEAD_SCALE = [1.0019531, 1, 1.0019531];
+
 const biped = (animation, model, texture, extra = {}) => ({
-    animation, layers: [{model, texture}], child: BIPED_CHILD, headParts: ["head"], arms: true, ...extra,
+    animation, layers: [{model, texture}], child: BIPED_CHILD, headParts: ["head"], arms: true, headItem: true, ...extra,
 });
 
 /** "type/profession/level" -> the textures of vanilla VillagerClothingFeatureRenderer (in drawing-order) */
@@ -113,12 +118,13 @@ export const MOB_TYPES = {
     "minecraft:wither_skeleton": biped("skeleton", "minecraft:wither_skeleton#main", E + "skeleton/wither_skeleton", {scale: 1.2, slimArms: true}),
     "minecraft:zombie_villager": {
         ...biped("zombie", "minecraft:zombie_villager#main", null),
+        headItem: "villager",
         armorLayers: {inner: "minecraft:zombie_villager#inner_armor", outer: "minecraft:zombie_villager#outer_armor"},
         layers: [{model: "minecraft:zombie_villager#main", texture: mob => villagerTextures("zombie_villager", mob.variant, mob.baby)}],
     },
-    "minecraft:piglin": biped("piglin", "minecraft:piglin#main", E + "piglin/piglin", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR}),
-    "minecraft:piglin_brute": biped("piglin", "minecraft:piglin_brute#main", E + "piglin/piglin_brute", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR}),
-    "minecraft:zombified_piglin": biped("zombified_piglin", "minecraft:zombified_piglin#main", E + "piglin/zombified_piglin", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR}),
+    "minecraft:piglin": biped("piglin", "minecraft:piglin#main", E + "piglin/piglin", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR, headItemScale: PIGLIN_HEAD_SCALE}),
+    "minecraft:piglin_brute": biped("piglin", "minecraft:piglin_brute#main", E + "piglin/piglin_brute", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR, headItemScale: PIGLIN_HEAD_SCALE}),
+    "minecraft:zombified_piglin": biped("zombified_piglin", "minecraft:zombified_piglin#main", E + "piglin/zombified_piglin", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR, headItemScale: PIGLIN_HEAD_SCALE}),
 
     "minecraft:creeper": {
         animation: "creeper", creeper: true,
@@ -182,7 +188,7 @@ export const MOB_TYPES = {
         ],
     },
     "minecraft:villager": {
-        animation: "villager", scale: 0.9375, babyScale: 0.5,
+        animation: "villager", scale: 0.9375, babyScale: 0.5, headItem: "villager",
         layers: [{model: "minecraft:villager#main", texture: mob => villagerTextures("villager", mob.variant, mob.baby)}],
     },
 };
@@ -204,7 +210,7 @@ function wolfTexture(mob) {
     return E + "wolf/" + base + (mob.flags.has("angry") ? "_angry" : mob.flags.has("tame") ? "_tame" : "");
 }
 
-const ILLAGER = {scale: 0.9375, arms: true, hidden: []};
+const ILLAGER = {scale: 0.9375, arms: true, hidden: [], headItem: true};
 
 Object.assign(MOB_TYPES, {
     "minecraft:allay": simple("allay", "minecraft:allay#main", E + "allay/allay"),
@@ -249,7 +255,7 @@ Object.assign(MOB_TYPES, {
     "minecraft:fox": simple("fox", "minecraft:fox#main", mob => E + "fox/" + (mob.variant === "snow" ? "snow_fox" : "fox")),
     "minecraft:frog": simple("frog", "minecraft:frog#main", mob => E + "frog/" + (mob.variant || "temperate") + "_frog"),
     "minecraft:ghast": simple("ghast", "minecraft:ghast#main", mob => E + "ghast/ghast" + (mob.flags.has("shooting") ? "_shooting" : ""), {scale: 4.5}),
-    "minecraft:giant": biped("zombie", "minecraft:giant#main", E + "zombie/zombie", {scale: 6}),
+    "minecraft:giant": biped("zombie", "minecraft:giant#main", E + "zombie/zombie", {scale: 6, headItem: false}),
     "minecraft:glow_squid": simple("squid", "minecraft:glow_squid#main", E + "squid/glow_squid"),
     "minecraft:squid": simple("squid", "minecraft:squid#main", E + "squid/squid"),
     "minecraft:goat": simple("generic", "minecraft:goat#main", E + "goat/goat"),
@@ -317,7 +323,7 @@ Object.assign(MOB_TYPES, {
     },
     "minecraft:turtle": simple("generic", "minecraft:turtle#main", E + "turtle/big_sea_turtle"),
     "minecraft:vex": simple("allay", "minecraft:vex#main", mob => E + "illager/vex" + (mob.flags.has("charging") ? "_charging" : "")),
-    "minecraft:wandering_trader": simple("villager", "minecraft:wandering_trader#main", E + "wandering_trader", {scale: 0.9375}),
+    "minecraft:wandering_trader": simple("villager", "minecraft:wandering_trader#main", E + "wandering_trader", {scale: 0.9375, headItem: true}),
     "minecraft:warden": simple("generic", "minecraft:warden#main", E + "warden/warden"),
     "minecraft:witch": simple("villager", "minecraft:witch#main", E + "witch", {scale: 0.9375}),
     "minecraft:wither": simple("wither", "minecraft:wither#main", E + "wither/wither", {scale: 2}),

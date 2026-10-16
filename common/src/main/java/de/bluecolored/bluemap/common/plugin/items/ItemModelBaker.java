@@ -53,7 +53,7 @@ import java.util.*;
 /**
  * Bakes the (third-person) item-model of an item into a self-contained json-asset for the webapp:
  * resolved faces (positions in block-units 0..1, uvs 0..1), the textures as png-data-urls (first frame of animated
- * textures), the <code>thirdperson_righthand/lefthand</code> and <code>ground</code> display-transformations and the overrides.
+ * textures), the <code>thirdperson_righthand/lefthand</code>, <code>ground</code> and <code>head</code> display-transformations and the overrides.
  * <p>Follows the vanilla rules: the parent-chain is merged (textures by key, elements and each display-mode from the
  * nearest model that defines them), <code>builtin/generated</code> models are extruded from their layer-textures
  * like the vanilla <code>ItemModelGenerator</code>, faces and uvs are created with BlueMaps own model-classes
@@ -84,11 +84,12 @@ public class ItemModelBaker {
     static final int MAX_QUADS = 8192;
     static final int MAX_TEXTURE_SIZE = 512;
 
-    private static final String[] DISPLAY_MODES = {"thirdperson_righthand", "thirdperson_lefthand", "ground"};
+    private static final String[] DISPLAY_MODES = {"thirdperson_righthand", "thirdperson_lefthand", "ground", "head"};
     private static final Map<String, String> DISPLAY_NAMES = Map.of(
             "thirdperson_righthand", "right",
             "thirdperson_lefthand", "left",
-            "ground", "ground"
+            "ground", "ground",
+            "head", "head"
     );
 
     private final Resources resources;

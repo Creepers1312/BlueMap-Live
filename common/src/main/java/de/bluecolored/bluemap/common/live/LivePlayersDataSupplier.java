@@ -127,6 +127,7 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                     if (equipment.mainHand() != null) itemRequester.accept(equipment.mainHand().id());
                     if (equipment.offHand() != null) itemRequester.accept(equipment.offHand().id());
                     if (equipment.armor() != null) equipment.armor().textures().forEach(t -> itemRequester.accept(TEXTURE_PREFIX + t));
+                    if (equipment.head() != null) itemRequester.accept(equipment.head().id());
                 }
 
                 entries.add(new LivePlayersJson.Entry(

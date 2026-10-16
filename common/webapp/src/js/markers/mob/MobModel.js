@@ -168,6 +168,7 @@ export class MobModel extends Group {
             this.itemSlots = {right: this.createItemSlot("right", itemCache), left: this.createItemSlot("left", itemCache)};
         }
         this.items = {mainHand: null, offHand: null, leftHanded: false};
+        this.headSlot = mobType.headItem && itemCache ? this.createHeadSlot(itemCache) : null;
 
         // block-models rendered with the mob (vanilla feature-renderers), in the model-space in blocks (after the flip)
         this.blocks = [];
@@ -339,6 +340,7 @@ export class MobModel extends Group {
             meshes[0].material.map.offset.set(shift, -shift);
         }
         if (this.itemSlots) this.updateItems();
+        if (this.headSlot) this.updateHeadItem();
         if (this.blocks.length) this.updateBlocks();
     }
 
@@ -468,6 +470,57 @@ export class MobModel extends Group {
         return view;
     }
 
+    /**
+     * vanilla HeadFeatureRenderer (an item on the head that is no helmet): scale of the renderer, babies (no villagers)
+     * translate (0, 1/32, 0), scale 0.7, translate (0, 1, 0), then head.rotate and translate(): (0, -0.25, 0),
+     * y 180°, scale (0.625, -0.625, -0.625), villagers 0.1875 higher, then the item (display-mode "head").
+     * In the model-space of the root (pixels), not in the scaled head-group of the babies.
+     * @private
+     */
+    createHeadSlot(itemCache) {
+        const baby = new Group();
+        baby.name = "head-item-baby";
+        this.root.add(baby);
+        const anchor = new Group();
+        anchor.name = "head-item-anchor";
+        anchor.rotation.order = "ZYX";
+        baby.add(anchor);
+        const blocks = new Group();
+        blocks.scale.setScalar(16);
+        anchor.add(blocks);
+        const head = new Group();
+        head.position.set(0, -0.25, 0);
+        head.rotation.set(0, Math.PI, 0);
+        head.scale.set(0.625, -0.625, -0.625);
+        blocks.add(head);
+        const villager = new Group();
+        if (this.mobType.headItem === "villager") villager.position.y = 0.1875;
+        head.add(villager);
+        const view = new ItemView(itemCache, "head");
+        view.anchor = anchor;
+        view.babyGroup = baby;
+        villager.add(view);
+        return view;
+    }
+
+    /** @private */
+    updateHeadItem() {
+        const slot = this.headSlot;
+        const head = this.transforms.head;
+        const item = this.items.head || null;
+        const s = this.mobType.headItemScale || [1, 1, 1];
+        const baby = this.mob.baby && this.mobType.headItem !== "villager";
+        // babies: T(0, 1/32) S(0.7) T(0, 1) in blocks = pixels * 16 (after the renderer-scale)
+        slot.babyGroup.scale.set(s[0] * (baby ? 0.7 : 1), s[1] * (baby ? 0.7 : 1), s[2] * (baby ? 0.7 : 1));
+        slot.babyGroup.position.set(0, baby ? 0.5 + 0.7 * 16 * s[1] : 0, 0);
+        if (head) {
+            slot.anchor.position.set(head.pivotX, head.pivotY, head.pivotZ);
+            slot.anchor.rotation.set(head.pitch, head.yaw, head.roll);
+        }
+        slot.anchor.visible = this.visible && !!item;
+        slot.update(item ? item.id : null);
+    }
+
     /** @private */
     updateItems() {
         const items = this.items;
@@ -496,6 +549,7 @@ export class MobModel extends Group {
             this.itemSlots.right.dispose();
             this.itemSlots.left.dispose();
         }
+        if (this.headSlot) this.headSlot.dispose();
         this.asset.listeners.delete(this.onAssetChanged);
         this.assetCache.release(this.asset);
         this.asset = null;

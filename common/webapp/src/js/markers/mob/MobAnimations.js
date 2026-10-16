@@ -678,7 +678,15 @@ export function hoglin(p, input) {
     p.head.yaw = input.headYaw * DEG;
     // getMovementCooldownTicks (10 .. 0 after an attack): up to -20 degrees at the half
     const k = 1 - Math.abs(10 - 2 * Math.max(0, input.attackTicks || 0)) / 10;
-    p.head.pitch = 0.87266463 + (-PI / 9 - 0.87266463) * Math.max(0, k);
+    p.head.pitch = 0.87266463 + (-0.34906584 - 0.87266463) * Math.max(0, k);
+    // the mane (and the head of babies) are placed by setAngles, not by the model-data
+    if (input.baby) {
+        p.head.pivotY = 2 + 3 * Math.max(0, k);
+        if (p["body/mane"]) p["body/mane"].pivotZ = -3;
+    } else {
+        p.head.pivotY = 2;
+        if (p["body/mane"]) p["body/mane"].pivotZ = -7;
+    }
     const front = cos(f) * 1.2 * g;
     p.right_front_leg.pitch = front;
     p.left_front_leg.pitch = -front;
@@ -698,10 +706,12 @@ export function ravager(p, input) {
         p.neck.pivotZ = -6.5 + q;
         p.neck.pivotY = -7 - q * sin(p.neck.pitch);
         p["neck/head/mouth"].pitch = l > 5 ? sin((l - 4) / 4) * PI * 0.4 : PI / 20 * sin(PI * l / 10);
-    } else {
+    } else { // not stunned: neck at rest, the jaw slightly open (PI * 0.01)
+        p.neck.pivotX = 0;
         p.neck.pivotZ = 5.5;
         p.neck.pivotY = -7;
-        p["neck/head/mouth"].pitch = 0;
+        p.neck.pitch = 0;
+        p["neck/head/mouth"].pitch = PI * 0.01;
     }
     const leg = cos(f * 0.6662) * 0.4 * g;
     p.right_hind_leg.pitch = leg;
