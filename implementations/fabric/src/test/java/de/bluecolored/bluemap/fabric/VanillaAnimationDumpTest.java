@@ -70,6 +70,12 @@ public class VanillaAnimationDumpTest {
         METHODS.put(MODEL + "PiglinHeadEntityModel", Set.of("setHeadRotation"));
         // armor-trims: the texture-path of a trim
         METHODS.put("net/minecraft/item/trim/ArmorTrim", Set.of());
+        METHODS.put("net/minecraft/client/texture/atlas/PalettedPermutationsAtlasSource", Set.of());
+        METHODS.put("net/minecraft/client/texture/atlas/PalettedPermutationsAtlasSource$PalettedSpriteRegion", Set.of());
+        // the enchantment-glint: texturing (scroll, rotation, scale) and the textures of the render-layers
+        METHODS.put("net/minecraft/client/render/RenderPhase", Set.of("setupGlintTexturing", "<clinit>"));
+        METHODS.put("net/minecraft/client/render/RenderPhase$Texturing", Set.of());
+        METHODS.put("net/minecraft/client/render/item/ItemRenderer", Set.of("<clinit>"));
     }
 
     private static final Map<Integer, String> OPCODES = new HashMap<>();
