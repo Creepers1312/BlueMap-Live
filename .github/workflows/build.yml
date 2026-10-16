@@ -31,9 +31,16 @@ jobs:
       - name: Tests
         run: ./gradlew spotlessCheck test --stacktrace 2>&1 | tee test-output.txt; exit ${PIPESTATUS[0]}
       # BlueMap Live: the differences of the webapp mob-models to vanilla (if any) as annotations
+      # (github shows at most 10 annotations per type and step: 30 lines per step)
       - name: Vanilla model check
         if: always()
-        run: cat implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
+        run: head -n 30 implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
+      - name: Vanilla model check (2)
+        if: always()
+        run: sed -n '31,60p' implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
+      - name: Vanilla model check (3)
+        if: always()
+        run: sed -n '61,90p' implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
       # BlueMap Live: the reason of a failed test-run as annotation (the failures from the junit-reports)
       - name: Test failures
         if: failure()

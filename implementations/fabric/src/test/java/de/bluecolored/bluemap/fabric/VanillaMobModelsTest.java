@@ -150,7 +150,7 @@ public class VanillaMobModelsTest {
         StringBuilder current = new StringBuilder();
         for (String line : report) {
             String text = line.startsWith("error::") ? line.substring(7) : line.substring(2);
-            if (current.length() > 0 && current.length() + text.length() > 15000) {
+            if (current.length() > 0 && current.length() + text.length() > 3500) {
                 joined.add(current.toString());
                 current.setLength(0);
             }
@@ -160,7 +160,7 @@ public class VanillaMobModelsTest {
         if (current.length() > 0) joined.add(current.toString());
         List<String> lines = new ArrayList<>();
         for (int i = 0; i < joined.size(); i++) {
-            lines.add("::" + types[Math.min(i / 10, 2)] + " title=vanilla-model-check::" +
+            lines.add("::" + types[(i / 10) % 3] + " title=vanilla-model-check::" +
                     joined.get(i).replace("%", "%25").replace("\r", "").replace("\n", " "));
         }
         Path out = Path.of(System.getProperty("bluemap.modelCheckReport", "build/vanilla-model-check.txt"));
