@@ -119,6 +119,10 @@ public class VanillaAnimationDumpTest {
         METHODS.put("net/minecraft/entity/Entity", Set.of("isOnFire", "doesRenderOnFire", "getRemovalReason"));
         METHODS.put("net/minecraft/entity/TntEntity", Set.of("getFuse"));
         METHODS.put("net/fabricmc/fabric/api/event/lifecycle/v1/ServerEntityEvents", Set.of());
+        METHODS.put("net/minecraft/client/particle/SpellParticle$EntityFactory", Set.of());
+        METHODS.put("net/minecraft/client/particle/SpellParticle$DefaultFactory", Set.of());
+        METHODS.put("net/minecraft/client/particle/SpellParticle$InstantFactory", Set.of());
+        METHODS.put("net/minecraft/entity/effect/StatusEffect", Set.of("method_58145", "method_58147"));
         // horses: grazing, rearing, eating, tail, gallop (model and the animation-progress of the entity)
         METHODS.put(MODEL + "HorseEntityModel", Set.of());
         METHODS.put(MODEL + "DonkeyEntityModel", Set.of());
