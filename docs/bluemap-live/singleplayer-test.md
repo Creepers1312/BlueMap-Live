@@ -260,7 +260,12 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | P9 | Gesattelte Pferde/Strider, Esel/Lama mit Truhe | Sattel bzw. Truhen sichtbar |
 | P10 | Enderdrache | Platzhalter mit Namen |
 
-**Tag-Nacht-Zyklus der Welt, Schlag der Mobs, Posen, Ebenen (`phase-8.md`, alle offen)**
+**Tag-Nacht-Zyklus der Welt, Schlag der Mobs, Posen, Ebenen (`phase-8.md`)**
+
+Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
+- Bestätigt: Tag-Nacht-Zyklus, Gegenstände auf dem Kopf, Tropenfische, Schlagposen, Rüstung, Pandas, Verzauberungsglanz, Sitzpose (nach den Korrekturen unten); Gesamturteil „läuft und passt“.
+- Dabei gefunden und behoben: Rüstung fehlte im fertigen Spiel, sitzende Wölfe und Katzen waren um 90° gekippt, Pandas fehlten (gleiche Ursache), der Glanz stand still.
+- Nicht einzeln zurückgemeldet: Warden, springende Slimes, Halsbänder, Lama-Teppiche, Pferderüstung, Verzierungen, Köpfe (Schädel), Schlafen im Bett.
 
 | # | Prüfung | Erwartung |
 |---|---|---|

@@ -12,7 +12,7 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 >   - Gegenstände auf dem Kopf (geschnitzter Kürbis, Blöcke) und Köpfe (Schädel).
 >   - Rüstungsverzierungen und Verzauberungsglanz der Rüstung.
 > - **Woher die Werte stammen:** Die neuen Animationen und Feature-Renderer sind aus dem Bytecode von Minecraft 1.21.1 nachgebaut. Ein CI-Test gibt dazu die Instruktionen der Vanilla-Methoden aus (`VanillaAnimationDumpTest`), siehe Abschnitt 3.
-> - **Nicht geprüft:** Minecraft (manuelle Prüfungen Q1–Q19 offen).
+> - **In Minecraft geprüft** (Rückmeldung des Nutzers): Tag-Nacht-Zyklus, Kopf-Gegenstände, Tropenfische, Schlagposen, Rüstung, Pandas, Glanz und Sitzpose, nach den Korrekturen in Abschnitt 9. Nicht einzeln zurückgemeldet: siehe `singleplayer-test.md`.
 
 ## 1. Tag-Nacht-Zyklus der Welt
 
@@ -219,3 +219,14 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 - Der Fabric-Teil kompiliert nur in der CI.
 
 **Manuell in Minecraft:** Q1–Q6 in `singleplayer-test.md`, alle offen.
+
+## 9. Korrekturen nach dem Test in Minecraft
+
+| Problem | Ursache | Korrektur |
+|---|---|---|
+| Rüstung fehlte (lief im Browser-Test) | Im fertigen Spiel gelten Intermediary-Namen. `ArmorItem` hat zwei öffentliche Methoden ohne Parameter, die einen `RegistryEntry` liefern (`getMaterial`, `getEquipSound`); der Namensvergleich griff nur in der Testumgebung. Es entstand ein falscher Texturname. | Auswahl über den generischen Rückgabetyp `RegistryEntry<ArmorMaterial>` oder über den Wert. `Layer.getTexture` wird über das Ergebnis gewählt (`getTextureId` hat dieselbe Signatur), `isDyeable` über den Typ. Die Rückfallregel gilt nur für Rüstungsmaterial-Schlüssel. |
+| Sitzender Wolf bzw. Katze „in sich gedreht“, Pandas unsichtbar | Die Transformation des sitzenden Pandas (`PandaEntityRenderer`, 90° nach hinten) galt für jeden Mob mit der Flag `sitting` | Nur noch für Pandas; die Liegetransformation der Katze nur für Katzen |
+| Verzauberungsglanz stand still | Die Karte zeichnet nur bei Bewegung neu | Ein sichtbarer Glanz hält das Neuzeichnen am Laufen. Browsertest: Der Glanz bewegt sich ohne andere Bewegung. |
+| Warden und Slimes ohne Animation | fehlte | Warden: Laufen und Schwanken wie `WardenEntityModel.setAngles`. Slimes: Strecken und Stauchen wie `SlimeEntity.tick` und `SlimeEntityRenderer.scale` (aus dem CI-Dump). |
+
+**CI:** Der Dump der Vanilla-Methoden läuft nur noch, wenn er von Hand gestartet wird (Actions → CI → „Run workflow“). Das spart vier Jobs pro Push.
