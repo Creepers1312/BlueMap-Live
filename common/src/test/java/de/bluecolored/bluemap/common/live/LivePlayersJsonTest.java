@@ -135,6 +135,37 @@ public class LivePlayersJsonTest {
     }
 
     @Test
+    public void testVehicle() throws IOException {
+        LivePlayerState riding = new LivePlayerState(new Vector3d(10.5, 64.9, -20.25), new Vector3d(15, 90, 0), 80,
+                new Vector3d(0, 0, 0), 3, 123456789L, null, null, null, null, null,
+                new Vehicle(42, new Vector3d(0.25, 0.85, -0.5), 10, -30));
+        JsonObject root = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld", riding)));
+        JsonObject v = root.getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonObject("vehicle");
+        assertEquals(42, v.get("id").getAsInt());
+        assertEquals(0.85, v.getAsJsonObject("offset").get("y").getAsDouble(), 1e-9);
+        assertEquals(-0.5, v.getAsJsonObject("offset").get("z").getAsDouble(), 1e-9);
+        assertEquals(10, v.get("bodyYaw").getAsDouble(), 1e-6);
+        assertEquals(-30, v.get("headYaw").getAsDouble(), 1e-6);
+
+        JsonObject notRiding = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld", state(null))));
+        assertFalse(notRiding.getAsJsonArray("players").get(0).getAsJsonObject().has("vehicle"));
+    }
+
+    @Test
+    public void testVehicleFrame() {
+        // the webapp turns the offset back: x = lx * cos - lz * sin, z = lx * sin + lz * cos
+        for (double yaw : new double[] {0, 37, 90, -135, 200}) {
+            Vector3d local = Vehicle.toLocal(0.4, 0.9, -0.7, yaw);
+            double r = Math.toRadians(yaw);
+            assertEquals(0.4, local.getX() * Math.cos(r) - local.getZ() * Math.sin(r), 1e-9);
+            assertEquals(-0.7, local.getX() * Math.sin(r) + local.getZ() * Math.cos(r), 1e-9);
+            assertEquals(0.9, local.getY(), 1e-9);
+        }
+        assertEquals(-20f, Vehicle.relativeYaw(350f, 10f), 1e-4f);
+        assertEquals(170f, Vehicle.relativeYaw(-10f, 180f), 1e-4f);
+    }
+
+    @Test
     public void testPassengerBodyYaw() {
         // vanilla LivingEntityRenderer: the body follows the vehicle, the head may differ by up to 85 degrees
         assertEquals(10f, MovementState.passengerBodyYaw(30f, 10f), 1e-4f);

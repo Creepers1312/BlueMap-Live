@@ -118,7 +118,18 @@ final class MobTextures {
             Map.entry("minecraft:warden", List.of("minecraft:entity/warden/warden")),
             Map.entry("minecraft:witch", List.of("minecraft:entity/witch")),
             Map.entry("minecraft:wither", List.of("minecraft:entity/wither/wither")),
-            Map.entry("minecraft:wolf", List.of("minecraft:entity/wolf/"))
+            Map.entry("minecraft:wolf", List.of("minecraft:entity/wolf/")),
+
+            // vehicles (vanilla BoatEntityRenderer: per boat-type, bamboo as raft; MinecartEntityRenderer)
+            Map.entry("minecraft:boat", List.of("minecraft:entity/boat/")),
+            Map.entry("minecraft:chest_boat", List.of("minecraft:entity/chest_boat/")),
+            Map.entry("minecraft:minecart", List.of("minecraft:entity/minecart")),
+            Map.entry("minecraft:chest_minecart", List.of("minecraft:entity/minecart")),
+            Map.entry("minecraft:furnace_minecart", List.of("minecraft:entity/minecart")),
+            Map.entry("minecraft:hopper_minecart", List.of("minecraft:entity/minecart")),
+            Map.entry("minecraft:tnt_minecart", List.of("minecraft:entity/minecart")),
+            Map.entry("minecraft:spawner_minecart", List.of("minecraft:entity/minecart")),
+            Map.entry("minecraft:command_block_minecart", List.of("minecraft:entity/minecart"))
     );
 
 }

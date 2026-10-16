@@ -111,6 +111,12 @@ export class MobModel extends Group {
         this.root = new Group();
         this.root.scale.setScalar(1 / 16);
         this.offset.position.y = MODEL_OFFSET;
+        // vanilla BoatEntityRenderer / MinecartEntityRenderer: up by 0.375 (yaw-group), no -1.501 after the flip,
+        // boats are turned by 90 degrees after the flip
+        if (mobType.vehicle) {
+            this.offset.position.y = 0;
+            if (mobType.vehicle === "boat") this.offset.rotation.y = 90 * DEG;
+        }
         this.add(this.yawGroup);
         this.yawGroup.add(this.deathGroup);
         // the poses of setupTransforms after the death-rotation: lying in a bed, the sleeping cat
@@ -314,6 +320,11 @@ export class MobModel extends Group {
         this.deathGroup.rotation.z = MathUtils.degToRad(bed && !dying ? 90 : deathAngle(deathTicks, this.mobType.lyingAngle || 90));
         this.poseGroup.position.set(0, 0, 0);
         this.poseGroup.rotation.set(0, bed && !dying ? MathUtils.degToRad(270) : 0, 0);
+        // vanilla MinecartEntityRenderer: up by 0.375, turned by 180 - yaw, then by -pitch around z (on rails: the slope)
+        if (this.mobType.vehicle) {
+            this.yawGroup.position.y = 0.375;
+            if (this.mobType.vehicle === "minecart") this.poseGroup.rotation.z = MathUtils.degToRad(-(input.vehiclePitch || 0));
+        }
         // vanilla PandaEntityRenderer.setupTransforms: sitting (up by 0.8, tilted back, down by 1), lying on the back
         // (up by 1.3, turned over); T1 * R * T2 as one group: position T1 + R * T2
         const pandaPose = this.mobType.pandaPose ? input.panda : null;

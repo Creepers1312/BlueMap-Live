@@ -28,6 +28,7 @@ import { DEFAULT_UPDATE_INTERVAL } from "./LivePlayerData";
 import { PlayerSkinCache } from "./player/PlayerSkinCache";
 import { ItemAssetCache } from "./player/ItemAssetCache";
 import { WORLD_TIME_EVENT } from "./WorldTimeLighting";
+import { ENTITIES_STEPPED_EVENT, ENTITY_MARKER_SET_ID } from "./EntityMarkerManager";
 
 export const PLAYER_MARKER_SET_ID = "bm-players";
 
@@ -62,6 +63,25 @@ export class PlayerMarkerManager extends MarkerManager {
         this.redraw = redraw;
         this.onRenderFrame = evt => this.animatePlayers(evt.detail.delta / 1000);
         if (this.events) this.events.addEventListener("bluemapRenderFrame", this.onRenderFrame);
+        this.onEntitiesStepped = evt => this.attachRiders(evt.detail.markers);
+        if (this.events) this.events.addEventListener(ENTITIES_STEPPED_EVENT, this.onEntitiesStepped);
+    }
+
+    /**
+     * Draws riding players on their drawn vehicles (after the entities of the frame are stepped): the player- and
+     * the entity-samples are taken at different ticks, interpolated separately they would not fit together.
+     * @param entityMarkers {Map<string, object>}
+     */
+    attachRiders(entityMarkers) {
+        const playerMarkerSet = this.getPlayerMarkerSet(false);
+        if (!playerMarkerSet) return;
+        const entitySet = this.root.markerSets.get(ENTITY_MARKER_SET_ID);
+        const visible = !!(entitySet && entitySet.visible);
+        playerMarkerSet.markers.forEach(marker => {
+            if (!marker.isPlayerMarker) return;
+            const vehicle = marker.vehicle;
+            marker.attachTo(vehicle && visible ? entityMarkers.get("bm-entity-" + vehicle.id) : null);
+        });
     }
 
     /**
@@ -77,8 +97,12 @@ export class PlayerMarkerManager extends MarkerManager {
         const setVisible = playerMarkerSet.visible;
         dt = Math.min(Math.max(dt, 0), MAX_ANIMATION_STEP);
         let active = false;
+        // without (shown) live entities there is no vehicle to draw a rider on
+        const entitySet = this.root.markerSets.get(ENTITY_MARKER_SET_ID);
+        const noEntities = !entitySet || !entitySet.visible;
         playerMarkerSet.markers.forEach(marker => {
             if (!marker.isPlayerMarker) return;
+            if (noEntities) marker.attachTo(null);
             if (marker.stepAnimation(dt) && setVisible && marker.visible && marker.model.visible) active = true;
         });
         if (active && this.redraw) this.redraw();
@@ -148,6 +172,7 @@ export class PlayerMarkerManager extends MarkerManager {
 
     dispose() {
         if (this.events) this.events.removeEventListener("bluemapRenderFrame", this.onRenderFrame);
+        if (this.events) this.events.removeEventListener(ENTITIES_STEPPED_EVENT, this.onEntitiesStepped);
         this.dispatchWorldTime(null);
         super.dispose();
         this.skinCache.dispose();

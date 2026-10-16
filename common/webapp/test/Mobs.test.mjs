@@ -758,3 +758,47 @@ test("poses: the renderer-transforms of the panda and the cat only for them (a s
     near(wolf.poseGroup.position.length(), 0, "no offset");
     wolf.dispose();
 });
+
+test("vehicles: boats, rafts and minecarts with the transforms of their vanilla renderers", async () => {
+    const cache = fakeMobCache({"minecraft:entity/boat/spruce": 1, "minecraft:entity/minecart": 1});
+    const mob = (variant, flags = []) => ({variant, baby: false, flags: new Set(flags), size: 0});
+    const items = {mainHand: null, offHand: null, leftHanded: false};
+    const input = extra => ({limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0, flags: new Set(),
+        mainHand: null, leftHanded: false, wingAngle: 0, ...extra});
+
+    const boat = new MobModel("minecraft:boat", MOB_TYPES["minecraft:boat"], cache, null);
+    boat.setState(mob("spruce"), items);
+    await flush(); await flush();
+    assert.equal(boat.visible, true, "the texture of the boat-type");
+    assert.equal(boat.layerViews[0].bones.has("water_patch"), false, "the water-patch is only a mask");
+    boat.animate(input({paddles: [0, 0]}), 30, 0, false);
+    // vanilla BoatEntityRenderer: up 0.375, rotate 180 - yaw, scale(-1, -1, 1), rotate 90 (no -1.501)
+    assert.equal(boat.yawGroup.position.y, 0.375);
+    assert.ok(Math.abs(boat.yawGroup.rotation.y - 150 * PI / 180) < 1e-9);
+    assert.equal(boat.offset.position.y, 0);
+    assert.ok(Math.abs(boat.offset.rotation.y - PI / 2) < 1e-9);
+    // vanilla setPaddleAngle at phase 0: pitch = lerp(-pi/3, -pi/12, 0.5), yaw = lerp(-pi/4, pi/4, (sin(1) + 1) / 2)
+    const left = boat.transforms.left_paddle, right = boat.transforms.right_paddle;
+    assert.ok(Math.abs(left.pitch - (-PI / 3 + 0.5 * PI / 4)) < 1e-9);
+    const yaw = -PI / 4 + (Math.sin(1) + 1) / 2 * PI / 2;
+    assert.ok(Math.abs(left.yaw - yaw) < 1e-9 && Math.abs(right.yaw - (PI - yaw)) < 1e-9);
+    assert.ok(Math.abs(left.roll - 0.19634955) < 1e-7, "the roll stays from the model");
+    boat.dispose();
+
+    const marker = new EntityMarker("bm-entity-9", null, null, cache);
+    marker.updateFromData(parseEntity({id: 9, type: "minecraft:boat", position: {x: 0, y: 63, z: 0}, time: 1000,
+        mob: {bodyYaw: 0, headYaw: 0, variant: "bamboo", flags: ["paddle_left"]}}), 250);
+    assert.equal(marker.mobTypeKey, "minecraft:raft", "bamboo: the raft-model");
+    for (let i = 0; i < 4; i++) marker.step(0.05, null);
+    assert.ok(Math.abs(marker.paddles[0] - 4 * PI / 8) < 1e-9 && marker.paddles[1] === 0, "pi / 8 per tick while rowing");
+    marker.dispose();
+
+    const cart = new MobModel("minecraft:chest_minecart", MOB_TYPES["minecraft:chest_minecart"], cache, null);
+    cart.setState(mob(null), items);
+    cart.animate(input({vehiclePitch: 45}), 0, 0, false);
+    assert.equal(cart.yawGroup.position.y, 0.375);
+    assert.equal(cart.offset.position.y, 0);
+    assert.equal(cart.offset.rotation.y, 0);
+    assert.ok(Math.abs(cart.poseGroup.rotation.z - -PI / 4) < 1e-9, "vanilla MinecartEntityRenderer: rotate z by -pitch");
+    cart.dispose();
+});

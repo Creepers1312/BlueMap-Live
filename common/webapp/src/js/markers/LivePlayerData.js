@@ -167,6 +167,38 @@ export function parseItemUse(value) {
 }
 
 /**
+ * @param value {any}
+ * @returns {{id: number, offset: {x: number, y: number, z: number}, bodyYaw: number, headYaw: number} | null} - the
+ * vehicle of a riding player: the offset and the yaws are relative to the drawn yaw of the vehicle
+ */
+export function parseVehicle(value) {
+    if (!value || typeof value !== "object" || !Number.isInteger(value.id)) return null;
+    const offset = parseVector(value.offset);
+    if (!offset) return null;
+    return {id: value.id, offset, bodyYaw: numberOr(value.bodyYaw, 0), headYaw: numberOr(value.headYaw, 0)};
+}
+
+/**
+ * Where a riding player is drawn on the drawn vehicle: the offset is turned back from the frame of the vehicle
+ * (inverse of the server-side Vehicle.toLocal), the yaws are relative to the vehicle-yaw.
+ * @param vehicle {{offset: {x: number, y: number, z: number}, bodyYaw: number, headYaw: number}}
+ * @param position {{x: number, y: number, z: number}} - the drawn position of the vehicle
+ * @param yaw {number} - the drawn yaw of the vehicle in degrees
+ * @returns {{x: number, y: number, z: number, bodyYaw: number, headYaw: number}}
+ */
+export function riderOnVehicle(vehicle, position, yaw) {
+    const rad = yaw * Math.PI / 180, cos = Math.cos(rad), sin = Math.sin(rad);
+    const o = vehicle.offset;
+    return {
+        x: position.x + o.x * cos - o.z * sin,
+        y: position.y + o.y,
+        z: position.z + o.x * sin + o.z * cos,
+        bodyYaw: yaw + vehicle.bodyYaw,
+        headYaw: yaw + vehicle.headYaw,
+    };
+}
+
+/**
  * @typedef LivePlayer {{
  *     uuid: string,
  *     name: string,
@@ -183,7 +215,8 @@ export function parseItemUse(value) {
  *     swing: {count: number, arm: "left" | "right", kind: string} | null,
  *     equipment: {mainHand: object | null, offHand: object | null, leftHanded: boolean, fishing: boolean} | null,
  *     use: {mainHand: boolean, action: string, ticks: number} | null,
- *     hurt: {count: number} | null
+ *     hurt: {count: number} | null,
+ *     vehicle: {id: number, offset: {x: number, y: number, z: number}, bodyYaw: number, headYaw: number} | null
  * }}
  */
 
@@ -230,6 +263,7 @@ export function parsePlayer(raw) {
         equipment: parseEquipment(raw.equipment),
         use: parseItemUse(raw.use),
         hurt: raw.hurt && Number.isInteger(raw.hurt.count) && raw.hurt.count >= 0 ? {count: raw.hurt.count} : null,
+        vehicle: parseVehicle(raw.vehicle),
     };
 }
 

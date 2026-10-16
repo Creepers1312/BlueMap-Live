@@ -43,7 +43,7 @@ public class E2EItemResources implements ItemModelBaker.Resources {
             ZOMBIE = 0xFF309060, COW = 0xFF804020, SHEEP = 0xFF606060, WOOL = 0xFFFFFFFF,
             VILLAGER = 0xFFC08040, FARMER = 0xFFFF00C0, IRON_ARMOR = 0xFFA0FF00, LEATHER = 0xFFFFFFFF,
             MOOSHROOM = 0xFF602020, MUSHROOM = 0xFFFF2080, ENDERMAN = 0xFF202020, GRASS = 0xFF40FF40, CREEPER = 0xFF00C0C0,
-            GOLEM = 0xFFE0A000, SKULL = 0xFFFF40FF;
+            GOLEM = 0xFFE0A000, SKULL = 0xFFFF40FF, BOAT = 0xFFB07030, MINECART = 0xFF8080A0;
 
     private final Map<String, String> models = new HashMap<>();
     private final Map<String, BufferedImage> textures = new HashMap<>();
@@ -131,6 +131,8 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         // mobs: one color per texture (the whole image), the villager-profession only on the upper half (head)
         textures.put("minecraft:entity/zombie/zombie", square(64, 0, 0, 64, 64, ZOMBIE));
         textures.put("minecraft:entity/cow/cow", rect(64, 32, 0, 0, 64, 32, COW));
+        textures.put("minecraft:entity/boat/oak", rect(128, 64, 0, 0, 128, 64, BOAT));
+        textures.put("minecraft:entity/minecart", rect(64, 32, 0, 0, 64, 32, MINECART));
         textures.put("minecraft:entity/sheep/sheep", rect(64, 32, 0, 0, 64, 32, SHEEP));
         textures.put("minecraft:entity/sheep/sheep_fur", rect(64, 32, 0, 0, 64, 32, WOOL));
         textures.put("minecraft:entity/villager/villager", square(64, 0, 0, 64, 64, VILLAGER));

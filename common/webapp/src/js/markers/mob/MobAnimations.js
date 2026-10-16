@@ -1042,10 +1042,35 @@ export function wither(p, input) {
     p.tail.pitch = (0.065 + 0.05 * cos(input.age * 0.1)) * PI;
 }
 
+/** vanilla MathHelper.clampedLerp */
+function clampedLerp(start, end, delta) {
+    return delta < 0 ? start : delta > 1 ? end : start + delta * (end - start);
+}
+
+/** vanilla BoatEntityModel / RaftEntityModel.setPaddleAngle (side 0: left, 1: right) */
+function paddleAngle(paddle, phase, side) {
+    paddle.pitch = clampedLerp(-PI / 3, -PI / 12, (sin(-phase) + 1) / 2);
+    paddle.yaw = clampedLerp(-PI / 4, PI / 4, (sin(-phase + 1) + 1) / 2);
+    if (side === 1) paddle.yaw = PI - paddle.yaw;
+}
+
+/**
+ * vanilla BoatEntityModel / RaftEntityModel.setAngles: the paddles by their phase (input.paddles, vanilla
+ * BoatEntity.interpolatePaddlePhase: 0 while not rowing)
+ */
+export function boat(p, input) {
+    const paddles = input.paddles || [0, 0];
+    if (p.left_paddle) paddleAngle(p.left_paddle, paddles[0], 0);
+    if (p.right_paddle) paddleAngle(p.right_paddle, paddles[1], 1);
+}
+
+/** models without animation (vanilla MinecartEntityModel.setAngles is empty) */
+export function none() {}
+
 export const ANIMATIONS = {
     zombie, drowned, skeleton, piglin, zombified_piglin: (p, input) => piglin(p, input, true),
     quadruped, creeper, spider, chicken, enderman, villager, slime,
     illager, ironGolem, snowGolem, blaze, ghast, squid, silverfish, endermite, phantom, fish, salmon, dolphin, guardian,
     hoglin, ravager, ocelot, cat, fox, wolf, pufferfish, panda, polarBear, warden, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
-    shulker, wither,
+    shulker, wither, boat, none,
 };

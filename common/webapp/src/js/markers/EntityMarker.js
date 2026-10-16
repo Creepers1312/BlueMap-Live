@@ -139,6 +139,8 @@ export class EntityMarker extends Marker {
         /** vanilla SlimeEntity: stretch, targetStretch and the last ground-state (per tick) */
         this.slime = {stretch: 0, target: 0, onGround: true};
         this.warning = 0;
+        /** vanilla BoatEntity.paddlePhases (left, right) */
+        this.paddles = [0, 0];
         this.animationInput = {
             limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0, swingOffHand: false, attackTicks: 0,
             flags: new Set(), mainHand: null, leftHanded: false, wingAngle: 0,
@@ -450,6 +452,12 @@ export class EntityMarker extends Marker {
         input.slimeStretch = this.slime.stretch;
         input.warning = this.warning;
         input.entityPitch = entity.rotation.pitch;
+        input.vehiclePitch = r.pitch;
+        // vanilla BoatEntity.tick: the phase of a moving paddle grows by pi / 8 per tick, it is 0 while not rowing
+        const paddles = this.paddles;
+        paddles[0] = mob.flags.has("paddle_left") ? paddles[0] + Math.PI / 8 * ticks : 0;
+        paddles[1] = mob.flags.has("paddle_right") ? paddles[1] + Math.PI / 8 * ticks : 0;
+        input.paddles = paddles;
 
         const hurt = this.hurtTime > 0 || dying;
         const fuse = this.fuseTicks / (CREEPER_FUSE_TICKS - 2);
@@ -460,7 +468,7 @@ export class EntityMarker extends Marker {
             this.fuseTicks > 0 || this.swingTicks >= 0 || this.attackTicks > 0 ||
             (catPose.sleep > 0 && catPose.sleep < 1) || (catPose.headDown > 0 && catPose.headDown < 1) ||
             (pandaPose.sit > 0 && pandaPose.sit < 1) || (pandaPose.lie > 0 && pandaPose.lie < 1) ||
-            (this.warning > 0 && this.warning < 1) || Math.abs(this.slime.stretch) > 1e-3 ||
+            (this.warning > 0 && this.warning < 1) || Math.abs(this.slime.stretch) > 1e-3 || paddles[0] > 0 || paddles[1] > 0 ||
             !!(this.view && this.view.armor && this.view.armor.hasGlint); // the moving enchantment-glint
     }
 

@@ -70,6 +70,7 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  *     carriedBlock?: boolean,           the block of the enderman (block-model from mob.models)
  *     headItem?: boolean | "villager",  vanilla HeadFeatureRenderer: an item on the head (villager: 3 px higher)
  *     headItemScale?: number[]          the scale the renderer passes to the HeadFeatureRenderer
+ *     vehicle?: "boat" | "minecart"     drawn with the transforms of BoatEntityRenderer / MinecartEntityRenderer
  * }}
  */
 
@@ -101,6 +102,17 @@ const VILLAGER_LEVELS = {1: "stone", 2: "iron", 3: "gold", 4: "emerald", 5: "dia
 
 const PLAYER_HIDDEN = ["ear", "cloak"];
 const PIGLIN_ARMOR = {inner: "minecraft:piglin#inner_armor", outer: "minecraft:piglin#outer_armor"};
+
+/** vanilla BoatEntityRenderer: the texture of the boat-type, the raft-model for bamboo; the water-patch is a mask */
+const boat = (folder, model, raft = null) => ({
+    animation: "boat", vehicle: "boat", hidden: ["water_patch"],
+    layers: [{model, texture: mob => E + folder + "/" + (mob.variant || "oak")}],
+    ...(raft ? {select: mob => mob.variant === "bamboo" ? raft : null, dynamicSelect: true} : {}),
+});
+
+/** the minecart-types (vanilla MinecartEntityRenderer with the minecart-model; the contained block is not shown) */
+const MINECARTS = ["minecart", "chest_minecart", "furnace_minecart", "hopper_minecart", "tnt_minecart", "spawner_minecart",
+    "command_block_minecart"];
 
 /** @type {Object<string, MobType>} */
 export const MOB_TYPES = {
@@ -385,6 +397,16 @@ Object.assign(MOB_TYPES, {
             {model: "minecraft:wolf#main", texture: E + "wolf/wolf_collar", flagPrefix: "collar_", tint: mob => dyeColor(flagValue(mob, "collar_"))},
         ],
     },
+
+    // vehicles (vanilla BoatEntityRenderer, MinecartEntityRenderer): the variant is the boat-type (BoatEntity.Type),
+    // bamboo is drawn with the raft-model
+    "minecraft:boat": boat("boat", "minecraft:boat#main", "minecraft:raft"),
+    "minecraft:chest_boat": boat("chest_boat", "minecraft:chest_boat#main", "minecraft:chest_raft"),
+    "minecraft:raft": boat("boat", "minecraft:raft#main"),
+    "minecraft:chest_raft": boat("chest_boat", "minecraft:chest_raft#main"),
+    ...Object.fromEntries(MINECARTS.map(type => ["minecraft:" + type, {
+        animation: "none", vehicle: "minecart", layers: [{model: "minecraft:minecart#main", texture: E + "minecart"}],
+    }])),
 });
 
 /**

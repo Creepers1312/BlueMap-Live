@@ -32,6 +32,12 @@ import {MobAssetCache} from "./mob/MobAssetCache";
 
 export const ENTITY_MARKER_SET_ID = "bm-entities";
 
+/**
+ * dispatched after the entities of a frame are stepped (detail: {markers: Map<string, Marker>}), so riding players
+ * are drawn on the drawn vehicle of the same frame (see PlayerMarker.attachTo)
+ */
+export const ENTITIES_STEPPED_EVENT = "bluemapLiveEntitiesStepped";
+
 const MAX_ANIMATION_STEP = 0.25;
 
 /**
@@ -130,6 +136,7 @@ export class EntityMarkerManager extends MarkerManager {
             if (marker.isEntityMarker && marker.step(dt, this.camera) && marker.visible) moving = true;
         });
         if (moving && set.visible && this.redraw) this.redraw();
+        if (this.events) this.events.dispatchEvent(new CustomEvent(ENTITIES_STEPPED_EVENT, {detail: {markers: set.markers}}));
     }
 
     clear() {

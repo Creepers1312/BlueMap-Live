@@ -90,3 +90,5 @@ E2E_BASES="http://127.0.0.1:8101,http://127.0.0.1:8100" node docs/bluemap-live/e
 Anschließend `e2e-out/regression-0.png` und `regression-1.png` vergleichen (z. B. mit Pillow `ImageChops.difference`).
 
 Hinweis: Die Kamera wird über die normale Seitenadresse gesetzt (`#world:x:y:z:distance:rotation:angle:tilt:ortho:view`). Ein direktes Setzen von `controlsManager.distance` wird von den Map-Controls überschrieben. Dann werden keine Hires-Tiles geladen; das gilt für das Original genauso.
+
+**Fahrzeuge (Phase 8):** Spieler: `&riding=1&vehicle=ID&vox=..&voy=..&voz=..&vbody=..&vhead=..` (Versatz und Drehungen relativ zur Fahrzeugdrehung). Boote und Loren als Mob: `&entity=ID&mob=1&type=minecraft:boat&variant=oak&flags=paddle_left,paddle_right`; Platzhaltertexturen `entity/boat/oak` und `entity/minecart`.

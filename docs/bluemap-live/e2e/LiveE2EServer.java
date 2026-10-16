@@ -27,6 +27,7 @@ import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.common.live.LiveWorldTime;
 import de.bluecolored.bluemap.common.live.MovementState;
+import de.bluecolored.bluemap.common.live.Vehicle;
 import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.items.ItemModelBaker;
 import de.bluecolored.bluemap.common.live.PlayerMotionTracker;
@@ -192,6 +193,7 @@ public class LiveE2EServer {
     /**
      * One server-sample: /control?uuid=..&name=..&x=..&y=..&z=..&pitch=..&yaw=..&bodyYaw=..&world=..&respawn=1
      * Movement-flags (default: standing on the ground): &sneaking=1&sprinting=1&ground=0&swimming=1&flying=1&fallFlying=1&riding=1
+     * Vehicle (offset and yaws relative to the drawn vehicle-yaw): &vehicle=ENTITY_ID&vox=..&voy=..&voz=..&vbody=..&vhead=..
      * Velocity override (instead of the one derived from the samples): &vx=..&vy=..&vz=..
      * Arm-swing (increments the swing-counter): &swing=right|left&swingKind=attack|mine|use|swing
      * Held items (kept until changed, "none" clears): &main=minecraft:diamond_sword&off=minecraft:shield&leftHanded=1&charged=1
@@ -312,7 +314,9 @@ public class LiveE2EServer {
                     new SwingState(p.swingCount, p.swingLeft, p.swingKind),
                     equipment,
                     use,
-                    p.hurtCount
+                    p.hurtCount,
+                    q.containsKey("vehicle") ? new Vehicle(Integer.parseInt(q.get("vehicle")),
+                            new Vector3d(d(q, "vox"), d(q, "voy"), d(q, "voz")), (float) d(q, "vbody"), (float) d(q, "vhead")) : null
             );
         }
 

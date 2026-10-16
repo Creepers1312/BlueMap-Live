@@ -20,6 +20,7 @@ import {
     parseItemUse,
     parseSwing,
     resolveUpdateInterval,
+    riderOnVehicle,
     SUPPORTED_PROTOCOL,
 } from "../src/js/markers/LivePlayerData.js";
 
@@ -305,4 +306,29 @@ test("held items are parsed and validated", () => {
     const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), equipment: {mainHand: {id: "minecraft:bow"}}}]});
     assert.equal(legacy.players[0].equipment, null, "unsupported protocol -> only the original fields");
     assert.equal(legacy.players[0].use, null);
+});
+
+test("riding: the vehicle is parsed, the rider is drawn on the drawn vehicle", () => {
+    const p = parsePlayer({...v1Player(), vehicle: {id: 42, offset: {x: 0.2, y: 0.85, z: -0.3}, bodyYaw: 10, headYaw: -30}});
+    assert.deepEqual(p.vehicle, {id: 42, offset: {x: 0.2, y: 0.85, z: -0.3}, bodyYaw: 10, headYaw: -30});
+    assert.equal(parsePlayer(v1Player()).vehicle, null);
+    assert.equal(parsePlayer({...v1Player(), vehicle: {id: "x", offset: {x: 0, y: 0, z: 0}}}).vehicle, null, "invalid id");
+    assert.equal(parsePlayer({...v1Player(), vehicle: {id: 1}}).vehicle, null, "no offset");
+
+    // the server turns the world-offset into the frame of the vehicle (Vehicle.toLocal): the inverse gives it back
+    const toLocal = (dx, dz, yaw) => {
+        const r = yaw * Math.PI / 180;
+        return {x: dx * Math.cos(r) + dz * Math.sin(r), z: -dx * Math.sin(r) + dz * Math.cos(r)};
+    };
+    for (const yaw of [0, 37, 90, -135, 200]) {
+        const local = toLocal(0.4, -0.7, yaw);
+        const rider = riderOnVehicle({offset: {x: local.x, y: 0.9, z: local.z}, bodyYaw: 5, headYaw: 20}, {x: 10, y: 64, z: -3}, yaw);
+        assert.ok(Math.abs(rider.x - 10.4) < 1e-9 && Math.abs(rider.z - -3.7) < 1e-9, `yaw ${yaw}`);
+        assert.equal(rider.y, 64.9);
+        assert.equal(rider.bodyYaw, yaw + 5);
+        assert.equal(rider.headYaw, yaw + 20);
+    }
+    // the vehicle turns: the rider (e.g. the second seat of a boat) turns with it
+    const seat = riderOnVehicle({offset: {x: 0, y: 0, z: -0.6}, bodyYaw: 0, headYaw: 0}, {x: 0, y: 0, z: 0}, 90);
+    assert.ok(Math.abs(seat.x - 0.6) < 1e-9 && Math.abs(seat.z) < 1e-9);
 });

@@ -26,7 +26,7 @@ import {Marker} from "./Marker";
 import {CSS2DObject} from "../util/CSS2DRenderer";
 import {animate, htmlToElement} from "../util/Utils";
 import {MathUtils} from "three";
-import {angleDelta, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse} from "./LivePlayerData";
+import {angleDelta, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse, riderOnVehicle} from "./LivePlayerData";
 import {PlayerModel} from "./player/PlayerModel";
 import {PlayerSkinCache} from "./player/PlayerSkinCache";
 import {PlayerAnimator} from "./player/PlayerAnimator";
@@ -101,6 +101,10 @@ export class PlayerMarker extends Marker {
         /** @type {import("./LivePlayerData").LivePlayer | null} */
         this.lastPlayerData = null;
         this.displayed = {x: 0, y: 0, z: 0, bodyYaw: 0, headYaw: 0, pitch: 0};
+        /** the vehicle the player rides (LivePlayerData.parseVehicle), null if none */
+        this.vehicle = null;
+        /** riding: the position and yaws on the drawn vehicle (see attachTo), null if not attached */
+        this.attached = null;
         this.movementAnimation = null;
 
         // limb-animations, stepped by the PlayerMarkerManager in the render-loop of the map-viewer
@@ -160,6 +164,7 @@ export class PlayerMarker extends Marker {
             this.animator.setTarget(markerData);
             this.updateMovement(previous, markerData, updateInterval);
             this.lastPlayerData = markerData;
+            this.vehicle = markerData.vehicle;
         }
 
         this.updateSkin(markerData.skin);
@@ -243,7 +248,36 @@ export class PlayerMarker extends Marker {
      */
     applyMovement(state) {
         this.displayed = state;
+        this.applyDisplay();
+    }
 
+    /**
+     * Riding: draws the player on the drawn vehicle (called after the entities of the frame are stepped), with the
+     * offset and yaws of the sample relative to the vehicle-yaw (see the server-side Vehicle.toLocal).
+     * Without a vehicle-marker the separately interpolated position is used.
+     * @param vehicleMarker {object | null | undefined} - the EntityMarker of the vehicle
+     */
+    attachTo(vehicleMarker) {
+        const vehicle = this.vehicle;
+        if (!vehicle || !vehicleMarker || !vehicleMarker.isEntityMarker || !vehicleMarker.rotation3) {
+            if (this.attached) {
+                this.attached = null;
+                this.applyDisplay();
+            }
+            return;
+        }
+        this.attached = riderOnVehicle(vehicle, vehicleMarker.position, vehicleMarker.rotation3.body);
+        this.applyDisplay();
+    }
+
+    /** @private the displayed state: interpolated, or on the vehicle while riding */
+    get shownState() {
+        return this.attached ? {...this.displayed, ...this.attached} : this.displayed;
+    }
+
+    /** @private */
+    applyDisplay() {
+        const state = this.shownState;
         this.position.set(state.x, state.y + PLAYER_HEIGHT, state.z);
         this.data.rotation.pitch = state.pitch;
         this.data.rotation.yaw = state.headYaw;
@@ -259,9 +293,10 @@ export class PlayerMarker extends Marker {
      * @returns {boolean} true if the model is currently moving and should be rendered with a high frame-rate
      */
     stepAnimation(dt) {
+        const state = this.shownState;
         const active = this.animator.step(dt,
-            MathUtils.degToRad(this.displayed.pitch),
-            MathUtils.degToRad(angleDelta(this.displayed.bodyYaw, this.displayed.headYaw))
+            MathUtils.degToRad(state.pitch),
+            MathUtils.degToRad(angleDelta(state.bodyYaw, state.headYaw))
         );
         this.model.applyPose(this.animator.pose);
         // the enchantment-glint moves all the time (vanilla texture-matrix by the time): keep rendering
