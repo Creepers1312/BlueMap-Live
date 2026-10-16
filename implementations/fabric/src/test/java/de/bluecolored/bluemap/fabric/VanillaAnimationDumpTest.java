@@ -49,16 +49,17 @@ public class VanillaAnimationDumpTest {
     /** class -> methods (empty: all methods except the model-data) */
     private static final Map<String, Set<String>> METHODS = new LinkedHashMap<>();
     static {
-        // jumping slimes: the squish (stretch) and its scale
-        METHODS.put(RENDER + "SlimeEntityRenderer", Set.of("scale", "render"));
-        METHODS.put("net/minecraft/entity/mob/SlimeEntity", Set.of("tick", "updateStretch", "jump", "getTicksUntilNextJump",
-                "makesJumpSound", "getJumpSound"));
-        METHODS.put(MODEL + "SlimeEntityModel", Set.of());
-        // warden: walking, idle-sway, tendrils (code) and the keyframe-animations it plays
-        METHODS.put(MODEL + "WardenEntityModel", Set.of("setAngles", "setHeadAngle", "setLimbAngles", "setHeadAndBodyAngles",
-                "setTendrilPitches", "setArmPivots"));
-        METHODS.put("net/minecraft/entity/mob/WardenEntity", Set.of("getTendrilPitch", "getHeartPitch", "getHeartRate",
-                "getAngerAtTarget", "getAnger"));
+        // riding: the pose of the biped models, the passenger-offsets of the mounts
+        METHODS.put(MODEL + "BipedEntityModel", Set.of("setAngles", "animateModel"));
+        METHODS.put(MODEL + "PlayerEntityModel", Set.of("setAngles"));
+        METHODS.put(MODEL + "IllagerEntityModel", Set.of("setAngles"));
+        METHODS.put(MODEL + "VillagerResemblingModel", Set.of("setAngles"));
+        METHODS.put(MODEL + "AbstractZombieModel", Set.of("setAngles"));
+        METHODS.put(MODEL + "SkeletonEntityModel", Set.of("setAngles"));
+        METHODS.put(MODEL + "PiglinEntityModel", Set.of("setAngles"));
+        METHODS.put("net/minecraft/entity/LivingEntity", Set.of("getPassengerRidingPos", "getPassengerAttachmentPos"));
+        METHODS.put("net/minecraft/entity/Entity", Set.of("updatePassengerPosition", "getPassengerRidingPos", "getPassengerAttachmentPos",
+                "getVehicleAttachmentPos", "getRidingOffset"));
     }
 
     /** text-resources of the game (shaders, atlas-definitions), printed as they are */
