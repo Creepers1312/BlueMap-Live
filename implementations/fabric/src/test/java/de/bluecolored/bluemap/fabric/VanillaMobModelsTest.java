@@ -326,6 +326,7 @@ public class VanillaMobModelsTest {
         LAYERS.put("minecraft:raft#main", () -> call(MODEL + "RaftEntityModel", "getTexturedModelData"));
         LAYERS.put("minecraft:chest_raft#main", () -> call(MODEL + "ChestRaftEntityModel", "getTexturedModelData"));
         LAYERS.put("minecraft:minecart#main", () -> call(MODEL + "MinecartEntityModel", "getTexturedModelData"));
+        LAYERS.put("minecraft:leash_knot#main", () -> call(MODEL + "LeashKnotEntityModel", "getTexturedModelData"));
     }
 
     private static void simple(String mob, String modelClass) {

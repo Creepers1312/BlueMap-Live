@@ -70,6 +70,17 @@ public class VanillaAnimationDumpTest {
         METHODS.put(MODEL + "MinecartEntityModel", Set.of());
         METHODS.put("net/minecraft/entity/vehicle/BoatEntity", Set.of("tick", "interpolatePaddlePhase", "isPaddleMoving",
                 "updatePassengerPosition", "getPassengerAttachmentPos", "getVariant", "clampPassengerYaw", "getMaxPassengers"));
+        // leashes: the rope (MobEntityRenderer), the knot on fences, the attachment points of mobs, players and boats
+        METHODS.put(RENDER + "MobEntityRenderer", Set.of());
+        METHODS.put(RENDER + "LeashKnotEntityRenderer", Set.of());
+        METHODS.put(MODEL + "LeashKnotEntityModel", Set.of());
+        METHODS.put("net/minecraft/entity/Leashable", Set.of());
+        METHODS.put("net/minecraft/entity/Entity", Set.of("updatePassengerPosition", "getPassengerRidingPos", "getPassengerAttachmentPos",
+                "getVehicleAttachmentPos", "getRidingOffset", "getLeashPos", "getLeashOffset"));
+        METHODS.put("net/minecraft/entity/player/PlayerEntity", Set.of("getLeashOffset"));
+        METHODS.put("net/minecraft/entity/decoration/LeashKnotEntity", Set.of("getLeashPos", "getLeashOffset", "<init>"));
+        METHODS.put("net/minecraft/entity/vehicle/BoatEntity", Set.of("tick", "interpolatePaddlePhase", "isPaddleMoving",
+                "updatePassengerPosition", "getPassengerAttachmentPos", "getVariant", "clampPassengerYaw", "getMaxPassengers", "getLeashOffset"));
         // horses: grazing, rearing, eating, tail, gallop (model and the animation-progress of the entity)
         METHODS.put(MODEL + "HorseEntityModel", Set.of());
         METHODS.put(MODEL + "DonkeyEntityModel", Set.of());
