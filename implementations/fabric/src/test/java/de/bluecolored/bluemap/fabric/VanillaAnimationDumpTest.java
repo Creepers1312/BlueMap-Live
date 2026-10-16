@@ -49,30 +49,20 @@ public class VanillaAnimationDumpTest {
     /** class -> methods (empty: all methods except the model-data) */
     private static final Map<String, Set<String>> METHODS = new LinkedHashMap<>();
     static {
-        // poses: sitting, sleeping, lying
-        // tropical fish, pufferfish
-        // collars, carpets, horse-armor, glowing layers
-        // attacks: the models and where the server advances the swing
-        // the dilations of the feature-layers; the parts and the alphas of the warden-layers
-        // armor-trims and the glint, heads on the head
-        // skulls on the head: the models, textures and the render-transformation
-        // armor-trims: the texture-path of a trim
-        // the enchantment-glint: texturing (scroll, rotation, scale) and the textures of the render-layers
-        METHODS.put("net/minecraft/client/render/RenderPhase", Set.of("setupGlintTexturing", "method_23540", "method_23539",
-                "method_23538", "method_23537", "method_30675", "method_29994"));
-        METHODS.put("net/minecraft/client/render/RenderLayer", Set.of("getArmorEntityGlint", "getEntityGlint", "getGlint", "<clinit>"));
-
-        METHODS.put("net/minecraft/client/render/item/ItemRenderer", Set.of("<clinit>"));
+        // jumping slimes: the squish (stretch) and its scale
+        METHODS.put(RENDER + "SlimeEntityRenderer", Set.of("scale", "render"));
+        METHODS.put("net/minecraft/entity/mob/SlimeEntity", Set.of("tick", "updateStretch", "jump", "getTicksUntilNextJump",
+                "makesJumpSound", "getJumpSound"));
+        METHODS.put(MODEL + "SlimeEntityModel", Set.of());
+        // warden: walking, idle-sway, tendrils (code) and the keyframe-animations it plays
+        METHODS.put(MODEL + "WardenEntityModel", Set.of("setAngles", "setHeadAngle", "setLimbAngles", "setHeadAndBodyAngles",
+                "setTendrilPitches", "setArmPivots"));
+        METHODS.put("net/minecraft/entity/mob/WardenEntity", Set.of("getTendrilPitch", "getHeartPitch", "getHeartRate",
+                "getAngerAtTarget", "getAnger"));
     }
 
     /** text-resources of the game (shaders, atlas-definitions), printed as they are */
-    private static final List<String> RESOURCES = List.of(
-            "assets/minecraft/shaders/core/rendertype_armor_entity_glint.json",
-            "assets/minecraft/shaders/core/rendertype_armor_entity_glint.fsh",
-            "assets/minecraft/shaders/core/rendertype_armor_entity_glint.vsh",
-            "assets/minecraft/shaders/include/fog.glsl",
-            "assets/minecraft/atlases/armor_trims.json"
-    );
+    private static final List<String> RESOURCES = List.of();
 
     private static final Map<Integer, String> OPCODES = new HashMap<>();
     static {

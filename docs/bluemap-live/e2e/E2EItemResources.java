@@ -155,6 +155,9 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/creeper/creeper", rect(64, 32, 0, 0, 64, 32, CREEPER));
         textures.put("minecraft:entity/iron_golem/iron_golem", square(128, 0, 0, 128, 128, GOLEM));
         textures.put("minecraft:entity/skeleton/skeleton", rect(64, 32, 0, 0, 64, 32, SKULL));
+        // poses: tame wolf and cat with a checker-pattern (the parts are distinguishable)
+        textures.put("minecraft:entity/wolf/wolf_tame", checker(64, 32, 0xFF808080, 0xFFE0E0E0));
+        textures.put("minecraft:entity/cat/tabby", checker(64, 32, 0xFFA06030, 0xFFE0C080));
         // tropical fish: white like the vanilla textures (tinted by the webapp); only pattern 1 (kob), fully covering
         textures.put("minecraft:entity/fish/tropical_a", square(32, 0, 0, 32, 32, 0xFFFFFFFF));
         textures.put("minecraft:entity/fish/tropical_a_pattern_1", square(32, 0, 0, 32, 32, 0xFFFFFFFF));
@@ -171,6 +174,12 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         return image;
     }
 
+
+    private static BufferedImage checker(int width, int height, int a, int b) {
+        BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
+        for (int i = 0; i < width; i++) for (int j = 0; j < height; j++) image.setRGB(i, j, ((i / 2 + j / 2) % 2 == 0) ? a : b);
+        return image;
+    }
 
     private static BufferedImage square(int size, int x, int y, int w, int h, int argb) {
         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
