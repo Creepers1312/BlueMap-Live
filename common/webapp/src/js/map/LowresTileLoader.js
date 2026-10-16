@@ -61,12 +61,15 @@ export class LowresTileLoader {
         this.geometry.translate(tileSettings.tileSize.x / 2 + 1, 0, tileSettings.tileSize.x / 2 + 1);
     }
 
-    load = (tileX, tileZ, cancelCheck = () => false) => {
+    /**
+     * @param cacheHash {number | string} - BlueMap Live: another cache-hash to load a changed tile again
+     */
+    load = (tileX, tileZ, cancelCheck = () => false, cacheHash = this.tileCacheHash) => {
         let tileUrl = this.tilePath + this.lod + "/" + pathFromCoords(tileX, tileZ) + '.png';
 
         //await this.loadBlocker();
         return new Promise((resolve, reject) => {
-            this.textureLoader.load(tileUrl + '?' + this.tileCacheHash,
+            this.textureLoader.load(tileUrl + '?' + cacheHash,
                 async texture => {
                     texture.anisotropy = 1;
                     texture.generateMipmaps = false;

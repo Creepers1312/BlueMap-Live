@@ -34,6 +34,7 @@ import de.bluecolored.bluemap.common.config.PluginConfig;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.LiveEffect;
 import de.bluecolored.bluemap.common.live.LiveEffectLog;
+import de.bluecolored.bluemap.common.live.OpenContainer;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.common.live.LiveWorldTime;
@@ -103,6 +104,9 @@ public class FabricMod implements ModInitializer, Server {
     private volatile Map<Key, LiveWorldTime> liveWorldTimes = Map.of();
     // BlueMap Live: the recent explosions and splash-potions per world
     private final Map<Key, LiveEffectLog> liveEffects = new ConcurrentHashMap<>();
+    // BlueMap Live: the opened chests per world
+    private final FabricContainers containers = new FabricContainers();
+    private volatile Map<Key, List<OpenContainer>> openContainers = Map.of();
     private int liveEntitySampleTicks = 0;
     private final List<FabricPlayer> onlinePlayerList;
 
@@ -185,6 +189,7 @@ public class FabricMod implements ModInitializer, Server {
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
             if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.USE);
+            if (!world.isClient()) this.containers.onUseBlock(player, world, hitResult.getBlockPos());
             return ActionResult.PASS;
         });
 
@@ -287,6 +292,7 @@ public class FabricMod implements ModInitializer, Server {
 
         UUID playerUUID = player.getUuid();
         onlinePlayerMap.remove(playerUUID);
+        containers.onLeave(playerUUID);
         synchronized (onlinePlayerList) {
             onlinePlayerList.removeIf(p -> p.getUuid().equals(playerUUID));
         }
@@ -420,6 +426,13 @@ public class FabricMod implements ModInitializer, Server {
             result.put(getServerWorld(world).getDimension(), List.copyOf(entities.values()));
         }
         liveEntities = result;
+
+        Map<Key, List<OpenContainer>> opened = new HashMap<>();
+        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
+            List<OpenContainer> list = containers.sample(world, now);
+            if (!list.isEmpty()) opened.put(getServerWorld(world).getDimension(), list);
+        }
+        openContainers = opened;
     }
 
     private static @Nullable LiveEntityState toLiveEntity(Entity entity, long now) {
@@ -499,6 +512,11 @@ public class FabricMod implements ModInitializer, Server {
         if (config == null || !config.isLiveEntities() || !config.isLivePlayerMarkers()) return;
         LiveEffectLog log = liveEffects.computeIfAbsent(getServerWorld(world).getDimension(), key -> new LiveEffectLog());
         FabricParticles.onRemoved(entity, log, System.currentTimeMillis());
+    }
+
+    @Override
+    public List<OpenContainer> getOpenContainers(ServerWorld world) {
+        return openContainers.getOrDefault(world.getDimension(), List.of());
     }
 
     @Override

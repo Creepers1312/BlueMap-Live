@@ -134,6 +134,10 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/boat/oak", rect(128, 64, 0, 0, 128, 64, BOAT));
         textures.put("minecraft:entity/minecart", rect(64, 32, 0, 0, 64, 32, MINECART));
         textures.put("minecraft:entity/lead_knot", rect(32, 32, 0, 0, 32, 32, BOAT));
+        // chests: one color per texture
+        for (String texture : de.bluecolored.bluemap.common.live.OpenContainer.TEXTURES) {
+            textures.put(texture, square(64, 0, 0, 64, 64, texture.endsWith("ender") ? 0xFF1E5A50 : 0xFFB4501E));
+        }
         // particles: white (the particle-color is multiplied), the fire: an animated strip of 32 frames
         for (String texture : de.bluecolored.bluemap.common.live.ParticleState.TEXTURES) {
             textures.put(texture, texture.contains(":block/fire_") ? rect(16, 512, 0, 0, 16, 512, FIRE) :

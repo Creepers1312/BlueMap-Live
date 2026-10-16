@@ -58,6 +58,9 @@ public class PluginConfig {
     private int liveEntitiesLimit = 200;
     private List<String> liveEntitiesHiddenTypes = new ArrayList<>();
 
+    private boolean liveBlockUpdates = true;
+    private int liveBlockUpdateCooldown = 10;
+
     private int playerRenderLimit = -1;
 
     private int updateCooldown = 60;
@@ -83,6 +86,21 @@ public class PluginConfig {
      */
     public int getLiveEntitiesLimit() {
         return Math.max(0, Math.min(1000, liveEntitiesLimit));
+    }
+
+    /**
+     * BlueMap Live: the cooldown of a region between two renders while live-block-updates are on (instead of the
+     * update-cooldown if that is longer). Clamped to 1 .. 3600 seconds.
+     */
+    public Duration getLiveBlockUpdateCooldown() {
+        return Duration.ofSeconds(Math.max(1, Math.min(3600, liveBlockUpdateCooldown)));
+    }
+
+    /** the cooldown of a region between two renders (shorter with live-block-updates) */
+    public Duration getEffectiveUpdateCooldown() {
+        Duration cooldown = getUpdateCooldown();
+        if (liveBlockUpdates && getLiveBlockUpdateCooldown().compareTo(cooldown) < 0) return getLiveBlockUpdateCooldown();
+        return cooldown;
     }
 
     public Duration getUpdateCooldown() {

@@ -636,7 +636,7 @@ public class Plugin implements ServerEventListener {
         if (blueMap == null) return;
 
         try {
-            MapUpdateService watcher = new MapUpdateService(renderManager, map, blueMap.getConfig().getPluginConfig().getUpdateCooldown());
+            MapUpdateService watcher = new MapUpdateService(renderManager, map, blueMap.getConfig().getPluginConfig().getEffectiveUpdateCooldown());
             watcher.start();
             mapUpdateServices.put(map.getId(), watcher);
         } catch (IOException ex) {
@@ -708,6 +708,8 @@ public class Plugin implements ServerEventListener {
     }
 
     private void initFileWatcherTasks() {
+        // BlueMap Live: the re-rendered tiles are reported to the webapp (live/tiles.json)
+        de.bluecolored.bluemap.common.live.LiveTileLog.setEnabled(blueMap.getConfig().getPluginConfig().isLiveBlockUpdates());
         var maps = blueMap.getMaps();
         if (maps != null) {
             for (BmMap map : maps.values()) {

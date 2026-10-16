@@ -66,6 +66,10 @@ export class MapViewer {
 				// BlueMap Live: dynamic lights (players holding light-emitting items), see markers/DynamicLights.js
 				dynamicLights: { value: Array.from({length: 8}, () => new Vector4()) },
 				dynamicLightCount: { value: 0 },
+				// BlueMap Live: parts of the tiles that are not drawn (the lids of opened chests, see ChestLidView)
+				hiddenBoxesMin: { value: Array.from({length: 16}, () => new Vector3()) },
+				hiddenBoxesMax: { value: Array.from({length: 16}, () => new Vector3()) },
+				hiddenBoxCount: { value: 0 },
 				hiresTileMap: {
 					value: {
 						map: null,

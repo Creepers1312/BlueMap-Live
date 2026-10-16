@@ -46,6 +46,11 @@ public final class LiveEntitiesJson {
 
     public static void write(JsonWriter json, long serverTime, int updateInterval, Collection<LiveEntityState> entities,
                              Collection<LiveEffect> effects) throws IOException {
+        write(json, serverTime, updateInterval, entities, effects, List.of());
+    }
+
+    public static void write(JsonWriter json, long serverTime, int updateInterval, Collection<LiveEntityState> entities,
+                             Collection<LiveEffect> effects, Collection<OpenContainer> containers) throws IOException {
         json.beginObject();
         json.name("protocol").value(PROTOCOL_VERSION);
         json.name("serverTime").value(serverTime);
@@ -101,6 +106,21 @@ public final class LiveEntitiesJson {
                 if (effect.destroy()) json.name("destroy").value(true);
                 if (effect.color() != 0) json.name("color").value(effect.color() & 0xFFFFFF);
                 json.name("time").value(effect.time());
+                json.endObject();
+            }
+            json.endArray();
+        }
+
+        if (!containers.isEmpty()) {
+            json.name("containers").beginArray();
+            for (OpenContainer container : containers) {
+                json.beginObject();
+                json.name("x").value(container.position().getX());
+                json.name("y").value(container.position().getY());
+                json.name("z").value(container.position().getZ());
+                json.name("texture").value(container.texture());
+                json.name("facing").value(container.facing());
+                if (!container.part().equals("single")) json.name("part").value(container.part());
                 json.endObject();
             }
             json.endArray();

@@ -33,6 +33,7 @@ import {Frustum, Matrix4} from "three";
 import {LIVE_CLOCK, LIVE_PLAYBACK} from "./LivePlayback.js";
 import {ParticleSystem} from "./particles/LiveParticles.js";
 import {ParticleView} from "./particles/ParticleView.js";
+import {ChestLidView} from "./ChestLidView.js";
 
 /** effects that would be shown later than this (ms) after their playback-time are skipped (e.g. after a reload) */
 const MAX_EFFECT_LATENESS = 1500;
@@ -96,6 +97,13 @@ export class EntityMarkerManager extends MarkerManager {
         /** @type {Array<{due: number, effect: import("./particles/ParticleData.js").LiveEffect}>} */
         this.scheduledEffects = [];
 
+        // BlueMap Live: the lids of opened chests (see docs/bluemap-live/phase-11.md)
+        this.chestLids = new ChestLidView(this.itemCache.textures);
+        /** @type {Array<{due: number, containers: object[]}>} */
+        this.scheduledContainers = [];
+        /** the uniforms of the map-shader (hidden boxes), set by the app */
+        this.mapUniforms = null;
+
         this.onRenderFrame = evt => this.animateEntities(evt.detail.delta / 1000);
         if (this.events) this.events.addEventListener("bluemapRenderFrame", this.onRenderFrame);
     }
@@ -154,6 +162,7 @@ export class EntityMarkerManager extends MarkerManager {
             if (!marker.isEntityMarker || marker.scheduleRemoval(this.updateInterval)) this.removeMarker(set, marker);
         });
         this.scheduleEffects(response.effects || []);
+        this.scheduleContainers(response.containers || [], response.serverTime);
         // the particle-textures are loaded as soon as something emits particles (before the playback shows it)
         if ((response.effects && response.effects.length > 0) || response.entities.some(entity => entity.particles)) {
             this.particleView.load();
@@ -190,6 +199,39 @@ export class EntityMarkerManager extends MarkerManager {
         }
         // the ids that are not in the data anymore are not needed (the server keeps an effect for some seconds)
         this.seenEffects = ids;
+    }
+
+    /**
+     * The opened chests of a response are shown at its playback-time (like the entities), at once without a delay.
+     * @private
+     */
+    scheduleContainers(containers, serverTime) {
+        const now = Date.now();
+        const playback = LIVE_PLAYBACK.delay > 0 && serverTime !== null ?
+            LIVE_CLOCK.playbackTime(serverTime, LIVE_PLAYBACK.delay + this.updateInterval) : null;
+        this.scheduledContainers.push({due: playback !== null ? Math.min(playback, now + 5000) : now, containers});
+        if (this.scheduledContainers.length > 50) this.scheduledContainers.shift();
+    }
+
+    /**
+     * Applies the latest due container-state and animates the lids.
+     * @private
+     * @returns {boolean} if a lid is drawn
+     */
+    animateChests(set, dt) {
+        const now = Date.now();
+        let latest = null;
+        while (this.scheduledContainers.length > 0 && this.scheduledContainers[0].due <= now) latest = this.scheduledContainers.shift();
+        if (!set.visible) {
+            this.chestLids.clear();
+            this.chestLids.applyHiddenBoxes(this.mapUniforms);
+            return false;
+        }
+        if (latest) this.chestLids.setOpen(latest.containers);
+        if (this.chestLids.group.parent !== set) set.add(this.chestLids.group);
+        const drawn = this.chestLids.step(dt);
+        this.chestLids.applyHiddenBoxes(this.mapUniforms);
+        return drawn;
     }
 
     /** @private shows the effects whose time has come */
@@ -275,6 +317,7 @@ export class EntityMarkerManager extends MarkerManager {
             if (marker.isEntityMarker && marker.removed) this.removeMarker(set, marker);
         });
         if (this.animateParticles(set, dt)) moving = true;
+        if (this.animateChests(set, dt)) moving = true;
         if (moving && set.visible && this.redraw) this.redraw();
         this.updateLeashes(set);
         if (this.events) this.events.dispatchEvent(new CustomEvent(ENTITIES_STEPPED_EVENT, {detail: {markers: set.markers}}));
@@ -307,6 +350,8 @@ export class EntityMarkerManager extends MarkerManager {
         if (set) this.root.remove(set);
         this.particleView.dispose();
         this.particleSystem.clear();
+        this.chestLids.dispose();
+        this.chestLids.applyHiddenBoxes(this.mapUniforms);
         this.itemCache.dispose();
         this.entityCache.dispose();
         this.mobCache.dispose();

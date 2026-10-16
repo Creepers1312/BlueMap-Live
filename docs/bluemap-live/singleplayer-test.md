@@ -306,6 +306,10 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q29 | Wurftrank (z. B. Heilung, Gift) und Verweiltrank werfen | Beim Zerbrechen ein Ring aus farbigen Partikeln; Verweiltrank: Wolke am Boden mit Partikeln in Trankfarbe, die kleiner wird |
 | Q30 | Zombie im Sonnenlicht brennen lassen, selbst in Lava/Feuer laufen, brennender Pfeil | Animierte Flammen um die Figur, auch nachts hell |
 | Q31 | Einen Mob töten | Nach der Todesanimation eine kleine graue Rauchwolke |
+| Q32 | Karte offen lassen, im Spiel Blöcke abbauen und setzen, etwas sprengen | Nach etwa 10–20 s ändert sich die Karte an der Stelle, ohne Neuladen und ohne dass die Kachel kurz verschwindet; auch weiter herausgezoomt (Lowres) |
+| Q33 | Truhe, Fallentruhe, Doppeltruhe und Endertruhe öffnen und wieder schließen | Deckel klappt auf der Karte auf und zu wie im Spiel, mit der richtigen Textur; geschlossen wieder normal |
+| Q34 | Fass öffnen | Nach etwa 10–20 s zeigt das Fass auf der Karte den offenen Deckel (Blockzustand) |
+| Q35 | `live-block-updates: false` in `plugin.conf`, `/bluemap reload` | Karte verhält sich wie im Original (Änderungen erst nach Minuten bzw. mit „Karte aktualisieren“) |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

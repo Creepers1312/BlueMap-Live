@@ -26,6 +26,8 @@ package de.bluecolored.bluemap.common.web;
 
 import de.bluecolored.bluemap.common.config.PluginConfig;
 import de.bluecolored.bluemap.common.live.LiveEntitiesDataSupplier;
+import de.bluecolored.bluemap.common.live.LiveTileLog;
+import de.bluecolored.bluemap.common.live.LiveTilesDataSupplier;
 import de.bluecolored.bluemap.common.live.LiveMarkersDataSupplier;
 import de.bluecolored.bluemap.common.live.LivePlayersDataSupplier;
 import de.bluecolored.bluemap.common.live.LivePlayersJson;
@@ -81,6 +83,11 @@ public class MapRequestHandler extends RoutingRequestHandler {
                 new LiveEntitiesDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter,
                         pluginConfig.getLivePlayerUpdateInterval(), itemRequester, entityRequester),
                 pluginConfig.getLivePlayerUpdateInterval()
+        )));
+
+        // BlueMap Live: the tiles that were rendered again (the webapp reloads them)
+        register("live/tiles\\.json", "", new JsonDataRequestHandler(new CachedRateLimitDataSupplier(
+                new LiveTilesDataSupplier(LiveTileLog.of(map.getId())), 500
         )));
     }
 

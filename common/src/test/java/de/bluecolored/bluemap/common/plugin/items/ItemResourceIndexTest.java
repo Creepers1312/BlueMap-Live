@@ -124,6 +124,10 @@ public class ItemResourceIndexTest {
         assertTrue(ItemModelBaker.isProvidedTexture("minecraft:particle/spell_3"));
         assertTrue(ItemModelBaker.isProvidedTexture("minecraft:block/fire_1"));
         assertFalse(ItemModelBaker.isProvidedTexture("minecraft:block/stone"));
+        // the chest-lids (BlueMap Live: opened chests)
+        assertTrue(ItemModelBaker.isProvidedTexture("minecraft:entity/chest/ender"));
+        assertTrue(ItemModelBaker.isProvidedTexture("minecraft:entity/chest/christmas_right"));
+        assertFalse(ItemModelBaker.isProvidedTexture("minecraft:entity/cow/cow"));
     }
 
 }

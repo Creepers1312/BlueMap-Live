@@ -27,6 +27,9 @@ import  { Tile } from './Tile.js';
 import {alert, dispatchEvent, hashTile} from '../util/Utils.js';
 import {TileMap} from "./TileMap";
 
+/** BlueMap Live: per tile-path the cache-hashes of the changed tiles */
+const LIVE_CACHE_HASHES = new Map();
+
 export class TileManager {
 
     static tileMapSize = 100;
@@ -60,6 +63,12 @@ export class TileManager {
 
         //map of loaded tiles
         this.tiles = new Map();
+
+        // BlueMap Live: the cache-hashes of changed tiles (loaded with it later as well, not from the browser-cache),
+        // kept per tile-path so they survive a map-switch
+        const key = (tileLoader && tileLoader.tilePath) + ":" + (tileLoader && tileLoader.lod !== undefined ? tileLoader.lod : "hires");
+        if (!LIVE_CACHE_HASHES.has(key)) LIVE_CACHE_HASHES.set(key, new Map());
+        this.cacheHashes = LIVE_CACHE_HASHES.get(key);
 
         // a canvas that keeps track of the loaded tiles, used for shaders
         this.tileMap = new TileMap(TileManager.tileMapSize, TileManager.tileMapSize);
@@ -192,7 +201,7 @@ export class TileManager {
 
         tile = new Tile(x, z, this.handleLoadedTile, this.handleUnloadedTile);
         this.tiles.set(tileHash, tile);
-        tile.load(this.tileLoader)
+        tile.load(this.tileLoader, this.cacheHashes.get(tileHash))
             .then(() => {
                 dispatchEvent(this.events, "bluemapTileLoaded", {
                     tileManager: this,
@@ -207,6 +216,25 @@ export class TileManager {
                 this.currentlyLoading--;
             });
 
+        return true;
+    }
+
+    /**
+     * BlueMap Live: loads a loaded (or loading) tile again, e.g. after blocks changed.
+     * @param x {number}
+     * @param z {number}
+     * @param cacheHash {number | string}
+     * @returns {boolean} if the tile is loaded (and is reloaded)
+     */
+    reloadTile(x, z, cacheHash) {
+        const tileHash = hashTile(x, z);
+        this.cacheHashes.delete(tileHash);
+        this.cacheHashes.set(tileHash, cacheHash);
+        if (this.cacheHashes.size > 10000) this.cacheHashes.delete(this.cacheHashes.keys().next().value);
+        if (this.unloaded) return false;
+        const tile = this.tiles.get(tileHash);
+        if (!tile || tile.unloaded) return false;
+        tile.reload(this.tileLoader, cacheHash);
         return true;
     }
 

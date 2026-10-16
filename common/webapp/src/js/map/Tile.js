@@ -48,16 +48,17 @@ export class Tile {
 
     /**
      * @param tileLoader {TileLoader}
+     * @param cacheHash {number | string | undefined} - BlueMap Live: the cache-hash of a changed tile
      * @returns {Promise<void>}
      */
-    load(tileLoader) {
+    load(tileLoader, cacheHash = undefined) {
         if (this.loading) return Promise.reject("tile is already loading!");
         this.loading = true;
 
         this.unload();
 
         this.unloaded = false;
-        return tileLoader.load(this.x, this.z, () => this.unloaded)
+        return tileLoader.load(this.x, this.z, () => this.unloaded, cacheHash)
             .then(model => {
                 if (this.unloaded){
                     Tile.disposeModel(model);
@@ -71,6 +72,49 @@ export class Tile {
             })
             .finally(() => {
                 this.loading = false;
+                // BlueMap Live: the tile changed while it was loading
+                if (this.pendingReload !== undefined) {
+                    const pending = this.pendingReload;
+                    this.pendingReload = undefined;
+                    this.reload(tileLoader, pending);
+                }
+            });
+    }
+
+    /**
+     * BlueMap Live: loads a changed tile again; the current model stays until the new one is there (no flicker).
+     * A reload while loading is done afterwards.
+     * @param tileLoader {TileLoader}
+     * @param cacheHash {number | string}
+     * @returns {Promise<void>}
+     */
+    reload(tileLoader, cacheHash) {
+        if (this.unloaded) return Promise.resolve();
+        if (this.loading) {
+            this.pendingReload = cacheHash;
+            return Promise.resolve();
+        }
+        this.loading = true;
+        return tileLoader.load(this.x, this.z, () => this.unloaded, cacheHash)
+            .then(model => {
+                if (this.unloaded) {
+                    Tile.disposeModel(model);
+                    return;
+                }
+                if (this.model) {
+                    this.onUnload(this);
+                    Tile.disposeModel(this.model);
+                }
+                this.model = model;
+                this.onLoad(this);
+            }, () => {}) // e.g. not available: the current model stays
+            .finally(() => {
+                this.loading = false;
+                if (this.pendingReload !== undefined) {
+                    const pending = this.pendingReload;
+                    this.pendingReload = undefined;
+                    this.reload(tileLoader, pending);
+                }
             });
     }
 

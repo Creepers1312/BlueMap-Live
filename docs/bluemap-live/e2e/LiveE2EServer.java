@@ -17,6 +17,8 @@ import com.google.gson.stream.JsonWriter;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import de.bluecolored.bluemap.common.live.LiveEffectLog;
+import de.bluecolored.bluemap.common.live.LiveTileLog;
+import de.bluecolored.bluemap.common.live.OpenContainer;
 import de.bluecolored.bluemap.common.live.ParticleState;
 import de.bluecolored.bluemap.common.live.LivePlayerState;
 import de.bluecolored.bluemap.common.live.LivePlayersJson;
@@ -82,7 +84,8 @@ public class LiveE2EServer {
     }
 
     private final Path webroot;
-    private final byte[] tile;
+    private volatile byte[] tile;
+    private volatile boolean lowresTiles = false;
     private final Map<String, SimPlayer> online = new LinkedHashMap<>();
     private final Deque<String> history = new ArrayDeque<>();
     private boolean serveStaleOnce = false;
@@ -94,10 +97,12 @@ public class LiveE2EServer {
     private final Map<Integer, LiveEntityState> entities = new LinkedHashMap<>();
     /** explosions and splash-potions: /control?effect=explosion|splash|instant_splash&x=..&y=..&z=..&power=..&destroy=1&color=RGB */
     private final LiveEffectLog effects = new LiveEffectLog();
+    /** opened chests: /control?container=X,Y,Z&texture=..&facing=..&part=..; /control?closeContainer=X,Y,Z */
+    private final Map<String, OpenContainer> containers = new LinkedHashMap<>();
 
     public LiveE2EServer(Path webroot) throws IOException {
         this.webroot = webroot;
-        this.tile = createTile();
+        this.tile = createTile(70);
     }
 
     public static void main(String[] args) throws Exception {
@@ -131,9 +136,25 @@ public class LiveE2EServer {
                     case "settings.json" -> send(ex, 200, "application/json", mapSettings(mapId).getBytes(StandardCharsets.UTF_8));
                     case "textures.json" -> send(ex, 200, "application/json", textures().getBytes(StandardCharsets.UTF_8));
                     case "tiles/0/x0/z0.prbm" -> send(ex, 200, "application/octet-stream", tile);
+                    case "tiles/1/x0/z0.png", "tiles/2/x0/z0.png", "tiles/3/x0/z0.png" -> {
+                        // lowres-tiles only after /control?lowresTiles=1 (the other suites test without them)
+                        if (!lowresTiles) send(ex, 404, "text/plain", "no tile".getBytes(StandardCharsets.UTF_8));
+                        else {
+                            ByteArrayOutputStream png = new ByteArrayOutputStream();
+                            ImageIO.write(new BufferedImage(501, 1002, BufferedImage.TYPE_INT_ARGB), "png", png);
+                            send(ex, 200, "image/png", png.toByteArray());
+                        }
+                    }
                     case "live/players.json" -> handlePlayers(ex, mapId);
                     case "live/markers.json" -> send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
                     case "live/entities.json" -> handleEntities(ex, mapId);
+                    case "live/tiles.json" -> {
+                        StringWriter out = new StringWriter();
+                        try (JsonWriter json = new JsonWriter(out)) {
+                            LiveTileLog.of(mapId).write(json, System.currentTimeMillis());
+                        }
+                        send(ex, 200, "application/json", out.toString().getBytes(StandardCharsets.UTF_8));
+                    }
                     default -> {
                         if (file.startsWith("assets/playerskins/") && file.endsWith(".png")) handleSkin(ex, file);
                         else if (file.startsWith("assets/items/") && file.endsWith(".json")) handleItem(ex, file);
@@ -255,6 +276,35 @@ public class LiveE2EServer {
                     // projectiles: &impact=x,y,z,ticks (where the server predicted the hit on a block)
                     q.containsKey("impact") ? impact(q.get("impact")) : null,
                     particles(q)));
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        // block-changes: /control?tileUpdate=X,Z[&lowres=1][&pillar=TOP] (the re-rendered tile, the test-tile gets a
+        // pillar of this height)
+        if (q.containsKey("container")) {
+            String[] p = q.get("container").split(",");
+            containers.put(q.get("container"), new OpenContainer(new com.flowpowered.math.vector.Vector3i(Integer.parseInt(p[0]),
+                    Integer.parseInt(p[1]), Integer.parseInt(p[2])), q.getOrDefault("texture", "minecraft:entity/chest/normal"),
+                    q.getOrDefault("facing", "south"), q.getOrDefault("part", "single")));
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (q.containsKey("closeContainer")) {
+            containers.remove(q.get("closeContainer"));
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (q.containsKey("lowresTiles")) {
+            lowresTiles = q.get("lowresTiles").equals("1");
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (q.containsKey("tileUpdate")) {
+            String[] xz = q.get("tileUpdate").split(",");
+            if (q.containsKey("pillar")) tile = createTile(Float.parseFloat(q.get("pillar")));
+            long now = System.currentTimeMillis();
+            LiveTileLog.of("world").hires(Integer.parseInt(xz[0]), Integer.parseInt(xz[1]), now);
+            if ("1".equals(q.get("lowres"))) LiveTileLog.of("world").lowres(Integer.parseInt(xz[0]), Integer.parseInt(xz[1]), now);
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }
@@ -456,7 +506,8 @@ public class LiveE2EServer {
         try (JsonWriter json = new JsonWriter(out)) {
             LiveEntitiesJson.write(json, System.currentTimeMillis(), 250,
                     mapId.equals("world") ? List.copyOf(entities.values()) : List.of(),
-                    mapId.equals("world") ? effects.recent(System.currentTimeMillis()) : List.of());
+                    mapId.equals("world") ? effects.recent(System.currentTimeMillis()) : List.of(),
+                    mapId.equals("world") ? List.copyOf(containers.values()) : List.of());
         }
         send(ex, 200, "application/json", out.toString().getBytes(StandardCharsets.UTF_8));
     }
@@ -580,12 +631,12 @@ public class LiveE2EServer {
     }
 
     /** A 32x32 ground plane at y=64 with a 4x6x4 pillar (local 14..18), written with BlueMaps own PRBMWriter */
-    private static byte[] createTile() throws IOException {
+    private static byte[] createTile(float pillarTop) throws IOException {
         ArrayTileModel model = new ArrayTileModel(64);
         // ground (top face, facing up)
         quad(model, 0, 64, 0,  0, 64, 32,  32, 64, 32,  32, 64, 0);
         // pillar: 4 sides + top
-        float x0 = 14, x1 = 18, z0 = 14, z1 = 18, y0 = 64, y1 = 70;
+        float x0 = 14, x1 = 18, z0 = 14, z1 = 18, y0 = 64, y1 = pillarTop;
         quad(model, x0, y0, z1,  x1, y0, z1,  x1, y1, z1,  x0, y1, z1); // south (+z)
         quad(model, x1, y0, z0,  x0, y0, z0,  x0, y1, z0,  x1, y1, z0); // north (-z)
         quad(model, x1, y0, z1,  x1, y0, z0,  x1, y1, z0,  x1, y1, z1); // east (+x)

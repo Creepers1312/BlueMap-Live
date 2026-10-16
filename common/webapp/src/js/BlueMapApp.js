@@ -22,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+import {LiveTileUpdater, TILE_UPDATE_INTERVAL} from "./map/LiveTileUpdater";
 import "./BlueMap";
 import {MapViewer} from "./MapViewer";
 import {MapControls} from "./controls/map/MapControls";
@@ -60,6 +61,8 @@ export class BlueMapApp {
         this.entityMarkerManager = null;
         /** @type {NormalMarkerManager} */
         this.markerFileManager = null;
+        /** @type {LiveTileUpdater} */
+        this.liveTileUpdater = null;
 
         /** @type {{
          *      version: string,
@@ -270,6 +273,7 @@ export class BlueMapApp {
 
         if (this.playerMarkerManager) this.playerMarkerManager.dispose();
         if (this.entityMarkerManager) this.entityMarkerManager.dispose();
+        if (this.liveTileUpdater) this.liveTileUpdater.dispose();
         if (this.markerFileManager) this.markerFileManager.dispose();
 
         await this.mapViewer.switchMap(map)
@@ -282,6 +286,7 @@ export class BlueMapApp {
         await Promise.all([
             this.initPlayerMarkerManager(),
             this.initEntityMarkerManager(),
+            this.initLiveTileUpdater(),
             this.initMarkerFileManager()
         ]);
     }
@@ -485,6 +490,8 @@ export class BlueMapApp {
             this.mapViewer.redraw,
             map.data.mapDataRoot + "/assets/entities/"
         );
+        // BlueMap Live: the hidden lids of opened chests in the map-shader
+        manager.mapUniforms = this.mapViewer.data.uniforms;
         manager.setAutoUpdateInterval(0);
         return manager.update()
             .then(success => {
@@ -492,6 +499,17 @@ export class BlueMapApp {
                 manager.setAutoUpdateInterval(success ? manager.updateInterval : 30000);
             })
             .catch(() => manager.dispose());
+    }
+
+    /**
+     * BlueMap Live: the tiles the server rendered again (block-changes) are loaded again
+     */
+    initLiveTileUpdater() {
+        if (this.liveTileUpdater) this.liveTileUpdater.dispose();
+        const map = this.mapViewer.map;
+        if (!map) return;
+        const updater = this.liveTileUpdater = new LiveTileUpdater(map, map.data.liveDataRoot + "/live/tiles.json", this.events);
+        return updater.update().then(() => updater.setAutoUpdateInterval(TILE_UPDATE_INTERVAL));
     }
 
     initMarkerFileManager() {

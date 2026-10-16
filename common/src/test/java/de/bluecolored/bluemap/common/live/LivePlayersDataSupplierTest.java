@@ -233,6 +233,26 @@ public class LivePlayersDataSupplierTest {
     }
 
     @Test
+    public void testOpenContainersAroundShownPlayers() {
+        TestPlayer player = new TestPlayer(overworld, new Vector3d(0, 64, 0));
+        player.snapshot = new Player.LiveSnapshot(overworld, state(new Vector3d(0, 64, 0), 0));
+        TestServer server = new TestServer(player);
+        server.containers = List.of(
+                new OpenContainer(new com.flowpowered.math.vector.Vector3i(3, 64, 0), "minecraft:entity/chest/normal_left", "north", "left"),
+                new OpenContainer(new com.flowpowered.math.vector.Vector3i(300, 64, 0), "minecraft:entity/chest/ender", "south", "single")
+        );
+        List<String> requested = new ArrayList<>();
+        JsonArray containers = root(supplyEntities(new PluginConfig(), server, requested)).getAsJsonArray("containers");
+        assertEquals(1, containers.size(), "only around the shown players");
+        JsonObject chest = containers.get(0).getAsJsonObject();
+        assertEquals(3, chest.get("x").getAsInt());
+        assertEquals("minecraft:entity/chest/normal_left", chest.get("texture").getAsString());
+        assertEquals("north", chest.get("facing").getAsString());
+        assertEquals("left", chest.get("part").getAsString());
+        assertEquals(List.of("texture:minecraft:entity/chest/normal_left"), requested, "the chest-texture is provided");
+    }
+
+    @Test
     public void testEntitiesLimitHiddenTypesAndDisabled() throws Exception {
         TestPlayer player = new TestPlayer(overworld, Vector3d.ZERO);
         player.snapshot = new Player.LiveSnapshot(overworld, state(Vector3d.ZERO, 0));
@@ -421,6 +441,7 @@ public class LivePlayersDataSupplierTest {
         private final List<Player> players;
         private List<LiveEntityState> entities = List.of();
         private List<LiveEffect> effects = List.of();
+        private List<OpenContainer> containers = List.of();
 
         TestServer(Player... players) {
             this.players = List.of(players);
@@ -438,6 +459,9 @@ public class LivePlayersDataSupplierTest {
         @Override public void unregisterAllListeners() {}
         @Override public List<LiveEntityState> getLiveEntities(ServerWorld world) {
             return world == overworld ? entities : List.of();
+        }
+        @Override public List<OpenContainer> getOpenContainers(ServerWorld world) {
+            return world == overworld ? containers : List.of();
         }
         @Override public List<LiveEffect> getLiveEffects(ServerWorld world) {
             return world == overworld ? effects : List.of();

@@ -100,6 +100,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
 
         List<LiveEntityState> result = new ArrayList<>();
         List<LiveEffect> effects = new ArrayList<>();
+        List<OpenContainer> containers = new ArrayList<>();
         if (config.isLiveEntities() && config.isLivePlayerMarkers() && serverWorld != null) {
 
             // the positions of the players that are shown on this map
@@ -134,6 +135,17 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                     }
                 }
 
+                for (OpenContainer container : server.getOpenContainers(serverWorld)) {
+                    Vector3d center = container.position().toDouble().add(0.5, 0.5, 0.5);
+                    for (Vector3d player : players) {
+                        if (player.distanceSquared(center) <= radiusSquared) {
+                            containers.add(container);
+                            itemRequester.accept(LivePlayersDataSupplier.TEXTURE_PREFIX + container.texture());
+                            break;
+                        }
+                    }
+                }
+
                 listed.sort(Comparator.comparingDouble(Listed::distanceSquared));
                 int limit = config.getLiveEntitiesLimit();
                 for (int i = 0; i < listed.size() && i < limit; i++) {
@@ -158,7 +170,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
 
         try (StringWriter jsonString = new StringWriter();
              JsonWriter json = new JsonWriter(jsonString)) {
-            LiveEntitiesJson.write(json, System.currentTimeMillis(), updateIntervalMillis, result, effects);
+            LiveEntitiesJson.write(json, System.currentTimeMillis(), updateIntervalMillis, result, effects, containers);
             json.flush();
             return jsonString.toString();
         } catch (IOException ex) {

@@ -145,6 +145,14 @@ public interface Server {
     }
 
     /**
+     * The opened containers (chests) in a world whose lids the webapp animates (BlueMap Live).
+     * Platforms that do not support this return an empty list.
+     */
+    default List<de.bluecolored.bluemap.common.live.OpenContainer> getOpenContainers(ServerWorld world) {
+        return List.of();
+    }
+
+    /**
      * The latest sampled time and weather of a world (BlueMap Live), null if unknown or the world has no day-night-cycle
      * (no sky-light or a fixed time).
      */

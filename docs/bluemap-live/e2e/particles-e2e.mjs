@@ -92,14 +92,14 @@ async function countColor(name, center, color, radius = 120) {
     return count;
 }
 
-/** bright gray/white pixels (the lit explosion-sprites) */
+/** gray pixels (the lit explosion-sprites are gray 0.4..1 like vanilla; sky, grass and the black void are not gray) */
 async function countBright(name, center, radius = 150) {
     const png = decodePng(await page.screenshot({path: `${OUT}/${name}.png`}));
     let count = 0;
     for (let y = Math.max(0, center.y - radius); y < Math.min(png.height, center.y + radius); y++) {
         for (let x = Math.max(0, center.x - radius); x < Math.min(png.width, center.x + radius); x++) {
             const [r, g, b] = png.pixel(x, y);
-            if (Math.min(r, g, b) > 150 && Math.max(r, g, b) - Math.min(r, g, b) < 12) count++;
+            if (Math.min(r, g, b) > 80 && Math.max(r, g, b) - Math.min(r, g, b) < 12) count++;
         }
     }
     return count;

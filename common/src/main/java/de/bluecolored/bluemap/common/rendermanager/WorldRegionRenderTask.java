@@ -27,6 +27,7 @@ package de.bluecolored.bluemap.common.rendermanager;
 import com.flowpowered.math.vector.Vector2i;
 import com.flowpowered.math.vector.Vector2l;
 import de.bluecolored.bluemap.common.debug.DebugDump;
+import de.bluecolored.bluemap.common.live.LiveTileLog;
 import de.bluecolored.bluemap.core.logger.Logger;
 import de.bluecolored.bluemap.core.map.BmMap;
 import de.bluecolored.bluemap.core.map.renderstate.TileActionResolver.ActionAndNextState;
@@ -40,7 +41,9 @@ import lombok.Getter;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static de.bluecolored.bluemap.core.map.renderstate.TileActionResolver.Action.DELETE;
@@ -204,11 +207,13 @@ public class WorldRegionRenderTask implements MapRenderTask {
                     }
 
                     map.renderTile(tile);
+                    updated(tile);
                     yield action.state();
                 }
 
                 case DELETE -> {
                     map.unrenderTile(tile);
+                    updated(tile);
                     yield action.state();
                 }
 
@@ -245,8 +250,35 @@ public class WorldRegionRenderTask implements MapRenderTask {
         // clear tile-actions
         tileActions = null;
 
+        // BlueMap Live: a small update (e.g. a few changed blocks) saves its lowres-tiles at once, so the webapp can
+        // reload them too (a large update keeps the original behavior: saved with the map, at most every minute)
+        List<Vector2i> updated;
+        synchronized (updatedTiles) {
+            updated = new ArrayList<>(updatedTiles);
+            updatedTiles.clear();
+        }
+        if (LiveTileLog.isEnabled() && !updated.isEmpty() && updated.size() <= LIVE_LOWRES_SAVE_LIMIT) {
+            map.getLowresTileManager().save();
+            LiveTileLog log = LiveTileLog.of(map.getId());
+            long now = System.currentTimeMillis();
+            for (Vector2i tile : updated) log.lowres(tile.getX(), tile.getY(), now);
+        }
+
         // save map (at most, every minute)
         map.save(TimeUnit.MINUTES.toMillis(1));
+    }
+
+    /** BlueMap Live: at most this many tiles of one task save their lowres-tiles at once */
+    static final int LIVE_LOWRES_SAVE_LIMIT = 16;
+
+    /** BlueMap Live: the tiles that were rendered (or removed) by this task */
+    private final List<Vector2i> updatedTiles = new ArrayList<>();
+
+    private void updated(Vector2i tile) {
+        LiveTileLog.of(map.getId()).hires(tile.getX(), tile.getY(), System.currentTimeMillis());
+        synchronized (updatedTiles) {
+            if (updatedTiles.size() <= LIVE_LOWRES_SAVE_LIMIT) updatedTiles.add(tile);
+        }
     }
 
     @Override

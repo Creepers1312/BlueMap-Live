@@ -139,6 +139,8 @@ Weitere Mobs folgen in späteren `0.3.x`-Versionen. Unbekannte Mobs erscheinen a
 
 ## 0.5.0-alpha – Live-Blockänderungen und Truhen
 
+**Stand:** umgesetzt und automatisiert getestet (`phase-11.md`), in Minecraft noch nicht geprüft (Q32–Q35). Release-Notes: `releases/v0.5.0-alpha.md`. Die inkrementelle Stufe ist nicht nötig, weil Minecraft geänderte Chunks schon laufend speichert. Die Truhen werden im Browser animiert statt deckellos in die Kachel gerendert (schneller).
+
 **Ziel:** Gesetzte und abgebaute Blöcke erscheinen ohne vollständiges Neurendern auf der Karte.
 
 **Inhalt:**
