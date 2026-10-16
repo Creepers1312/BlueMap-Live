@@ -34,6 +34,7 @@ import de.bluecolored.bluemap.common.live.MovementState;
 import de.bluecolored.bluemap.common.live.PlayerMotionTracker;
 import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.live.SwingTracker;
+import de.bluecolored.bluemap.common.live.Vehicle;
 import de.bluecolored.bluemap.common.plugin.text.Text;
 import de.bluecolored.bluemap.common.serverinterface.Gamemode;
 import de.bluecolored.bluemap.common.serverinterface.Player;
@@ -41,6 +42,7 @@ import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ChargedProjectilesComponent;
 import net.minecraft.component.type.CustomModelDataComponent;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -309,6 +311,7 @@ public class FabricPlayer extends Player {
         // vanilla LivingEntityRenderer: on a living vehicle the body follows the vehicle
         float bodyYaw = player.getVehicle() instanceof LivingEntity vehicle ?
                 MovementState.passengerBodyYaw(player.getHeadYaw(), vehicle.bodyYaw) : player.getBodyYaw();
+        Vehicle vehicle = sampleVehicle(player, bodyYaw);
 
         long now = System.currentTimeMillis();
         PlayerMotionTracker.Result motion = motionTracker.sample(serverWorld.getDimension().getFormatted(), position, now);
@@ -331,8 +334,27 @@ public class FabricPlayer extends Player {
                         swingTracker.getState(),
                         sampleEquipment(player),
                         sampleItemUse(player),
-                        hurtCount
+                        hurtCount,
+                        vehicle
                 )
+        );
+    }
+
+
+    /**
+     * The vehicle and the offset of the player on it (same tick), relative to the yaw the vehicle is drawn with
+     * (see FabricVehicles.drawnRotation, the same yaw is sent with the vehicle).
+     */
+    static @Nullable Vehicle sampleVehicle(Entity passenger, float bodyYaw) {
+        Entity vehicle = passenger.getVehicle();
+        if (vehicle == null) return null;
+        float vehicleYaw = FabricVehicles.drawnRotation(vehicle)[0];
+        Vec3d pos = passenger.getPos(), vehiclePos = vehicle.getPos();
+        return new Vehicle(
+                vehicle.getId(),
+                Vehicle.toLocal(pos.x - vehiclePos.x, pos.y - vehiclePos.y, pos.z - vehiclePos.z, vehicleYaw),
+                Vehicle.relativeYaw(bodyYaw, vehicleYaw),
+                Vehicle.relativeYaw(passenger.getHeadYaw(), vehicleYaw)
         );
     }
 

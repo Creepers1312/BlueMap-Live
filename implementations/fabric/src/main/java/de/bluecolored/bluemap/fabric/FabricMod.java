@@ -33,6 +33,7 @@ import de.bluecolored.bluemap.common.commands.Commands;
 import de.bluecolored.bluemap.common.config.PluginConfig;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
+import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.common.live.LiveWorldTime;
 import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.Plugin;
@@ -355,7 +356,7 @@ public class FabricMod implements ModInitializer, Server {
     /** the entity-types that are shown on the map (dropped items, thrown items, arrows, tridents and mobs) */
     private static boolean isLiveEntity(Entity entity) {
         return entity instanceof ItemEntity || entity instanceof FlyingItemEntity || entity instanceof PersistentProjectileEntity ||
-                FabricMobs.isLiveMob(entity);
+                FabricMobs.isLiveMob(entity) || FabricVehicles.isVehicle(entity);
     }
 
     /** a protection against huge entity-amounts (e.g. farms), the data-supplier applies the configured limit */
@@ -442,17 +443,27 @@ public class FabricMod implements ModInitializer, Server {
             impact = FabricProjectiles.predictImpact(entity, type, pos, velocity);
         }
 
+        // boats and minecarts: the yaw and pitch the vanilla renderer draws them with
+        float yaw = entity.getYaw(), pitch = entity.getPitch();
+        LiveMobState vehicle = null;
+        if (FabricVehicles.isVehicle(entity)) {
+            float[] rotation = FabricVehicles.drawnRotation(entity);
+            yaw = rotation[0];
+            pitch = rotation[1];
+            vehicle = FabricVehicles.sample(entity, yaw);
+        }
+
         return new LiveEntityState(
                 entity.getId(),
                 type,
                 new Vector3d(pos.x, pos.y, pos.z),
-                entity.getYaw(),
-                entity.getPitch(),
+                yaw,
+                pitch,
                 new Vector3d(velocity.x * 20, velocity.y * 20, velocity.z * 20), // blocks per tick -> per second
                 now,
                 item,
                 onGround,
-                entity instanceof LivingEntity living ? FabricMobs.sample(living) : null,
+                entity instanceof LivingEntity living ? FabricMobs.sample(living) : vehicle,
                 impact
         );
     }

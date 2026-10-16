@@ -322,9 +322,9 @@ public class VanillaMobModelsTest {
         LAYERS.put("minecraft:wither#main", () -> call(MODEL + "WitherEntityModel", "getTexturedModelData", dilation(0)));
         LAYERS.put("minecraft:wolf#main", () -> of(call(MODEL + "WolfEntityModel", "getTexturedModelData", dilation(0)), 64, 32));
         LAYERS.put("minecraft:boat#main", () -> call(MODEL + "BoatEntityModel", "getTexturedModelData"));
-        LAYERS.put("minecraft:chest_boat#main", () -> call(MODEL + "BoatEntityModel", "getChestTexturedModelData"));
+        LAYERS.put("minecraft:chest_boat#main", () -> call(MODEL + "ChestBoatEntityModel", "getTexturedModelData"));
         LAYERS.put("minecraft:raft#main", () -> call(MODEL + "RaftEntityModel", "getTexturedModelData"));
-        LAYERS.put("minecraft:chest_raft#main", () -> call(MODEL + "RaftEntityModel", "getChestTexturedModelData"));
+        LAYERS.put("minecraft:chest_raft#main", () -> call(MODEL + "ChestRaftEntityModel", "getTexturedModelData"));
         LAYERS.put("minecraft:minecart#main", () -> call(MODEL + "MinecartEntityModel", "getTexturedModelData"));
     }
 

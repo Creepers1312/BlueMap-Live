@@ -181,6 +181,17 @@ public final class LivePlayersJson {
                 json.endObject();
             }
 
+            Vehicle vehicle = state.vehicle();
+            if (vehicle != null) {
+                json.name("vehicle").beginObject();
+                json.name("id").value(vehicle.entityId());
+                json.name("offset");
+                writeVector(json, vehicle.offset());
+                json.name("bodyYaw").value(finite(vehicle.bodyYaw()));
+                json.name("headYaw").value(finite(vehicle.headYaw()));
+                json.endObject();
+            }
+
             ItemUse use = state.use();
             if (use != null) {
                 json.name("use").beginObject();
