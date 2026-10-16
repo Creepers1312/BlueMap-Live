@@ -690,3 +690,39 @@ test("skulls on the head: the skull-model of the item, rotated by 180, dragon-ja
     near(piglin["head/left_ear"].roll, -(1 + 2.5) * 0.2, "left ear");
     near(piglin["head/right_ear"].roll, (1 + 2.5) * 0.2, "right ear");
 });
+
+test("warden: walking and idle-sway like WardenEntityModel.setAngles", () => {
+    const w = mainParts("minecraft:warden");
+    ANIMATIONS.warden(w, input({limbAngle: 1, limbDistance: 1, age: 0}));
+    const f = 0.5, h = 0.8662, k = 0.35;
+    near(w["bone/left_leg"].pitch, Math.cos(h) * f, "left leg");
+    near(w["bone/right_leg"].pitch, Math.cos(h + PI) * f, "right leg");
+    near(w["bone/body/right_arm"].pitch, -(0.8 * Math.sin(h) * f), "right arm");
+    near(w["bone/body"].pitch, Math.cos(h) * k + 0.025, "body + sway (cos 0)");
+    near(w["bone/body/left_arm"].pivotX, 13, "arm pivots");
+});
+
+test("slime: squashed on landing, stretched when jumping (vanilla SlimeEntity.tick, SlimeEntityRenderer.scale)", async () => {
+    const cache = fakeMobCache({"minecraft:entity/slime/slime": 1});
+    const marker = new EntityMarker("bm-entity-60", null, null, cache);
+    let time = 1000;
+    const sample = (y, onGround) => parseEntity({id: 60, type: "minecraft:slime", position: {x: 0, y, z: 0}, time: time += 250, onGround,
+        mob: {bodyYaw: 0, headYaw: 0, size: 2}});
+    marker.updateFromData(sample(64, true), 250);
+    await flush(); await flush();
+    marker.step(0.05, null);
+    assert.equal(marker.slime.stretch, 0);
+    marker.updateFromData(sample(65, false), 250); // jumps
+    marker.step(0.05, null); // target 1 -> 0.6 after the tick
+    marker.step(0.05, null);
+    assert.ok(marker.slime.stretch > 0.25, `stretched (${marker.slime.stretch})`);
+    const stretchedY = -marker.view.flip.scale.y;
+    marker.updateFromData(sample(64, true), 250); // lands
+    for (let i = 0; i < 3; i++) marker.step(0.05, null);
+    assert.ok(marker.slime.stretch < 0, `squashed (${marker.slime.stretch})`);
+    assert.ok(-marker.view.flip.scale.y < stretchedY, "flatter than while jumping");
+    for (let i = 0; i < 40; i++) marker.step(0.05, null);
+    assert.ok(Math.abs(marker.slime.stretch) < 1e-3, "back to rest");
+    near(-marker.view.flip.scale.y, 0.999 * 2, "size 2 at rest");
+    marker.dispose();
+});

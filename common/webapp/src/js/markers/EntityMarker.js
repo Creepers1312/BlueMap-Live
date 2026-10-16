@@ -136,6 +136,8 @@ export class EntityMarker extends Marker {
         this.catPose = {sleep: 0, tailCurl: 0, headDown: 0};
         /** vanilla PandaEntity: sittingAnimation, lieOnBackAnimation; PolarBearEntity: warningAnimationProgress */
         this.pandaPose = {sit: 0, lie: 0};
+        /** vanilla SlimeEntity: stretch, targetStretch and the last ground-state (per tick) */
+        this.slime = {stretch: 0, target: 0, onGround: true};
         this.warning = 0;
         this.animationInput = {
             limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0, swingOffHand: false, attackTicks: 0,
@@ -411,6 +413,13 @@ export class EntityMarker extends Marker {
         this.tickRemainder += ticks;
         for (let i = 0; this.tickRemainder >= 1 && i < 20; i++) {
             this.tickRemainder -= 1;
+            // vanilla SlimeEntity.tick: the stretch follows the target, landing squashes, jumping stretches
+            const slime = this.slime;
+            slime.stretch += (slime.target - slime.stretch) * 0.5;
+            if (entity.onGround && !slime.onGround) slime.target = -0.5;
+            else if (!entity.onGround && slime.onGround) slime.target = 1;
+            slime.onGround = entity.onGround;
+            slime.target *= 0.6; // updateStretch
             this.wingDeviation = Math.min(1, Math.max(0, this.wingDeviation + (entity.onGround ? -1 : 4) * 0.3));
             if (!entity.onGround && this.flapSpeed < 1) this.flapSpeed = 1;
             this.flapSpeed *= 0.9;
@@ -436,6 +445,7 @@ export class EntityMarker extends Marker {
         input.bed = bedPose(mob);
         input.cat = catPose;
         input.panda = pandaPose;
+        input.slimeStretch = this.slime.stretch;
         input.warning = this.warning;
         input.entityPitch = entity.rotation.pitch;
 
@@ -448,7 +458,7 @@ export class EntityMarker extends Marker {
             this.fuseTicks > 0 || this.swingTicks >= 0 || this.attackTicks > 0 ||
             (catPose.sleep > 0 && catPose.sleep < 1) || (catPose.headDown > 0 && catPose.headDown < 1) ||
             (pandaPose.sit > 0 && pandaPose.sit < 1) || (pandaPose.lie > 0 && pandaPose.lie < 1) ||
-            (this.warning > 0 && this.warning < 1);
+            (this.warning > 0 && this.warning < 1) || Math.abs(this.slime.stretch) > 1e-3;
     }
 
     /** @private */

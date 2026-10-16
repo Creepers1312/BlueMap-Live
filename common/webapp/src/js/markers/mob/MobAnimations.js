@@ -427,6 +427,39 @@ export function villager(p, input) {
 /** vanilla SlimeEntityModel: no animation */
 export function slime() {}
 
+/**
+ * vanilla WardenEntityModel.setAngles (code-part): head, walking (setLimbAngles, setArmPivots), the idle-sway
+ * (setHeadAndBodyAngles); the tendrils move only with vibrations (client-side state, 0 here), the keyframe-animations
+ * (attack, roar, sniff, dig, emerge, sonic boom) are not shown
+ */
+export function warden(p, input) {
+    const head = p["bone/body/head"], body = p["bone/body"];
+    const leftArm = p["bone/body/left_arm"], rightArm = p["bone/body/right_arm"];
+    head.pitch = input.headPitch * DEG;
+    head.yaw = input.headYaw * DEG;
+    const f = Math.min(0.5, 3 * input.limbDistance);
+    const h = input.limbAngle * 0.8662;
+    const c = cos(h), s = sin(h);
+    const k = Math.min(0.35, f);
+    head.roll += 0.3 * s * f;
+    head.pitch += 1.2 * cos(h + 1.5707964) * k;
+    body.roll = 0.1 * s * f;
+    body.pitch = c * k;
+    p["bone/left_leg"].pitch = c * f;
+    p["bone/right_leg"].pitch = cos(h + PI) * f;
+    leftArm.pitch = -(0.8 * c * f);
+    leftArm.roll = 0;
+    rightArm.pitch = -(0.8 * s * f);
+    rightArm.roll = 0;
+    leftArm.yaw = 0; leftArm.pivotZ = 1; leftArm.pivotX = 13; leftArm.pivotY = -13;
+    rightArm.yaw = 0; rightArm.pivotZ = 1; rightArm.pivotX = -13; rightArm.pivotY = -13;
+    const a = input.age * 0.1;
+    head.roll += 0.06 * cos(a);
+    head.pitch += 0.06 * sin(a);
+    body.roll += 0.025 * sin(a);
+    body.pitch += 0.025 * cos(a);
+}
+
 // ---- further mobs (1.21) ----
 
 const head = p => p.head || Object.entries(p).find(([path]) => path.endsWith("/head"))?.[1];
@@ -996,6 +1029,6 @@ export const ANIMATIONS = {
     zombie, drowned, skeleton, piglin, zombified_piglin: (p, input) => piglin(p, input, true),
     quadruped, creeper, spider, chicken, enderman, villager, slime,
     illager, ironGolem, snowGolem, blaze, ghast, squid, silverfish, endermite, phantom, fish, salmon, dolphin, guardian,
-    hoglin, ravager, ocelot, cat, fox, wolf, pufferfish, panda, polarBear, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
+    hoglin, ravager, ocelot, cat, fox, wolf, pufferfish, panda, polarBear, warden, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
     shulker, wither,
 };

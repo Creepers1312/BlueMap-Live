@@ -276,6 +276,16 @@ export class MobModel extends Group {
             this.white = white;
             this.updateMaterials();
         }
+        // vanilla SlimeEntityRenderer.scale: 0.999, up by 0.001, then the stretch (size g):
+        // h = stretch / (g * 0.5 + 1), i = 1 / (h + 1), scale (i * g, g / i, i * g)
+        if (this.mobType.slime) {
+            const g = Math.max(1, this.mob.size || 1);
+            const h = (input.slimeStretch || 0) / (g * 0.5 + 1);
+            const i = 1 / (h + 1);
+            const base = 0.999 * (this.mobType.scale || 1);
+            this.flip.scale.set(-base * i * g, -base * g / i, base * i * g);
+            this.flip.position.y = 0.001 * 0.999;
+        }
         if (this.mobType.creeper && this.baseScale) {
             const swelling = creeperSwelling(fuse);
             this.flip.scale.set(-this.baseScale * swelling.horizontal, -this.baseScale * swelling.vertical, this.baseScale * swelling.horizontal);

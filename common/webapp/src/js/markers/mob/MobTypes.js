@@ -363,7 +363,7 @@ Object.assign(MOB_TYPES, {
     // vanilla WardenEntityRenderer: WardenFeatureRenderers (translucent-emissive) with their parts and alphas; the
     // heart and the tendrils pulse with client-side states (heartbeat, vibrations) and are not shown
     "minecraft:warden": {
-        ...simple("generic", "minecraft:warden#main", E + "warden/warden"),
+        ...simple("warden", "minecraft:warden#main", E + "warden/warden"),
         layers: [
             {model: "minecraft:warden#main", texture: E + "warden/warden"},
             {model: "minecraft:warden#main", texture: E + "warden/warden_bioluminescent_layer", type: "emissive", alpha: () => 1,
