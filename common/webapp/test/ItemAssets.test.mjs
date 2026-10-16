@@ -5,7 +5,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {Vector3} from "three";
 
-import {buildQuadGeometries, ItemAssetCache, MAX_ATTEMPTS, RETRY_INTERVAL} from "../src/js/markers/player/ItemAssetCache.js";
+import {ASSET_VERSION, buildQuadGeometries, ItemAssetCache, MAX_ATTEMPTS, RETRY_INTERVAL} from "../src/js/markers/player/ItemAssetCache.js";
 import {PlayerSkinCache} from "../src/js/markers/player/PlayerSkinCache.js";
 import {PlayerModel} from "../src/js/markers/player/PlayerModel.js";
 
@@ -26,6 +26,9 @@ const asset = (extra = {}) => ({
 function jsonLoader(responses) {
     const calls = [];
     const loader = url => {
+        // the asset-version is appended (browser-caches of older assets)
+        assert.ok(url.endsWith(`.json?v=${ASSET_VERSION}`), url);
+        url = url.substring(0, url.indexOf("?"));
         calls.push(url);
         const response = responses[url];
         return response ? Promise.resolve(typeof response === "function" ? response() : response) : Promise.reject(new Error("404"));

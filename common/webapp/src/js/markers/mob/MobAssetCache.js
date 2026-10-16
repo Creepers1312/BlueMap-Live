@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 import {AdditiveBlending, Color, DoubleSide, MeshBasicMaterial, NearestFilter, RepeatWrapping, Texture} from "three";
-import {MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
+import {assetUrl, MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
 import {createHurtMaterial} from "../player/PlayerSkinCache.js";
 
 /*
@@ -77,10 +77,9 @@ export class MobAssetCache {
     acquire(type) {
         let entry = this.entries.get(type);
         if (!entry) {
-            const [namespace, path] = type.split(":");
             entry = {
                 type,
-                url: this.baseUrl ? `${this.baseUrl}${namespace}/${path}.json` : null,
+                url: assetUrl(this.baseUrl, type),
                 refs: 0,
                 state: "loading",
                 attempts: 0,

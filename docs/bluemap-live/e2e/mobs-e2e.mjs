@@ -166,7 +166,14 @@ await step("zombie: vanilla model with the pack-texture, arms forward, holds its
     await mob(10, "minecraft:zombie", 8.5, 9.5, {bodyYaw: 0, main: "minecraft:diamond_sword"});
     await waitForEntity(10, "m.view?.isMobModel && m.view.visible");
     await sleep(800);
-    assert.ok(await countColor("40-zombie", await project(10), COLORS.zombie, 90) > 200, "zombie-texture pixels");
+    // the camera may still settle after loading: measured again a few times
+    let zombieCenter, zombiePixels = 0;
+    for (let i = 0; i < 5 && zombiePixels <= 200; i++) {
+        if (i > 0) await sleep(500);
+        zombieCenter = await project(10);
+        zombiePixels = await countColor("40-zombie", zombieCenter, COLORS.zombie, 90);
+    }
+    assert.ok(zombiePixels > 200, `zombie-texture pixels: ${zombiePixels} at ${JSON.stringify(zombieCenter)}`);
     const pitch = await entityExpr(10, "m.view.layerViews[0].bones.get('right_arm').rotation.x");
     assert.ok(Math.abs(pitch - -Math.PI / 2.25) < 0.06, `arms forward (${pitch})`);
     const item = await entityExpr(10, "[m.view.itemSlots.right.itemId, m.view.itemSlots.left.itemId]");

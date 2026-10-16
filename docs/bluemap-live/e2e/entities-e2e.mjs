@@ -161,6 +161,10 @@ await step("dropped item: item-model with the ground-transformation, bobbing and
     assert.ok(Math.max(...heights) - Math.min(...heights) > 0.02, "bobbing");
     assert.ok(rotations.at(-1) > rotations[0], "rotating");
     assert.equal(await entityExpr(1, "m.data.listed"), false, "not listed in the marker-menu");
+    // vanilla ground-transformation of item/generated: scale 0.5 (a 16 px item is half a block)
+    assert.deepEqual(await entityExpr(1, "m.view.scale.toArray()"), [0.5, 0.5, 0.5], "ground-scale");
+    const url = await page.evaluate(() => [...window.bluemap.entityMarkerManager.itemCache.entries.values()][0].url);
+    assert.match(url, /diamond\.json\?v=\d+$/, "asset-url with version (no stale browser-cache after updates)");
 });
 
 await step("markers.json-updates (every 10 s) keep the entity-set and its markers", async () => {

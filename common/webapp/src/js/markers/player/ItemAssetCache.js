@@ -35,6 +35,24 @@ import {createSkinBoxGeometry} from "./PlayerModelGeometry.js";
 export const RETRY_INTERVAL = 2000;
 export const MAX_ATTEMPTS = 15;
 
+/**
+ * Appended to the asset-urls: the webserver lets browsers cache assets for a day, so an asset of an older version
+ * (e.g. item-assets of 0.1.0 without the ground-transformation) would be used after an update. Increase it whenever the
+ * content of the item-, entity- or mob-assets changes.
+ */
+export const ASSET_VERSION = 3;
+
+/**
+ * @param baseUrl {string | null}
+ * @param id {string} - "namespace:path"
+ * @returns {string | null}
+ */
+export function assetUrl(baseUrl, id) {
+    if (!baseUrl) return null;
+    const [namespace, path] = id.split(":");
+    return `${baseUrl}${namespace}/${path}.json?v=${ASSET_VERSION}`;
+}
+
 const QUAD_STRIDE = 22;
 
 /** vanilla face-shading of block-models (up, down, north/south, east/west) */
@@ -195,10 +213,9 @@ export class ItemAssetCache {
     acquire(itemId) {
         let entry = this.entries.get(itemId);
         if (!entry) {
-            const [namespace, path] = itemId.split(":");
             entry = {
                 id: itemId,
-                url: this.baseUrl ? `${this.baseUrl}${namespace}/${path}.json` : null,
+                url: assetUrl(this.baseUrl, itemId),
                 refs: 0,
                 state: "loading",
                 attempts: 0,

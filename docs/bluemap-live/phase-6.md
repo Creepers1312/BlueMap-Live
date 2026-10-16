@@ -163,6 +163,11 @@ Alle anderen Lebewesen (außer Spielern und Rüstungsständern, ohne unsichtbare
 - Dorfbewohner mit Beruf (Pixel)
 - Platzhalter
 
+**Fehler nach dem Test in Minecraft behoben (liegende Items zu groß, Schild kreist):**
+- Der Webserver erlaubt Browsern, Assets einen Tag lang zu cachen. Nach dem Update wurden deshalb noch die Item-Assets von 0.1.0 verwendet, und darin fehlte die Boden-Transformation (Skalierung 0,5 und Verschiebung).
+- Die Asset-URLs haben jetzt eine Versionsnummer (`?v=3`, `ASSET_VERSION`), so lädt eine neue Webapp-Version immer die passenden Assets.
+- Neue Prüfungen in `entities-e2e.mjs`: Boden-Skalierung 0,5 und versionierte URL.
+
 **Fehler in 0.2.0 gefunden und behoben:**
 - `markers.json` wird alle 10 s neu geladen. Dabei hat der `NormalMarkerManager` jedes Marker-Set entfernt, das dort nicht steht, also auch „Entities“. Danach wurden alle Entities neu angelegt: Item-Modelle wurden neu geladen und fliegende Pfeile begannen neu.
 - Das Set steht jetzt wie das Spieler-Set auf der Ausnahmeliste.
