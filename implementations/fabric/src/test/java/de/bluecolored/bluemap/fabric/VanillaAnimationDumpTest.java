@@ -70,7 +70,14 @@ public class VanillaAnimationDumpTest {
         METHODS.put(MODEL + "MinecartEntityModel", Set.of());
         METHODS.put("net/minecraft/entity/vehicle/BoatEntity", Set.of("tick", "interpolatePaddlePhase", "isPaddleMoving",
                 "updatePassengerPosition", "getPassengerAttachmentPos", "getVariant", "clampPassengerYaw", "getMaxPassengers"));
-        METHODS.put("net/minecraft/entity/passive/AbstractHorseEntity", Set.of("updatePassengerPosition", "getPassengerAttachmentPos"));
+        // horses: grazing, rearing, eating, tail, gallop (model and the animation-progress of the entity)
+        METHODS.put(MODEL + "AbstractHorseEntityModel", Set.of());
+        METHODS.put(MODEL + "DonkeyEntityModel", Set.of());
+        METHODS.put(RENDER + "AbstractHorseEntityRenderer", Set.of());
+        METHODS.put("net/minecraft/entity/passive/AbstractHorseEntity", Set.of("updatePassengerPosition", "getPassengerAttachmentPos",
+                "tick", "tickMovement", "getEatingGrassAnimation", "getAngryAnimation", "getEatingAnimation", "isEatingGrass",
+                "isAngry", "setEatingGrass", "setAngry", "updateAnger", "wagTail", "playWalkSound", "updateEating",
+                "isEating", "setEating", "travel", "getControlledMovementInput", "getSaddledSpeed", "tickControlled"));
     }
 
     /** text-resources of the game (shaders, atlas-definitions), printed as they are */
