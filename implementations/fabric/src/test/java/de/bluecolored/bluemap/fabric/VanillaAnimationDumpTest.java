@@ -60,6 +60,17 @@ public class VanillaAnimationDumpTest {
         METHODS.put("net/minecraft/entity/LivingEntity", Set.of("getPassengerRidingPos", "getPassengerAttachmentPos"));
         METHODS.put("net/minecraft/entity/Entity", Set.of("updatePassengerPosition", "getPassengerRidingPos", "getPassengerAttachmentPos",
                 "getVehicleAttachmentPos", "getRidingOffset"));
+        // boats and minecarts: renderers, models (paddles), paddle-phases, passenger-positions
+        METHODS.put(RENDER + "BoatEntityRenderer", Set.of());
+        METHODS.put(MODEL + "BoatEntityModel", Set.of());
+        METHODS.put(MODEL + "RaftEntityModel", Set.of());
+        METHODS.put(MODEL + "ChestBoatEntityModel", Set.of());
+        METHODS.put(MODEL + "ChestRaftEntityModel", Set.of());
+        METHODS.put(RENDER + "MinecartEntityRenderer", Set.of());
+        METHODS.put(MODEL + "MinecartEntityModel", Set.of());
+        METHODS.put("net/minecraft/entity/vehicle/BoatEntity", Set.of("tick", "interpolatePaddlePhase", "isPaddleMoving",
+                "updatePassengerPosition", "getPassengerAttachmentPos", "getVariant", "clampPassengerYaw", "getMaxPassengers"));
+        METHODS.put("net/minecraft/entity/passive/AbstractHorseEntity", Set.of("updatePassengerPosition", "getPassengerAttachmentPos"));
     }
 
     /** text-resources of the game (shaders, atlas-definitions), printed as they are */
