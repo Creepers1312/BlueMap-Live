@@ -39,6 +39,14 @@ import net.minecraft.entity.passive.AbstractDonkeyEntity;
 import net.minecraft.entity.passive.StriderEntity;
 import net.minecraft.entity.passive.BeeEntity;
 import net.minecraft.entity.passive.PandaEntity;
+import net.minecraft.entity.passive.ArmadilloEntity;
+import net.minecraft.entity.passive.CamelEntity;
+import net.minecraft.entity.passive.CatEntity;
+import net.minecraft.entity.passive.FoxEntity;
+import net.minecraft.entity.passive.PolarBearEntity;
+import net.minecraft.entity.passive.PufferfishEntity;
+import net.minecraft.entity.passive.TropicalFishEntity;
+import net.minecraft.util.math.Direction;
 import net.minecraft.entity.mob.IllagerEntity;
 import net.minecraft.entity.mob.GhastEntity;
 import net.minecraft.entity.mob.VexEntity;
@@ -223,6 +231,34 @@ final class FabricMobs {
             if (tameable.isInSittingPose()) flags.add("sitting");
         }
         if (entity instanceof Angerable angerable && angerable.hasAngerTime()) flags.add("angry");
+
+        // poses: sitting, sleeping (in a bed with its direction, the fox on the ground), lying
+        if (entity.isSleeping()) {
+            flags.add("sleeping");
+            Direction direction = entity.getSleepingDirection();
+            if (direction != null) flags.add("sleeping_" + direction.asString());
+        }
+        if (entity instanceof FoxEntity fox && fox.isSitting()) flags.add("sitting");
+        if (entity instanceof CatEntity cat) {
+            if (cat.isInSleepingPose()) flags.add("lying");
+            if (cat.isHeadDown()) flags.add("head_down");
+        }
+        if (entity instanceof PandaEntity panda) {
+            if (panda.isSitting()) flags.add("sitting");
+            if (panda.isLyingOnBack()) flags.add("lying_on_back");
+        }
+        if (entity instanceof PolarBearEntity bear && bear.isWarning()) flags.add("warning");
+        if (entity instanceof ArmadilloEntity armadillo && armadillo.isRolledUp()) flags.add("rolled_up");
+        if (entity instanceof CamelEntity camel && camel.isSitting()) flags.add("sitting");
+        // vanilla TropicalFishEntityRenderer and TropicalFishColorFeatureRenderer: the body and the pattern are tinted
+        if (entity instanceof TropicalFishEntity fish) {
+            flags.add("base_" + fish.getBaseColorComponents().getName());
+            flags.add("pattern_" + fish.getPatternColorComponents().getName());
+        }
+        // vanilla PufferfishEntityRenderer: the model of the puff-state
+        if (entity instanceof PufferfishEntity pufferfish && pufferfish.getPuffState() > 0) {
+            flags.add("puff_" + Math.min(2, pufferfish.getPuffState()));
+        }
     }
 
     /** the name of a variant: registry-key-path, StringIdentifiable or enum-name (lower case) */

@@ -145,6 +145,24 @@ public class VanillaMobModelsTest {
             differences.add("sheepWoolColors differ (" + colorSource + ")");
             report.add("::sheepWoolColors differ (" + colorSource + ") -- vanilla: " + actualColors);
         }
+        // the dye-colors (tropical fish, collars, llama-carpets): vanilla DyeColor.getEntityColor
+        JsonObject expectedDyeColors = JsonParser.parseString(Files.readString(jsonFile, StandardCharsets.UTF_8))
+                .getAsJsonObject().getAsJsonObject("dyeColors");
+        JsonObject actualDyeColors = new JsonObject();
+        try {
+            Class<?> dyeColor = Class.forName("net.minecraft.util.DyeColor");
+            java.lang.reflect.Method entityColor = dyeColor.getMethod("getEntityColor");
+            for (Object dye : dyeColor.getEnumConstants()) {
+                actualDyeColors.addProperty(((Enum<?>) dye).name().toLowerCase(Locale.ROOT),
+                        String.format("#%06x", ((int) entityColor.invoke(dye)) & 0xFFFFFF));
+            }
+        } catch (Throwable t) {
+            actualDyeColors.addProperty("unavailable", describe(t));
+        }
+        if (!actualDyeColors.equals(expectedDyeColors)) {
+            differences.add("dyeColors differ");
+            report.add("::dyeColors differ -- vanilla: " + actualDyeColors);
+        }
         System.out.println("vanilla-model-check: " + layers.size() + " layers, colors from " + colorSource);
 
         writeReport(report);

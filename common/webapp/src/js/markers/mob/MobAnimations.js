@@ -585,6 +585,14 @@ export function fish(p, input) {
     if (tail) tail.yaw = -k * 0.45 / 1.5;
 }
 
+/** vanilla Small/Medium/LargePufferfishEntityModel: the side-fins flap */
+export function pufferfish(p, input) {
+    const roll = 0.4 * sin(input.age * 0.2);
+    const right = p.right_blue_fin || p.right_fin, left = p.left_blue_fin || p.left_fin;
+    if (right) right.roll = -0.2 + roll;
+    if (left) left.roll = 0.2 - roll;
+}
+
 /** vanilla SalmonEntityModel */
 export function salmon(p, input) {
     p.body_back.yaw = -0.25 * sin(0.6 * input.age);
@@ -808,6 +816,6 @@ export const ANIMATIONS = {
     zombie, drowned, skeleton, piglin, zombified_piglin: (p, input) => piglin(p, input, true),
     quadruped, creeper, spider, chicken, enderman, villager, slime,
     illager, ironGolem, snowGolem, blaze, ghast, squid, silverfish, endermite, phantom, fish, salmon, dolphin, guardian,
-    hoglin, ravager, ocelot, wolf, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
+    hoglin, ravager, ocelot, wolf, pufferfish, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
     shulker, wither,
 };

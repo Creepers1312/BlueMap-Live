@@ -260,7 +260,7 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | P9 | Gesattelte Pferde/Strider, Esel/Lama mit Truhe | Sattel bzw. Truhen sichtbar |
 | P10 | Enderdrache | Platzhalter mit Namen |
 
-**Tag-Nacht-Zyklus der Welt (`phase-8.md`, alle offen)**
+**Tag-Nacht-Zyklus der Welt, Schlag der Mobs (`phase-8.md`, alle offen)**
 
 | # | Prüfung | Erwartung |
 |---|---|---|
@@ -270,6 +270,9 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | Q4 | `/weather rain`, `/weather thunder` | Karte etwas bzw. deutlich dunkler |
 | Q5 | Eigener Tag/Nacht-Schalter, danach Sonnenlicht-Regler | Modus aus, beide wirken wie im Original |
 | Q6 | Nether-Karte; danach Oberwelt mit BlueMaps Nacht-Schalter | Nether: kein Uhr-Knopf. Nacht: Spieler, Mobs und Items so dunkel wie die Karte, Augen von Spinne/Enderman hell |
+| Q7 | Zombie oder Skelett mit Schwert greift an | Arm schlägt, der Körper dreht sich mit |
+| Q8 | Eisengolem greift einen Zombie an | Beide Arme schlagen von oben nach unten |
+| Q9 | Hoglin bzw. Verwüster greift an | Hoglin reißt den Kopf hoch; der Verwüster stößt den Kopf vor und öffnet das Maul |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

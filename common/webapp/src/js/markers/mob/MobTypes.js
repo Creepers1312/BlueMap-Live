@@ -46,7 +46,7 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  *     model: string,                    the model-layer in vanilla-mob-models.json
  *     texture: string | function(mob): string,
  *     type?: "cutout" | "translucent" | "eyes" | "energy",
- *     tint?: "sheep",                   the wool-color of the sheep
+ *     tint?: "sheep" | function(mob): number | null,   the wool-color of the sheep, or a color (0xRRGGBB)
  *     flag?: string, unlessFlag?: string, adult?: boolean  only shown with / without this flag, only for adults
  * }}
  * @typedef MobType {{
@@ -269,7 +269,15 @@ Object.assign(MOB_TYPES, {
         ],
     },
     "minecraft:polar_bear": simple("generic", "minecraft:polar_bear#main", E + "bear/polarbear", {scale: 1.2}),
-    "minecraft:pufferfish": simple("fish", "minecraft:pufferfish_small#main", E + "fish/pufferfish"),
+    // vanilla PufferfishEntityRenderer: the model of the puff-state (small, medium, big), switched while it lives
+    "minecraft:pufferfish": {
+        ...simple("pufferfish", "minecraft:pufferfish_small#main", E + "fish/pufferfish"),
+        select: mob => mob.flags.has("puff_2") ? "minecraft:pufferfish_big" : mob.flags.has("puff_1") ? "minecraft:pufferfish_medium" : "minecraft:pufferfish_small",
+        dynamicSelect: true,
+    },
+    "minecraft:pufferfish_small": simple("pufferfish", "minecraft:pufferfish_small#main", E + "fish/pufferfish"),
+    "minecraft:pufferfish_medium": simple("pufferfish", "minecraft:pufferfish_medium#main", E + "fish/pufferfish"),
+    "minecraft:pufferfish_big": simple("pufferfish", "minecraft:pufferfish_big#main", E + "fish/pufferfish"),
     "minecraft:rabbit": simple("generic", "minecraft:rabbit#main", mob => E + "rabbit/" + (mob.variant === "evil" ? "caerbannog" : mob.variant || "brown")),
     "minecraft:ravager": simple("ravager", "minecraft:ravager#main", E + "illager/ravager"),
     "minecraft:salmon": simple("salmon", "minecraft:salmon#main", E + "fish/salmon"),
@@ -292,16 +300,19 @@ Object.assign(MOB_TYPES, {
     },
     "minecraft:tropical_fish_small": {
         animation: "fish",
+        // vanilla TropicalFishEntityRenderer (the body in the base-color), TropicalFishColorFeatureRenderer (the pattern)
         layers: [
-            {model: "minecraft:tropical_fish_small#main", texture: E + "fish/tropical_a"},
-            {model: "minecraft:tropical_fish_small#main", texture: mob => E + "fish/tropical_a_pattern_" + (TROPICAL_SMALL.indexOf(mob.variant) + 1 || 1)},
+            {model: "minecraft:tropical_fish_small#main", texture: E + "fish/tropical_a", tint: mob => dyeColor(flagValue(mob, "base_"))},
+            {model: "minecraft:tropical_fish_small#main", texture: mob => E + "fish/tropical_a_pattern_" + (TROPICAL_SMALL.indexOf(mob.variant) + 1 || 1),
+                tint: mob => dyeColor(flagValue(mob, "pattern_"))},
         ],
     },
     "minecraft:tropical_fish_large": {
         animation: "fish",
         layers: [
-            {model: "minecraft:tropical_fish_large#main", texture: E + "fish/tropical_b"},
-            {model: "minecraft:tropical_fish_large#main", texture: mob => E + "fish/tropical_b_pattern_" + (TROPICAL_LARGE.indexOf(mob.variant) + 1 || 1)},
+            {model: "minecraft:tropical_fish_large#main", texture: E + "fish/tropical_b", tint: mob => dyeColor(flagValue(mob, "base_"))},
+            {model: "minecraft:tropical_fish_large#main", texture: mob => E + "fish/tropical_b_pattern_" + (TROPICAL_LARGE.indexOf(mob.variant) + 1 || 1),
+                tint: mob => dyeColor(flagValue(mob, "pattern_"))},
         ],
     },
     "minecraft:turtle": simple("generic", "minecraft:turtle#main", E + "turtle/big_sea_turtle"),
@@ -322,6 +333,38 @@ export function sheepWoolColor(dye) {
     const colors = VANILLA_MODELS.sheepWoolColors;
     const color = colors[dye] || colors.white;
     return parseInt(color.substring(1), 16);
+}
+
+/**
+ * vanilla DyeColor.getEntityColor (1.21): the color of a dye (verified against Minecraft like the models).
+ * @param dye {string | null} - e.g. "light_blue", white if unknown
+ * @returns {number} rgb (0xRRGGBB)
+ */
+export function dyeColor(dye) {
+    const colors = VANILLA_MODELS.dyeColors;
+    const color = colors[dye] || colors.white;
+    return parseInt(color.substring(1), 16);
+}
+
+/**
+ * @param mob {{flags: Set<string>}}
+ * @param prefix {string}
+ * @returns {string | null} the rest of the first flag with this prefix (e.g. "base_" -> "light_blue")
+ */
+export function flagValue(mob, prefix) {
+    for (const flag of mob.flags) if (flag.startsWith(prefix)) return flag.substring(prefix.length);
+    return null;
+}
+
+/**
+ * @param layer {MobLayer}
+ * @param mob {object}
+ * @returns {number | null} the color the layer is tinted with
+ */
+export function layerTint(layer, mob) {
+    if (layer.tint === "sheep") return sheepWoolColor(mob.variant);
+    if (typeof layer.tint === "function") return layer.tint(mob);
+    return null;
 }
 
 /**

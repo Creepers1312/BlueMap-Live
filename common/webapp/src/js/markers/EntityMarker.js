@@ -202,6 +202,15 @@ export class EntityMarker extends Marker {
     /** @private */
     updateMobTarget(entity, jump) {
         const mob = entity.mob;
+        // a type whose model changes while it lives (pufferfish): the model is replaced
+        if (this.kind === "mob" && MOB_TYPES[this.entityType]?.dynamicSelect && this.selectMobType(mob) !== this.mobTypeKey) {
+            if (this.view) {
+                this.body.remove(this.view);
+                this.view.dispose();
+            }
+            this.lastSample = entity;
+            this.createView();
+        }
         const target = {body: mob.bodyYaw, head: mob.headYaw, pitch: entity.rotation.pitch};
         if (jump) {
             Object.assign(this.rotationFrom, target);
@@ -236,14 +245,24 @@ export class EntityMarker extends Marker {
         }
     }
 
+    /**
+     * The model-type of a mob-sample: some types have several models (tropical fish: small / large by the first
+     * sample, pufferfish: the puff-state, switched while it lives)
+     * @private
+     */
+    selectMobType(mob) {
+        const mobType = MOB_TYPES[this.entityType];
+        if (!mobType || !mobType.select || !mob) return this.entityType;
+        const selected = mobType.select(mob);
+        return MOB_TYPES[selected] ? selected : this.entityType;
+    }
+
     /** @private */
     createView() {
         if (!this.kind) return;
         if (this.kind === "mob") {
-            // some types have several models (tropical fish: small / large), selected by the first sample
-            let mobType = MOB_TYPES[this.entityType];
-            if (mobType.select && this.lastSample && this.lastSample.mob) mobType = MOB_TYPES[mobType.select(this.lastSample.mob)] || mobType;
-            this.view = new MobModel(this.entityType, mobType, this.mobCache, this.itemCache);
+            this.mobTypeKey = this.selectMobType(this.lastSample && this.lastSample.mob);
+            this.view = new MobModel(this.entityType, MOB_TYPES[this.mobTypeKey], this.mobCache, this.itemCache);
             this.body.add(this.view);
             return;
         }

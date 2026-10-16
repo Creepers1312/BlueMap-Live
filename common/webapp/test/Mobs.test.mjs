@@ -488,3 +488,46 @@ test("mob-attacks: the entity-marker runs swing and attack between the samples, 
     assert.equal(golem.animationInput.attackTicks, 0);
     golem.dispose();
 });
+
+test("pufferfish: the model of the puff-state, replaced while it lives (vanilla PufferfishEntityRenderer)", async () => {
+    const cache = fakeMobCache({"minecraft:entity/fish/pufferfish": 1});
+    const marker = new EntityMarker("bm-entity-40", null, null, cache);
+    let time = 1000;
+    const sample = flags => parseEntity({
+        id: 40, type: "minecraft:pufferfish", position: {x: 0, y: 64, z: 0}, time: time += 250, onGround: false,
+        mob: {bodyYaw: 0, headYaw: 0, flags},
+    });
+    marker.updateFromData(sample([]), 250);
+    await flush(); await flush();
+    assert.equal(marker.mobTypeKey, "minecraft:pufferfish_small");
+    const small = marker.view;
+    marker.updateFromData(sample(["puff_1"]), 250);
+    assert.equal(marker.mobTypeKey, "minecraft:pufferfish_medium");
+    assert.notEqual(marker.view, small, "a new model");
+    assert.equal(marker.body.children.filter(c => c.isMobModel).length, 1, "the old model is removed");
+    marker.updateFromData(sample(["puff_2"]), 250);
+    assert.equal(marker.mobTypeKey, "minecraft:pufferfish_big");
+    const big = marker.view;
+    marker.updateFromData(sample(["puff_2"]), 250);
+    assert.equal(marker.view, big, "kept while the state stays");
+    await flush(); await flush();
+    marker.step(0.05, null);
+    marker.dispose();
+
+    const parts = mainParts("minecraft:pufferfish_big");
+    ANIMATIONS.pufferfish(parts, input({age: 10}));
+    near(parts.right_blue_fin.roll, -0.2 + 0.4 * Math.sin(2), "blue fin");
+});
+
+test("tropical fish: the body in the base-color, the pattern in the pattern-color (vanilla DyeColor.getEntityColor)", async () => {
+    const {layerTint, dyeColor} = await import("../src/js/markers/mob/MobTypes.js");
+    const mob = {variant: "kob", flags: new Set(["base_orange", "pattern_light_blue"])};
+    const [body, pattern] = MOB_TYPES["minecraft:tropical_fish_small"].layers;
+    assert.equal(layerTint(body, mob), 0xf9801d);
+    assert.equal(layerTint(pattern, mob), 0x3ab3da);
+    assert.equal(dyeColor("unknown"), 0xf9fffe, "white if unknown");
+    const large = MOB_TYPES["minecraft:tropical_fish_large"].layers;
+    assert.equal(layerTint(large[1], {flags: new Set(["pattern_black"])}), 0x1d1d21);
+    // the sheep keeps its wool-colors
+    assert.equal(layerTint(MOB_TYPES["minecraft:sheep"].layers[1], {variant: "orange", flags: new Set()}), 0xba6015);
+});

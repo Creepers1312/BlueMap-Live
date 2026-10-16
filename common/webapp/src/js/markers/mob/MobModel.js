@@ -25,7 +25,7 @@
 import {Group, MathUtils, Mesh} from "three";
 import {getLayerGeometries} from "./MobModelGeometry.js";
 import {ANIMATIONS, createTransform, resetTransform} from "./MobAnimations.js";
-import {creeperSwelling, creeperWhiteOverlay, deathAngle, isLayerShown, layerTextures, sheepWoolColor, slimeScale, VANILLA_MODELS} from "./MobTypes.js";
+import {creeperSwelling, creeperWhiteOverlay, deathAngle, isLayerShown, layerTextures, layerTint, slimeScale, VANILLA_MODELS} from "./MobTypes.js";
 import {ItemView} from "../player/ItemView.js";
 import {itemPredicates} from "../player/PlayerItemPoses.js";
 import {ArmorView} from "./ArmorView.js";
@@ -313,7 +313,7 @@ export class MobModel extends Group {
         for (const {layer, meshes, armor} of this.layerViews) {
             if (armor) continue;
             const shown = isLayerShown(layer, this.mob);
-            const tint = layer.tint === "sheep" ? sheepWoolColor(this.mob.variant) : null;
+            const tint = layerTint(layer, this.mob);
             const overlay = layer.type !== "eyes" && layer.type !== "energy";
             const material = shown ? this.assetCache.material(asset, layerTextures(layer, this.mob), layer.type || "cutout", tint,
                 this.hurt && overlay, overlay ? this.white : 0) : null;

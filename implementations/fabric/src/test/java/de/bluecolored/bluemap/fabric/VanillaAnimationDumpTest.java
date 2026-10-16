@@ -66,6 +66,9 @@ public class VanillaAnimationDumpTest {
         METHODS.put(RENDER + "TropicalFishEntityRenderer", Set.of());
         METHODS.put(FEATURE + "TropicalFishColorFeatureRenderer", Set.of());
         METHODS.put(RENDER + "PufferfishEntityRenderer", Set.of());
+        METHODS.put(MODEL + "SmallPufferfishEntityModel", Set.of("setAngles"));
+        METHODS.put(MODEL + "MediumPufferfishEntityModel", Set.of("setAngles"));
+        METHODS.put(MODEL + "LargePufferfishEntityModel", Set.of("setAngles"));
         // collars, carpets, horse-armor, glowing layers
         METHODS.put(FEATURE + "WolfCollarFeatureRenderer", Set.of());
         METHODS.put(FEATURE + "CatCollarFeatureRenderer", Set.of());
@@ -75,6 +78,14 @@ public class VanillaAnimationDumpTest {
         METHODS.put(FEATURE + "WardenFeatureRenderer", Set.of());
         METHODS.put(RENDER + "WardenEntityRenderer", Set.of());
         METHODS.put(RENDER + "GlowSquidEntityRenderer", Set.of());
+        // attacks: the models and where the server advances the swing
+        METHODS.put(MODEL + "IronGolemEntityModel", Set.of("animateModel", "setAngles"));
+        METHODS.put(MODEL + "RavagerEntityModel", Set.of("animateModel", "setAngles"));
+        METHODS.put(MODEL + "HoglinEntityModel", Set.of("setAngles"));
+        METHODS.put(MODEL + "BipedEntityModel", Set.of("animateArms", "getPreferredArm"));
+        METHODS.put("net/minecraft/entity/LivingEntity", Set.of("tickHandSwing", "swingHand", "getHandSwingDuration"));
+        METHODS.put("net/minecraft/entity/mob/HostileEntity", Set.of("tickMovement"));
+        METHODS.put("net/minecraft/util/math/MathHelper", Set.of("wrap"));
         // armor-trims and the glint, heads on the head
         METHODS.put(FEATURE + "ArmorFeatureRenderer", Set.of());
         METHODS.put(FEATURE + "HeadFeatureRenderer", Set.of());
