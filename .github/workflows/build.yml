@@ -14,9 +14,11 @@ on:
 jobs:
 
   # BlueMap Live: the instructions of the vanilla methods the webapp rebuilds (poses, feature-renderers) as annotations,
-  # in parts (github shows at most 50 annotations per job)
+  # in parts (github shows at most 50 annotations per job); not part of the normal CI-runs
   vanilla-dump:
     name: "Vanilla animation dump (${{ matrix.part }})"
+    # only when started by hand (Actions -> CI -> Run workflow): 4 extra jobs, needed only to read vanilla code
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       matrix:
