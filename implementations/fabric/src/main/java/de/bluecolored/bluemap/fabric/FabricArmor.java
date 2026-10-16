@@ -76,7 +76,7 @@ final class FabricArmor {
             return null;
         }
         try {
-            for (Object layer : materialLayers(material.value())) {
+            for (Object layer : materialLayers(entryValue(material))) {
                 String key = textureKey((Identifier) layerTexture(layer).invoke(layer, innerModel));
                 boolean dyeable = (boolean) layerDyeable(layer).invoke(layer);
                 if (key != null) layers.add(new Armor.Layer(key, dyeable ? color : null));
@@ -113,6 +113,16 @@ final class FabricArmor {
             if (materialMethod == null) throw new NoSuchMethodException("ArmorItem.getMaterial");
         }
         return (RegistryEntry<?>) materialMethod.invoke(item);
+    }
+
+    /** RegistryEntry.value(): found as the no-arg method that returns the ArmorMaterial */
+    private static Object entryValue(RegistryEntry<?> entry) throws ReflectiveOperationException {
+        for (Method method : RegistryEntry.class.getMethods()) {
+            if (method.getParameterCount() != 0 || method.getReturnType() != Object.class) continue;
+            Object value = method.invoke(entry);
+            if (value instanceof ArmorMaterial) return value;
+        }
+        throw new NoSuchMethodException("RegistryEntry.value");
     }
 
     private static List<?> materialLayers(Object material) throws ReflectiveOperationException {
