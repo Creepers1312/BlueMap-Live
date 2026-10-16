@@ -154,6 +154,9 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/enderman/enderman", rect(64, 32, 0, 0, 64, 32, ENDERMAN));
         textures.put("minecraft:entity/creeper/creeper", rect(64, 32, 0, 0, 64, 32, CREEPER));
         textures.put("minecraft:entity/iron_golem/iron_golem", square(128, 0, 0, 128, 128, GOLEM));
+        // tropical fish: white like the vanilla textures (tinted by the webapp); only pattern 1 (kob), fully covering
+        textures.put("minecraft:entity/fish/tropical_a", square(32, 0, 0, 32, 32, 0xFFFFFFFF));
+        textures.put("minecraft:entity/fish/tropical_a_pattern_1", square(32, 0, 0, 32, 32, 0xFFFFFFFF));
 
         // armor-layers (64x32, one color; the leather-overlay is transparent)
         textures.put("minecraft:models/armor/iron_layer_1", rect(64, 32, 0, 0, 64, 32, IRON_ARMOR));

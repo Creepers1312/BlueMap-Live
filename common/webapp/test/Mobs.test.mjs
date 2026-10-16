@@ -531,3 +531,58 @@ test("tropical fish: the body in the base-color, the pattern in the pattern-colo
     // the sheep keeps its wool-colors
     assert.equal(layerTint(MOB_TYPES["minecraft:sheep"].layers[1], {variant: "orange", flags: new Set()}), 0xba6015);
 });
+
+test("poses: sitting wolf, cat and fox, sleeping fox and lying cat like the vanilla models", () => {
+    const wolf = mainParts("minecraft:wolf");
+    ANIMATIONS.wolf(wolf, input({flags: new Set(["sitting", "tame"])}));
+    near(wolf.body.pitch, 0.7853982, "wolf body");
+    near(wolf.body.pivotY, 18, "wolf body pivot");
+    near(wolf.right_hind_leg.pitch, 4.712389, "wolf hind legs");
+    near(wolf.upper_body.pitch, 1.2566371, "wolf neck");
+    const standingWolf = mainParts("minecraft:wolf");
+    ANIMATIONS.wolf(standingWolf, input());
+    near(standingWolf.body.pivotY, 14, "standing wolf like the model-data");
+
+    const cat = mainParts("minecraft:cat");
+    ANIMATIONS.cat(cat, input({flags: new Set(["sitting"])}));
+    near(cat.body.pitch, 0.7853982, "cat body");
+    near(cat.body.pivotY, 8, "12 - 4");
+    near(cat.tail2.pitch, 2.670354, "cat tail");
+    near(cat.left_hind_leg.pivotY, 21, "cat hind leg");
+    const lying = mainParts("minecraft:cat");
+    ANIMATIONS.cat(lying, input({cat: {sleep: 1, tailCurl: 1, headDown: 0}}));
+    near(lying.head.roll, -1.2707963, "lying cat head");
+    near(lying.left_front_leg.pitch, -1.2707963, "lying cat leg");
+    near(lying.tail1.pitch, 0.8, "curled tail");
+
+    const fox = mainParts("minecraft:fox");
+    ANIMATIONS.fox(fox, input({flags: new Set(["sleeping"])}));
+    near(fox.body.roll, -1.5707964, "sleeping fox on its side");
+    near(fox.head.yaw, -2.0943952, "head turned");
+    assert.equal(fox.left_front_leg.visible, false, "legs hidden");
+    const sittingFox = mainParts("minecraft:fox");
+    ANIMATIONS.fox(sittingFox, input({flags: new Set(["sitting"])}));
+    near(sittingFox.body.pitch, 0.5235988, "sitting fox");
+    near(sittingFox.right_hind_leg.pivotY, 21.5, "sitting fox hind leg");
+});
+
+test("poses: a mob in a bed is turned by the bed and moved to the head-end (vanilla LivingEntityRenderer)", async () => {
+    const {bedPose} = await import("../src/js/markers/LiveEntityData.js");
+    const villager = parseMob({bodyYaw: 30, flags: ["in_bed", "bed_north"], bedOffset: 1.52});
+    assert.deepEqual(bedPose(villager), {yaw: 270, x: -0, z: 1.52});
+    assert.deepEqual(bedPose(parseMob({bodyYaw: 30, flags: ["in_bed"]})), {yaw: 30, x: 0, z: 0}, "unknown bed: the body-yaw");
+    assert.equal(bedPose(parseMob({flags: ["sleeping"]})), null, "the sleeping fox is not in a bed");
+
+    const cache = fakeMobCache({"minecraft:entity/villager/villager": 1});
+    const model = new MobModel("minecraft:villager", MOB_TYPES["minecraft:villager"], cache, null);
+    model.setState(villager, {mainHand: null, offHand: null, leftHanded: false, armor: null});
+    model.animate(input({flags: villager.flags, bed: bedPose(villager)}), 30, 0, false);
+    near(model.yawGroup.rotation.y, 270 * PI / 180, "turned by the bed");
+    near(model.deathGroup.rotation.z, PI / 2, "lying");
+    near(model.poseGroup.rotation.y, 270 * PI / 180, "and turned by 270");
+    near(model.yawGroup.position.z, 1.52, "moved to the head-end");
+    model.animate(input(), 30, 0, false);
+    near(model.yawGroup.rotation.y, 150 * PI / 180, "standing again: 180 - body-yaw");
+    near(model.poseGroup.rotation.y, 0, "no pose");
+    model.dispose();
+});

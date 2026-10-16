@@ -98,6 +98,7 @@ public final class LiveEntitiesJson {
         json.name("height").value(finite(mob.height()));
         if (mob.swingTicks() >= 0) json.name("swingTicks").value(mob.swingTicks());
         if (mob.attackTicks() > 0) json.name("attackTicks").value(mob.attackTicks());
+        if (mob.bedOffset() != 0 && Double.isFinite(mob.bedOffset())) json.name("bedOffset").value(mob.bedOffset());
         if (!mob.models().isEmpty()) {
             json.name("models").beginArray();
             for (String model : mob.models()) json.value(model);

@@ -112,7 +112,10 @@ export class MobModel extends Group {
         this.offset.position.y = MODEL_OFFSET;
         this.add(this.yawGroup);
         this.yawGroup.add(this.deathGroup);
-        this.deathGroup.add(this.flip);
+        // the poses of setupTransforms after the death-rotation: lying in a bed, the sleeping cat
+        this.poseGroup = new Group();
+        this.deathGroup.add(this.poseGroup);
+        this.poseGroup.add(this.flip);
         this.flip.add(this.offset);
         this.offset.add(this.root);
 
@@ -287,8 +290,21 @@ export class MobModel extends Group {
             }
         }
 
-        this.yawGroup.rotation.y = MathUtils.degToRad(180 - bodyYaw);
-        this.deathGroup.rotation.z = MathUtils.degToRad(deathAngle(deathTicks, this.mobType.lyingAngle || 90));
+        // vanilla LivingEntityRenderer: in a bed (EntityPose.SLEEPING) moved towards the head-end, turned by the direction
+        // of the bed instead of the body (getYaw), lying (getLyingAngle 90) and turned by 270 degrees
+        const bed = input.bed;
+        const dying = deathTicks > 0;
+        this.yawGroup.position.set(bed ? bed.x : 0, 0, bed ? bed.z : 0);
+        this.yawGroup.rotation.y = MathUtils.degToRad(bed ? bed.yaw : 180 - bodyYaw);
+        this.deathGroup.rotation.z = MathUtils.degToRad(bed && !dying ? 90 : deathAngle(deathTicks, this.mobType.lyingAngle || 90));
+        this.poseGroup.position.set(0, 0, 0);
+        this.poseGroup.rotation.set(0, bed && !dying ? MathUtils.degToRad(270) : 0, 0);
+        // vanilla CatEntityRenderer.setupTransforms: the lying cat is moved and rolled to its side
+        const catSleep = input.cat ? input.cat.sleep : 0;
+        if (catSleep > 0) {
+            this.poseGroup.position.set(0.4 * catSleep, 0.15 * catSleep, 0.1 * catSleep);
+            this.poseGroup.rotation.z = MathUtils.degToRad(90 * catSleep);
+        }
 
         if (hurt !== this.hurt) {
             this.hurt = hurt;

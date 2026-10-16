@@ -57,7 +57,14 @@ public class VanillaAnimationDumpTest {
         METHODS.put(MODEL + "PandaEntityModel", Set.of("animateModel", "setAngles"));
         METHODS.put(MODEL + "PolarBearEntityModel", Set.of("setAngles"));
         METHODS.put(MODEL + "ParrotEntityModel", Set.of());
-        METHODS.put(RENDER + "LivingEntityRenderer", Set.of("setupTransforms", "getLyingAngle", "render"));
+        METHODS.put(RENDER + "LivingEntityRenderer", Set.of("setupTransforms", "getLyingAngle", "getYaw"));
+        METHODS.put(MODEL + "ModelUtil", Set.of("interpolateAngle"));
+        METHODS.put("net/minecraft/entity/passive/CatEntity", Set.of("tick", "updateAnimations", "getSleepAnimation",
+                "getTailCurlAnimation", "getHeadDownAnimation", "updateSleepAnimation", "updateTailCurlAnimation", "updateHeadDownAnimation"));
+        METHODS.put("net/minecraft/entity/passive/PandaEntity", Set.of("tick", "updateSittingAnimation", "updateLieOnBackAnimation",
+                "updateRollOverAnimation", "getSittingAnimationProgress", "getLieOnBackAnimationProgress", "getRollOverAnimationProgress",
+                "playingTick", "updateEatingAnimation"));
+        METHODS.put("net/minecraft/entity/passive/PolarBearEntity", Set.of("tick", "getWarningAnimationProgress"));
         METHODS.put(RENDER + "CatEntityRenderer", Set.of());
         METHODS.put(RENDER + "PandaEntityRenderer", Set.of());
         METHODS.put(RENDER + "FoxEntityRenderer", Set.of());

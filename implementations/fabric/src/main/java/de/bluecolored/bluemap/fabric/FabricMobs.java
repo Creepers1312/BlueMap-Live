@@ -47,6 +47,7 @@ import net.minecraft.entity.passive.PolarBearEntity;
 import net.minecraft.entity.passive.PufferfishEntity;
 import net.minecraft.entity.passive.TropicalFishEntity;
 import net.minecraft.util.math.Direction;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.mob.IllagerEntity;
 import net.minecraft.entity.mob.GhastEntity;
 import net.minecraft.entity.mob.VexEntity;
@@ -123,6 +124,7 @@ final class FabricMobs {
         // the visible attack: the hand-swing (only hostile mobs advance it on the server: HostileEntity.tickMovement)
         // and the attack-timers the vanilla models animate
         int swingTicks = -1, attackTicks = 0;
+        double bedOffset = entity.isInPose(EntityPose.SLEEPING) ? entity.getEyeHeight(EntityPose.STANDING) - 0.1 : 0;
         if (!attackUnavailable) {
             try {
                 if (entity instanceof HostileEntity && entity.handSwinging) {
@@ -158,7 +160,8 @@ final class FabricMobs {
                 models,
                 flags,
                 swingTicks,
-                Math.max(attackTicks, 0)
+                Math.max(attackTicks, 0),
+                bedOffset
         );
     }
 
@@ -232,16 +235,18 @@ final class FabricMobs {
         }
         if (entity instanceof Angerable angerable && angerable.hasAngerTime()) flags.add("angry");
 
-        // poses: sitting, sleeping (in a bed with its direction, the fox on the ground), lying
-        if (entity.isSleeping()) {
-            flags.add("sleeping");
+        // poses: lying in a bed (vanilla LivingEntityRenderer: EntityPose.SLEEPING with the direction of the bed),
+        // the fox sleeping on the ground, sitting, lying
+        if (entity.isInPose(EntityPose.SLEEPING)) {
+            flags.add("in_bed");
             Direction direction = entity.getSleepingDirection();
-            if (direction != null) flags.add("sleeping_" + direction.asString());
+            if (direction != null) flags.add("bed_" + direction.asString());
         }
+        if (entity instanceof FoxEntity fox && fox.isSleeping()) flags.add("sleeping");
         if (entity instanceof FoxEntity fox && fox.isSitting()) flags.add("sitting");
         if (entity instanceof CatEntity cat) {
             if (cat.isInSleepingPose()) flags.add("lying");
-            if (cat.isHeadDown()) flags.add("head_down");
+            if (cat.getHeadDownAnimation(1f) > 0) flags.add("head_down");
         }
         if (entity instanceof PandaEntity panda) {
             if (panda.isSitting()) flags.add("sitting");

@@ -106,10 +106,32 @@ export const THROWN_ITEM_SCALES = {"minecraft:fireball": 3, "minecraft:small_fir
  * @typedef LiveMob {{
  *     bodyYaw: number, headYaw: number, hurtTime: number, deathTime: number, baby: boolean,
  *     variant: string | null, size: number, width: number, height: number, flags: Set<string>, models: string[],
- *     swingTicks: number, attackTicks: number,
+ *     swingTicks: number, attackTicks: number, bedOffset: number,
  *     equipment: {mainHand: object | null, offHand: object | null, leftHanded: boolean} | null
  * }}
  */
+
+/** vanilla LivingEntityRenderer.getYaw(Direction) and Direction.getOffsetX/Z: the beds by their direction */
+const BED_DIRECTIONS = {
+    south: {yaw: 90, x: 0, z: 1},
+    west: {yaw: 0, x: -1, z: 0},
+    north: {yaw: 270, x: 0, z: -1},
+    east: {yaw: 180, x: 1, z: 0},
+};
+
+/**
+ * vanilla LivingEntityRenderer: a mob lying in a bed (EntityPose.SLEEPING) is moved towards the head-end by
+ * getEyeHeight(STANDING) - 0.1 and turned by the direction of the bed (by its body if the bed is unknown)
+ * @param mob {LiveMob}
+ * @returns {{yaw: number, x: number, z: number} | null} - the yaw in degrees and the offset in blocks
+ */
+export function bedPose(mob) {
+    if (!mob || !mob.flags.has("in_bed")) return null;
+    for (const [name, d] of Object.entries(BED_DIRECTIONS)) {
+        if (mob.flags.has("bed_" + name)) return {yaw: d.yaw, x: -d.x * mob.bedOffset, z: -d.z * mob.bedOffset};
+    }
+    return {yaw: mob.bodyYaw, x: 0, z: 0};
+}
 
 /** vanilla LivingEntity.getHandSwingDuration (without haste and mining fatigue) */
 export const MOB_SWING_TICKS = 6;
@@ -153,6 +175,8 @@ export function parseMob(value) {
         // the hand-swing (ticks since its start, -1: none) and the attack-animation (remaining ticks)
         swingTicks: isFiniteNumber(value.swingTicks) && value.swingTicks >= 0 ? Math.min(value.swingTicks, MOB_SWING_TICKS) : -1,
         attackTicks: clampNumber(value.attackTicks, 0, 20, 0),
+        // lying in a bed: the offset towards the head-end (blocks)
+        bedOffset: clampNumber(value.bedOffset, -4, 4, 0),
         models: Array.isArray(value.models) ?
             value.models.slice(0, 4).filter(model => typeof model === "string" && TYPE_PATTERN.test(model) && !model.includes("..")) : [],
         equipment: parseEquipment(value.equipment),

@@ -334,6 +334,23 @@ await step("attacks: the zombie swings its arm (body turns), the iron golem stri
     await control({removeEntity: 20});
 });
 
+await step("tropical fish: the body in the base-color, the pattern over it in the pattern-color", async () => {
+    // pattern 2 (sunstreak) has no texture in the test-pack: only the body in its base-color
+    await mob(21, "minecraft:tropical_fish", 8.5, 9.5, {bodyYaw: 90, variant: "sunstreak", flags: "base_orange,pattern_light_blue", w: 0.5, h: 0.4});
+    await waitForEntity(21, "m.view.visible");
+    await sleep(800);
+    const orange = await countColor("60-fish-base", await project(21, 0.2), [249, 128, 29], 60);
+    assert.ok(orange > 10, `orange body pixels: ${orange}`);
+    await control({removeEntity: 21});
+    // pattern 1 (kob) covers the whole texture: the pattern-color
+    await mob(22, "minecraft:tropical_fish", 8.5, 9.5, {bodyYaw: 90, variant: "kob", flags: "base_orange,pattern_light_blue", w: 0.5, h: 0.4});
+    await waitForEntity(22, "m.view.visible");
+    await sleep(800);
+    const blue = await countColor("61-fish-pattern", await project(22, 0.2), [58, 179, 218], 60);
+    assert.ok(blue > 10, `light-blue pattern pixels: ${blue}`);
+    await control({removeEntity: 22});
+});
+
 await step("no uncaught errors", async () => {
     assert.deepEqual(pageErrors, []);
 });

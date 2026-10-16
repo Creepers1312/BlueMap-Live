@@ -26,7 +26,7 @@ import {Group, MathUtils, Vector3} from "three";
 import {Marker} from "./Marker.js";
 import {ItemView} from "./player/ItemView.js";
 import {
-    droppedItemMotion, entityKind, MOB_SWING_TICKS, projectileAngles, projectileDirection, projectilePhysics, THROWN_ITEM_SCALES,
+    bedPose, droppedItemMotion, entityKind, MOB_SWING_TICKS, projectileAngles, projectileDirection, projectilePhysics, THROWN_ITEM_SCALES,
 } from "./LiveEntityData.js";
 import {angleDelta, interpolationDuration} from "./LivePlayerData.js";
 import {MobModel} from "./mob/MobModel.js";
@@ -63,6 +63,11 @@ const tempVector = new Vector3();
  * <p>Flying projectiles and thrown items are predicted between the samples with the vanilla physics (velocity, drag,
  * gravity per tick), every new sample only corrects the position smoothly. Dropped items are interpolated.</p>
  */
+/** the change of the cat-poses per tick (vanilla CatEntity.update*Animation) */
+const CAT_POSE_RATE = 0.1;
+
+const approach = (value, target, step) => value < target ? Math.min(target, value + step) : Math.max(target, value - step);
+
 export class EntityMarker extends Marker {
 
     /**
@@ -129,6 +134,8 @@ export class EntityMarker extends Marker {
         this.swingTicks = -1;
         /** the running attack-animation: remaining ticks */
         this.attackTicks = 0;
+        /** the pose-animations of the cat (vanilla CatEntity: sleepAnimation, tailCurlAnimation, headDownAnimation) */
+        this.catPose = {sleep: 0, tailCurl: 0, headDown: 0};
         this.animationInput = {
             limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0, swingOffHand: false, attackTicks: 0,
             flags: new Set(), mainHand: null, leftHanded: false, wingAngle: 0,
@@ -384,6 +391,11 @@ export class EntityMarker extends Marker {
             if (this.swingTicks >= MOB_SWING_TICKS) this.swingTicks = -1;
         }
         this.attackTicks = Math.max(0, this.attackTicks - ticks);
+        const catPose = this.catPose;
+        const lying = mob.flags.has("lying");
+        catPose.sleep = approach(catPose.sleep, lying ? 1 : 0, CAT_POSE_RATE * ticks);
+        catPose.tailCurl = approach(catPose.tailCurl, lying ? 1 : 0, CAT_POSE_RATE * ticks);
+        catPose.headDown = approach(catPose.headDown, mob.flags.has("head_down") ? 1 : 0, CAT_POSE_RATE * ticks);
         if (dying) this.deathTicks = Math.min(DEATH_TICKS, this.deathTicks + ticks);
 
         // vanilla ChickenEntity.tickMovement: the wings flap in the air (per tick)
@@ -412,6 +424,8 @@ export class EntityMarker extends Marker {
         input.swingProgress = this.swingTicks >= 0 && !dying ? this.swingTicks / MOB_SWING_TICKS : 0;
         input.swingOffHand = mob.flags.has("swing_off_hand");
         input.attackTicks = dying ? 0 : this.attackTicks;
+        input.bed = bedPose(mob);
+        input.cat = catPose;
 
         const hurt = this.hurtTime > 0 || dying;
         const fuse = this.fuseTicks / (CREEPER_FUSE_TICKS - 2);
@@ -419,7 +433,8 @@ export class EntityMarker extends Marker {
         else if (this.view && this.view.isPlaceholderModel) this.view.animate(r.body, hurt);
 
         return this.limbSpeed > 0 || this.progress < 1 || hurt || dying || this.wingDeviation > 0 || mob.flags.has("charged") ||
-            this.fuseTicks > 0 || this.swingTicks >= 0 || this.attackTicks > 0;
+            this.fuseTicks > 0 || this.swingTicks >= 0 || this.attackTicks > 0 ||
+            (catPose.sleep > 0 && catPose.sleep < 1) || (catPose.headDown > 0 && catPose.headDown < 1);
     }
 
     /** @private */

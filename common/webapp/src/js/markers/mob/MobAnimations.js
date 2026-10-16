@@ -657,26 +657,143 @@ export function ravager(p, input) {
     p.left_front_leg.pitch = leg;
 }
 
-/** vanilla OcelotEntityModel (cat, ocelot): walking with the tail; sitting is not shown */
-export function ocelot(p, input) {
-    const f = input.limbAngle, g = input.limbDistance;
-    look(p, input);
-    p.left_hind_leg.pitch = cos(f * 0.6662) * g;
-    p.right_hind_leg.pitch = cos(f * 0.6662 + PI) * g;
-    p.left_front_leg.pitch = cos(f * 0.6662 + PI) * g;
-    p.right_front_leg.pitch = cos(f * 0.6662) * g;
-    p.tail1.pitch = 1.7278761 + 0.47123894 * cos(f) * g;
-    p.tail2.pitch = 1.7278761 + 0.47123894 * cos(f) * g;
+/** vanilla ModelUtil.interpolateAngle: from angle1 towards angle2 the shortest way */
+export function interpolateAngle(angle1, angle2, progress) {
+    let f = angle2 - angle1;
+    while (f < -PI) f += PI * 2;
+    while (f >= PI) f -= PI * 2;
+    return angle1 + progress * f;
 }
 
-/** vanilla WolfEntityModel: legs and the tail (angry: raised, tame: high, wild: low) */
+/**
+ * vanilla OcelotEntityModel.animateModel and setAngles (cat, ocelot; standing or sitting, sneaking and sprinting are
+ * not sampled). The defaults of animateModel are the pivots of the model-data.
+ */
+export function ocelot(p, input, sitting = false) {
+    const f = input.limbAngle, g = input.limbDistance;
+    p.tail1.pitch = 0.9;
+    if (sitting) { // CatEntityModel.animateModel: animationState 3
+        p.body.pitch = 0.7853982;
+        p.body.pivotY += -4; p.body.pivotZ += 5;
+        p.head.pivotY += -3.3; p.head.pivotZ += 1;
+        p.tail1.pivotY += 8; p.tail1.pivotZ += -2;
+        p.tail2.pivotY += 2; p.tail2.pivotZ += -0.8;
+        p.tail1.pitch = 1.7278761;
+        p.tail2.pitch = 2.670354;
+        for (const leg of [p.left_front_leg, p.right_front_leg]) { leg.pitch = -0.15707964; leg.pivotY = 16.1; leg.pivotZ = -7; }
+        for (const leg of [p.left_hind_leg, p.right_hind_leg]) { leg.pitch = -1.5707964; leg.pivotY = 21; leg.pivotZ = 1; }
+    }
+    p.head.pitch = input.headPitch * DEG;
+    p.head.yaw = input.headYaw * DEG;
+    if (!sitting) {
+        p.body.pitch = 1.5707964;
+        p.left_hind_leg.pitch = cos(f * 0.6662) * g;
+        p.right_hind_leg.pitch = cos(f * 0.6662 + PI) * g;
+        p.left_front_leg.pitch = cos(f * 0.6662 + PI) * g;
+        p.right_front_leg.pitch = cos(f * 0.6662) * g;
+        p.tail2.pitch = 1.7278761 + 0.7853982 * cos(f) * g;
+    }
+}
+
+/**
+ * vanilla CatEntityModel: sitting, lying (sleepAnimation, tailCurlAnimation) and the head down (headDownAnimation)
+ * input.cat: {sleep, tailCurl, headDown} 0..1
+ */
+export function cat(p, input) {
+    const progress = input.cat || {sleep: 0, tailCurl: 0, headDown: 0};
+    ocelot(p, input, input.flags.has("sitting"));
+    if (progress.sleep > 0) {
+        p.head.roll = interpolateAngle(p.head.roll, -1.2707963, progress.sleep);
+        p.head.yaw = interpolateAngle(p.head.yaw, 1.2707963, progress.sleep);
+        p.left_front_leg.pitch = -1.2707963;
+        p.right_front_leg.pitch = -0.47079635;
+        p.right_front_leg.roll = -0.2;
+        p.right_front_leg.pivotX = -0.2;
+        p.left_hind_leg.pitch = -0.4;
+        p.right_hind_leg.pitch = 0.5;
+        p.right_hind_leg.roll = -0.5;
+        p.right_hind_leg.pivotX = -0.3;
+        p.right_hind_leg.pivotY = 20;
+        p.tail1.pitch = interpolateAngle(p.tail1.pitch, 0.8, progress.tailCurl);
+        p.tail2.pitch = interpolateAngle(p.tail2.pitch, -0.4, progress.tailCurl);
+    }
+    if (progress.headDown > 0) p.head.pitch = interpolateAngle(p.head.pitch, -0.58177644, progress.headDown);
+}
+
+/** vanilla WolfEntityModel.animateModel and setAngles: sitting, legs, the tail (angry: raised, tame: high, wild: low) */
 export function wolf(p, input) {
-    look(p, input);
-    quadrupedLegs(p, input);
-    const tail = p.tail;
-    if (tail) {
-        tail.pitch = input.flags.has("angry") ? 1.5393804 : input.flags.has("tame") ? 0.55 * PI : PI / 5;
-        tail.yaw = input.flags.has("angry") ? 0 : cos(input.limbAngle * 0.6662) * 1.4 * input.limbDistance;
+    const f = input.limbAngle, g = input.limbDistance;
+    const angry = input.flags.has("angry");
+    p.tail.yaw = angry ? 0 : cos(f * 0.6662) * 1.4 * g;
+    if (input.flags.has("sitting")) {
+        p.upper_body.pivotX = -1; p.upper_body.pivotY = 16; p.upper_body.pivotZ = -3;
+        p.upper_body.pitch = 1.2566371;
+        p.upper_body.yaw = 0;
+        p.body.pivotX = 0; p.body.pivotY = 18; p.body.pivotZ = 0;
+        p.body.pitch = 0.7853982;
+        p.tail.pivotX = -1; p.tail.pivotY = 21; p.tail.pivotZ = 6;
+        p.right_hind_leg.pivotX = -2.5; p.right_hind_leg.pivotY = 22.7; p.right_hind_leg.pivotZ = 2;
+        p.right_hind_leg.pitch = 4.712389;
+        p.left_hind_leg.pivotX = 0.5; p.left_hind_leg.pivotY = 22.7; p.left_hind_leg.pivotZ = 2;
+        p.left_hind_leg.pitch = 4.712389;
+        p.right_front_leg.pitch = 5.811947;
+        p.right_front_leg.pivotX = -2.49; p.right_front_leg.pivotY = 17; p.right_front_leg.pivotZ = -4;
+        p.left_front_leg.pitch = 5.811947;
+        p.left_front_leg.pivotX = 0.51; p.left_front_leg.pivotY = 17; p.left_front_leg.pivotZ = -4;
+    } else {
+        p.right_hind_leg.pitch = cos(f * 0.6662) * 1.4 * g;
+        p.left_hind_leg.pitch = cos(f * 0.6662 + PI) * 1.4 * g;
+        p.right_front_leg.pitch = cos(f * 0.6662 + PI) * 1.4 * g;
+        p.left_front_leg.pitch = cos(f * 0.6662) * 1.4 * g;
+    }
+    p.head.pitch = input.headPitch * DEG;
+    p.head.yaw = input.headYaw * DEG;
+    // setAngles: WolfEntity.getTailAngle (tame: without the health-dependent lowering)
+    p.tail.pitch = angry ? 1.5393804 : input.flags.has("tame") ? 0.55 * PI : PI / 5;
+}
+
+/** vanilla FoxEntityModel.animateModel and setAngles: walking, sitting, sleeping (sneaking and pouncing not sampled) */
+export function fox(p, input) {
+    const f = input.limbAngle, g = input.limbDistance;
+    const tail = p["body/tail"];
+    p.body.pitch = 1.5707964;
+    tail.pitch = -0.05235988;
+    p.right_hind_leg.pitch = cos(f * 0.6662) * 1.4 * g;
+    p.left_hind_leg.pitch = cos(f * 0.6662 + PI) * 1.4 * g;
+    p.right_front_leg.pitch = cos(f * 0.6662 + PI) * 1.4 * g;
+    p.left_front_leg.pitch = cos(f * 0.6662) * 1.4 * g;
+    const sleeping = input.flags.has("sleeping");
+    if (sleeping) {
+        p.body.roll = -1.5707964;
+        p.body.pivotX = 0; p.body.pivotY = 21; p.body.pivotZ = -6;
+        tail.pitch = -2.6179938;
+        if (input.baby) {
+            tail.pitch = -2.1816616;
+            p.body.pivotZ = -2;
+        }
+        p.head.pivotX = 1; p.head.pivotY = 19.49; p.head.pivotZ = -3;
+        p.head.pitch = 0;
+        p.head.yaw = -2.0943952;
+        p.head.roll = cos(input.age * 0.027) / 22; // setAngles
+        for (const leg of ["right_hind_leg", "left_hind_leg", "right_front_leg", "left_front_leg"]) p[leg].visible = false;
+    } else if (input.flags.has("sitting")) {
+        p.body.pitch = 0.5235988;
+        p.body.pivotX = 0; p.body.pivotY = 9; p.body.pivotZ = -3;
+        tail.pitch = 0.7853982;
+        tail.pivotX = -4; tail.pivotY = 15; tail.pivotZ = -2;
+        p.head.pivotX = -1; p.head.pivotY = 10; p.head.pivotZ = -0.25;
+        if (input.baby) { p.head.pivotX = -1; p.head.pivotY = 13; p.head.pivotZ = -3.75; }
+        p.right_hind_leg.pitch = -1.3089969;
+        p.right_hind_leg.pivotX = -5; p.right_hind_leg.pivotY = 21.5; p.right_hind_leg.pivotZ = 6.75;
+        p.left_hind_leg.pitch = -1.3089969;
+        p.left_hind_leg.pivotX = -1; p.left_hind_leg.pivotY = 21.5; p.left_hind_leg.pivotZ = 6.75;
+        p.right_front_leg.pitch = -0.2617994;
+        p.left_front_leg.pitch = -0.2617994;
+    }
+    // setAngles: the head looks (not while sleeping; walking is not sampled)
+    if (!sleeping) {
+        p.head.pitch = input.headPitch * DEG;
+        p.head.yaw = input.headYaw * DEG;
     }
 }
 
@@ -816,6 +933,6 @@ export const ANIMATIONS = {
     zombie, drowned, skeleton, piglin, zombified_piglin: (p, input) => piglin(p, input, true),
     quadruped, creeper, spider, chicken, enderman, villager, slime,
     illager, ironGolem, snowGolem, blaze, ghast, squid, silverfish, endermite, phantom, fish, salmon, dolphin, guardian,
-    hoglin, ravager, ocelot, wolf, pufferfish, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
+    hoglin, ravager, ocelot, cat, fox, wolf, pufferfish, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
     shulker, wither,
 };

@@ -48,6 +48,8 @@ import java.util.List;
  * @param swingTicks the ticks since the hand-swing started (vanilla <code>handSwingTicks</code>), -1 if not swinging
  * @param attackTicks the remaining ticks of a type-specific attack-animation (iron golem, ravager, hoglin, zoglin),
  *                    0 if none
+ * @param bedOffset lying in a bed: how far the model is moved towards the head-end (vanilla
+ *                  <code>getEyeHeight(STANDING) - 0.1</code>), 0 otherwise
  */
 public record LiveMobState(
         double bodyYaw,
@@ -63,7 +65,8 @@ public record LiveMobState(
         List<String> models,
         List<String> flags,
         int swingTicks,
-        int attackTicks
+        int attackTicks,
+        double bedOffset
 ) {
 
     public LiveMobState {
@@ -75,6 +78,13 @@ public record LiveMobState(
                         @Nullable Equipment equipment, @Nullable String variant, int size, double width, double height,
                         List<String> models, List<String> flags) {
         this(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height, models, flags, -1, 0);
+    }
+
+    public LiveMobState(double bodyYaw, double headYaw, int hurtTime, int deathTime, boolean baby,
+                        @Nullable Equipment equipment, @Nullable String variant, int size, double width, double height,
+                        List<String> models, List<String> flags, int swingTicks, int attackTicks) {
+        this(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height, models, flags,
+                swingTicks, attackTicks, 0);
     }
 
     public LiveMobState(double bodyYaw, double headYaw, int hurtTime, int deathTime, boolean baby,
