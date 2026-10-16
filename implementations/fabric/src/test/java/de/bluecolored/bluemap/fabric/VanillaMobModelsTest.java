@@ -78,7 +78,14 @@ public class VanillaMobModelsTest {
                 differences.add(layer + ": not created (see the report)");
                 continue;
             }
-            JsonObject actual = toJson(texturedModelData);
+            JsonObject actual;
+            try {
+                actual = toJson(texturedModelData);
+            } catch (Throwable t) {
+                differences.add(layer + ": not readable");
+                report.add("::" + layer + ": not readable (" + texturedModelData.getClass().getSimpleName() + "): " + describe(t));
+                continue;
+            }
             List<String> layerDifferences = new ArrayList<>();
             compare(layer, entry.getValue(), actual, layerDifferences);
             if (!layerDifferences.isEmpty()) {
@@ -89,7 +96,11 @@ public class VanillaMobModelsTest {
         // layers the webapp does not use (yet): their vanilla definition is reported (no failure)
         for (Map.Entry<String, Object> layer : new TreeMap<>(layers).entrySet()) {
             if (!expectedModels.has(layer.getKey())) {
-                report.add("::" + layer.getKey() + ": not in the webapp -- vanilla: " + toJson(layer.getValue()));
+                try {
+                    report.add("::" + layer.getKey() + ": not in the webapp -- vanilla: " + toJson(layer.getValue()));
+                } catch (Throwable t) {
+                    report.add("::" + layer.getKey() + ": not readable (" + layer.getValue().getClass().getSimpleName() + "): " + describe(t));
+                }
             }
         }
 
