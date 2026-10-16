@@ -6,7 +6,12 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 > - **Implementiert:**
 >   - Die Kartenbeleuchtung kann dem Tag-Nacht-Zyklus der Minecraft-Welt folgen. Das ist eine zusätzliche Auswahl neben BlueMaps eigenem Tag/Nacht-Schalter.
 >   - Der sichtbare Schlag der Mobs.
-> - **Nicht geprüft:** Minecraft (manuelle Prüfungen Q1–Q9 offen).
+>   - Sitz-, Liege- und Schlafposen.
+>   - Farben der Tropenfische, Größen der Kugelfische.
+>   - Halsbänder, Lama-Teppiche, Pferderüstung, voll beleuchteter Leuchttintenfisch.
+>   - Gegenstände auf dem Kopf (geschnitzter Kürbis, Blöcke).
+> - **Woher die Werte stammen:** Die neuen Animationen und Feature-Renderer sind aus dem Bytecode von Minecraft 1.21.1 nachgebaut. Ein CI-Test gibt dazu die Instruktionen der Vanilla-Methoden aus (`VanillaAnimationDumpTest`), siehe Abschnitt 3.
+> - **Nicht geprüft:** Minecraft (manuelle Prüfungen Q1–Q16 offen).
 
 ## 1. Tag-Nacht-Zyklus der Welt
 
@@ -73,16 +78,92 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 - Betäubter oder brüllender Verwüster.
 - Schwünge friedlicher Mobs, z. B. des Allays (deren Schwung läuft nur im Client).
 
-## 3. Tests
+## 3. Vanilla-Code als Quelle (`VanillaAnimationDumpTest`)
+
+- **Was der Test tut:**
+  - Er liest im CI ausgewählte Klassen des yarn-gemappten Minecraft-Jars mit ASM.
+  - Nichts wird ausgeführt. Er schreibt die Instruktionen als Annotationen, in einem eigenen CI-Job mit vier Teilen (je höchstens 50 Annotationen).
+- **Wie die Werte übernommen wurden:**
+  - Die Werte in der Webapp stammen aus diesen Instruktionen, nicht aus dem Gedächtnis.
+  - Wo eine frühere Version aus dem Gedächtnis gebaut war, wurde sie gegen den Dump geprüft: Eisengolem, Hoglin, Verwüster, Armschwung, Kugelfisch-Flossen.
+  - Dabei korrigiert: das leicht geöffnete Maul des ruhenden Verwüsters (π·0,01), Mähne und Babykopf des Hoglins.
+- **Die neuen Modellebenen** prüft der bestehende Modelltest:
+  - Katzenhalsband, Lama-Teppich und Pferderüstung.
+  - Ihre Dilatationen (0,01, 0,5, 0,1) stammen aus `EntityModels.getModels`.
+- **Die Farbstoff-Farben** (`dyeColors`, `DyeColor.getEntityColor`) prüft der Modelltest wie die Schaffarben.
+
+## 4. Posen
+
+**Server** (Flags):
+- `in_bed` mit `bed_<richtung>` und `bedOffset`
+- Fuchs `sleeping` und `sitting`
+- Katze `lying` und `head_down`
+- Panda `sitting`, `lying_on_back` und `eating`
+- Eisbär `warning`, Gürteltier `rolled_up`, Kamel `sitting`
+- Wolf und Katze `sitting` wie bisher
+
+**Webapp:**
+
+| Mob | Vanilla-Quelle | Gezeigt |
+|---|---|---|
+| Wolf | `WolfEntityModel.animateModel` | Sitzen |
+| Katze, Ozelot | `OcelotEntityModel`, `CatEntityModel`, `CatEntityRenderer.setupTransforms` | Stehen, Sitzen, Liegen auf der Seite, Kopf gesenkt |
+| Fuchs | `FoxEntityModel` | Sitzen, Schlafen (eingerollt, Beine ausgeblendet) |
+| Panda | `PandaEntityModel`, `PandaEntityRenderer.setupTransforms` | Sitzen (auch fressend), auf dem Rücken liegen |
+| Eisbär | `PolarBearEntityModel.setAngles` | Aufrichten |
+| Mobs im Bett (Dorfbewohner) | `LivingEntityRenderer.render` und `setupTransforms` | nach der Bettrichtung gedreht, liegend, zum Kopfende verschoben |
+
+- **Übergänge:** Wie in Minecraft laufen sie über Fortschrittswerte pro Tick.
+  - Katze: Liegen +0,15/−0,22, Schwanz +0,08/−0,13, Kopf +0,1/−0,13
+  - Panda: +0,15/−0,19
+  - Eisbär: ±1/6
+- **Nicht gezeigt:**
+  - Rollen des Gürteltiers und Sitzen des Kamels (Keyframe-Animationen)
+  - Schleichen und Springen des Fuchses
+  - Niesen, Spielen und Gewitterangst des Pandas
+  - Schlafende Spieler
+
+## 5. Tropenfische und Kugelfische
+
+- **Tropenfische:** Der Server sendet Grund- und Musterfarbe (`base_<farbe>`, `pattern_<farbe>`). Wie `TropicalFishEntityRenderer` und `TropicalFishColorFeatureRenderer` wird der Körper in der Grundfarbe und das Muster in der Musterfarbe eingefärbt.
+- **Kugelfische:** Der Aufblähzustand (`puff_1`, `puff_2`) wählt wie `PufferfishEntityRenderer` das kleine, mittlere oder große Modell. Beim Aufblähen wird das Modell gewechselt; die Seitenflossen schlagen wie in `setAngles`.
+
+## 6. Halsbänder, Teppiche, Pferderüstung, Leuchten
+
+| Ebene | Vanilla | Bedingung |
+|---|---|---|
+| Wolfshalsband | `WolfCollarFeatureRenderer`: Wolfsmodell, `wolf_collar` in der Halsbandfarbe | gezähmt |
+| Katzenhalsband | `CatCollarFeatureRenderer`: Halsbandmodell (Dilatation 0,01) | gezähmt |
+| Lama-Teppich | `LlamaDecorFeatureRenderer`: Dekormodell (0,5), `decor/<farbe>`; Händlerlama ohne Teppich: `trader_llama` | Teppich oder Händlerlama |
+| Pferderüstung | `HorseArmorFeatureRenderer`: Rüstungsmodell (0,1), Lederrüstung in ihrer Farbe | Rüstung vom Typ „equestrian“ |
+| Leuchttintenfisch | `GlowSquidEntityRenderer.getBlockLight`: Blocklicht 15 | immer voll beleuchtet, auch nachts |
+
+- **Noch offen:** die Leuchtschichten des Wardens.
+  - Fünf durchscheinend-emissive Ebenen mit eigener Helligkeit und eigenen Teilen.
+  - Welche Teile und welche Helligkeit zu welcher Ebene gehören, liefert der nächste CI-Dump.
+
+## 7. Gegenstände auf dem Kopf
+
+- **Server:** Ein Gegenstand im Kopf-Slot, der kein Helm ist, wird als `equipment.head` gesendet, für Spieler und Mobs.
+- **Webapp:** Wie `HeadFeatureRenderer`, Zweig für Gegenstände:
+  - Kette: Skalierung des Renderers (Piglins 1,0019531), bei Babys außer Dorfbewohnern (0, 1/32) · 0,7 · (0, 1), dann die Drehung des Kopfes.
+  - Danach (0, −0,25, 0), 180° um y, Skalierung (0,625, −0,625, −0,625), bei Dorfbewohnern 0,1875 höher.
+  - Zuletzt das Item mit seiner `head`-Transformation. Der Baker gibt sie jetzt mit aus, `ASSET_VERSION` ist 4.
+- **Wer ihn trägt:**
+  - Spieler, Zombies, Skelette, Piglins, Illager, Dorfbewohner, Zombiedorfbewohner und der fahrende Händler.
+  - Nicht der Riese: Sein Renderer hat keinen `HeadFeatureRenderer`.
+- **Noch offen:** Köpfe (Schädel-Blöcke) auf dem Kopf haben ein eigenes Schädelmodell und werden noch nicht gezeigt.
+
+## 8. Tests
 
 **Automatisiert:**
 
 | Test | Ergebnis |
 |---|---|
 | Java (lokal) | 63/63, u. a. `world` in `players.json` nur mit erweiterten Daten, `swingTicks` und `attackTicks` nur wenn gesetzt |
-| Node | 100/100, u. a. Sonnenwinkel, Himmelslicht (Tag, Nacht, Regen, Gewitter), Weiterlaufen der Zeit, Beleuchtung der Lebewesen, Ein- und Ausschalten; Eisengolem-, Hoglin- und Verwüster-Angriff, Körperdrehung beim Schwung (Haupt- und Nebenhand), lokaler Ablauf ohne Neustart |
+| Node | 107/107, zuletzt neu: Posen (Wolf, Katze, Fuchs, Panda, Eisbär, Bett), Kugelfisch-Modellwechsel, Tropenfischfarben, Halsbänder, Teppiche, Pferderüstung, Kopf-Slot; davor 100/100, u. a. Sonnenwinkel, Himmelslicht (Tag, Nacht, Regen, Gewitter), Weiterlaufen der Zeit, Beleuchtung der Lebewesen, Ein- und Ausschalten; Eisengolem-, Hoglin- und Verwüster-Angriff, Körperdrehung beim Schwung (Haupt- und Nebenhand), lokaler Ablauf ohne Neustart |
 | Browser `worldtime-e2e.mjs` | 9/9: Knopf nur mit Weltzeit, Mitternacht dunkelt die Karte ab (Pixel), Mittag, Regen, Speichern/Laden, eigener Schalter beendet den Modus, Einstellungsmenü |
-| Browser `mobs-e2e.mjs` | 11/11, neu: Zombie schwingt (Körper dreht sich und kehrt zurück), Eisengolem schlägt mit beiden Armen |
+| Browser `mobs-e2e.mjs` | 13/13, neu: Zombie schwingt (Körper dreht sich und kehrt zurück), Eisengolem schlägt mit beiden Armen, Tropenfisch in Grund- und Musterfarbe (Pixel), Block auf dem Kopf eines Zombies (Pixel) |
 | Browser `entities`, `items`, `animation` | 12/12, 16/16, 19/19 |
 | Browser `player-e2e.mjs` | 22/22 nach der Tag-Nacht-Änderung; in späteren Läufen 21/22 (s. u.) |
 

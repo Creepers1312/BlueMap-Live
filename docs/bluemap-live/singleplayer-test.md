@@ -260,7 +260,7 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | P9 | Gesattelte Pferde/Strider, Esel/Lama mit Truhe | Sattel bzw. Truhen sichtbar |
 | P10 | Enderdrache | Platzhalter mit Namen |
 
-**Tag-Nacht-Zyklus der Welt, Schlag der Mobs (`phase-8.md`, alle offen)**
+**Tag-Nacht-Zyklus der Welt, Schlag der Mobs, Posen, Ebenen (`phase-8.md`, alle offen)**
 
 | # | Prüfung | Erwartung |
 |---|---|---|
@@ -273,6 +273,13 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | Q7 | Zombie oder Skelett mit Schwert greift an | Arm schlägt, der Körper dreht sich mit |
 | Q8 | Eisengolem greift einen Zombie an | Beide Arme schlagen von oben nach unten |
 | Q9 | Hoglin bzw. Verwüster greift an | Hoglin reißt den Kopf hoch; der Verwüster stößt den Kopf vor und öffnet das Maul |
+| Q10 | Wolf und Katze zähmen, per Rechtsklick sitzen lassen, Halsband färben | Sitzpose wie im Spiel; Halsband in der Farbe |
+| Q11 | Katze legt sich zu einem schlafenden Spieler, Fuchs schläft tagsüber | Katze auf der Seite liegend, Fuchs eingerollt |
+| Q12 | Dorfbewohner schlafen nachts im Bett | Liegen im Bett, Kopf am Kopfende |
+| Q13 | Panda sitzt / liegt auf dem Rücken, Eisbär-Junges angreifen | Panda-Posen; der erwachsene Eisbär richtet sich auf |
+| Q14 | Verschiedene Tropenfische (Eimer), Kugelfisch anstupsen | Farben wie im Spiel; Kugelfisch bläht sich in zwei Stufen auf |
+| Q15 | Lama mit Teppich, Händlerlama, Pferd mit Eisen- und gefärbter Lederrüstung | Teppich-, Dekor- und Rüstungsebenen |
+| Q16 | Geschnitzter Kürbis auf dem eigenen Kopf und auf einem Zombie (`/item replace entity`) | Kürbis sitzt um den Kopf und dreht sich mit; Leuchttintenfisch nachts hell |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 
