@@ -24,6 +24,7 @@
  */
 
 import {parseWorldTime} from "./WorldTime.js";
+import {parseParticles} from "./particles/ParticleData.js";
 
 /*
  * Parsing and validation of the live/players.json data (no three.js dependencies, so it can be unit-tested with node).
@@ -251,7 +252,8 @@ export function riderOnVehicle(vehicle, position, yaw) {
  *     equipment: {mainHand: object | null, offHand: object | null, leftHanded: boolean, fishing: boolean} | null,
  *     use: {mainHand: boolean, action: string, ticks: number} | null,
  *     hurt: {count: number} | null,
- *     vehicle: {id: number, offset: {x: number, y: number, z: number}, bodyYaw: number, headYaw: number} | null
+ *     vehicle: {id: number, offset: {x: number, y: number, z: number}, bodyYaw: number, headYaw: number} | null,
+ *     particles: import("./particles/ParticleData.js").LiveParticles | null
  * }}
  */
 
@@ -300,6 +302,7 @@ export function parsePlayer(raw) {
         use: parseItemUse(raw.use),
         hurt: raw.hurt && Number.isInteger(raw.hurt.count) && raw.hurt.count >= 0 ? {count: raw.hurt.count} : null,
         vehicle: parseVehicle(raw.vehicle),
+        particles: parseParticles(raw.particles),
     };
 }
 

@@ -301,6 +301,11 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q24 | Nachts ins Bett legen (am besten zu zweit oder mit `/gamerule playersSleepingPercentage 200`, damit die Nacht nicht sofort vorbei ist) | Spieler liegt im Bett, Kopf am Kopfende, wie ein schlafender Dorfbewohner |
 | Q25 | Nachts mit Uhr-Knopf an: Fackel, Laterne, Lavaeimer in die Hand nehmen und herumlaufen | Karte um den Spieler wird heller (Fackel etwa 14 Blöcke Reichweite), wandert mit; ohne Licht wieder dunkel |
 | Q26 | Karte über das Internet öffnen (nicht im eigenen Netz), Spieler und Mobs beim Laufen beobachten; im Kartenmenü „Live-Anzeige“ die Glättung auf „Aus“ und zurück stellen; Bildrate auf 30 FPS | Mit Glättung laufen Figuren ohne Stocken (etwa eine halbe Sekunde verzögert); ohne Glättung wie bisher; Einstellungen bleiben nach dem Neuladen erhalten |
+| Q27 | Creeper explodieren lassen (mit und ohne `/gamerule mobGriefing false`), TNT zünden, Endkristall zerschlagen, Ghast-Feuerball | Mit Blockschaden die große Explosion (viele graue Wolken über etwa 1 s), ohne Blockschaden bzw. beim Feuerball eine einzelne kleinere Wolke; der Creeper verschwindet zusammen mit der Explosion |
+| Q28 | Selbst einen Trank trinken (z. B. Schnelligkeit), einem Mob einen Effekt geben (`/effect give @e[type=zombie,limit=1] minecraft:poison 60`), Leuchtfeuer-Effekt | Farbige Wirbel steigen am Körper auf, in der Farbe des Effekts; beim Leuchtfeuer (ambient) deutlich weniger und blasser |
+| Q29 | Wurftrank (z. B. Heilung, Gift) und Verweiltrank werfen | Beim Zerbrechen ein Ring aus farbigen Partikeln; Verweiltrank: Wolke am Boden mit Partikeln in Trankfarbe, die kleiner wird |
+| Q30 | Zombie im Sonnenlicht brennen lassen, selbst in Lava/Feuer laufen, brennender Pfeil | Animierte Flammen um die Figur, auch nachts hell |
+| Q31 | Einen Mob töten | Nach der Todesanimation eine kleine graue Rauchwolke |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

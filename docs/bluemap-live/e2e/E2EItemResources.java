@@ -134,6 +134,12 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/boat/oak", rect(128, 64, 0, 0, 128, 64, BOAT));
         textures.put("minecraft:entity/minecart", rect(64, 32, 0, 0, 64, 32, MINECART));
         textures.put("minecraft:entity/lead_knot", rect(32, 32, 0, 0, 32, 32, BOAT));
+        // particles: white (the particle-color is multiplied), the fire: an animated strip of 32 frames
+        for (String texture : de.bluecolored.bluemap.common.live.ParticleState.TEXTURES) {
+            textures.put(texture, texture.contains(":block/fire_") ? rect(16, 512, 0, 0, 16, 512, FIRE) :
+                    square(texture.contains("explosion") ? 16 : 8, 0, 0, texture.contains("explosion") ? 16 : 8,
+                            texture.contains("explosion") ? 16 : 8, 0xFFFFFFFF));
+        }
         textures.put("minecraft:entity/sheep/sheep", rect(64, 32, 0, 0, 64, 32, SHEEP));
         textures.put("minecraft:entity/sheep/sheep_fur", rect(64, 32, 0, 0, 64, 32, WOOL));
         textures.put("minecraft:entity/villager/villager", square(64, 0, 0, 64, 64, VILLAGER));
@@ -175,6 +181,9 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:models/armor/leather_layer_2", rect(64, 32, 0, 0, 64, 32, LEATHER));
         textures.put("minecraft:models/armor/leather_layer_2_overlay", rect(64, 32, 0, 0, 0, 0, LEATHER));
     }
+
+    /** the color of the fire-textures */
+    static final int FIRE = 0xFFFF8000;
 
     private static BufferedImage rect(int width, int height, int x, int y, int w, int h, int argb) {
         BufferedImage image = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);

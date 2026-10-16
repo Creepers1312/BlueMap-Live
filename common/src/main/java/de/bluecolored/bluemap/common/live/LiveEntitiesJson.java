@@ -29,6 +29,7 @@ import com.google.gson.stream.JsonWriter;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
 
 /**
  * Writes the <code>live/entities.json</code> data (BlueMap Live, see docs/bluemap-live/phase-5.md).
@@ -40,6 +41,11 @@ public final class LiveEntitiesJson {
     private LiveEntitiesJson() {}
 
     public static void write(JsonWriter json, long serverTime, int updateInterval, Collection<LiveEntityState> entities) throws IOException {
+        write(json, serverTime, updateInterval, entities, List.of());
+    }
+
+    public static void write(JsonWriter json, long serverTime, int updateInterval, Collection<LiveEntityState> entities,
+                             Collection<LiveEffect> effects) throws IOException {
         json.beginObject();
         json.name("protocol").value(PROTOCOL_VERSION);
         json.name("serverTime").value(serverTime);
@@ -77,10 +83,52 @@ public final class LiveEntitiesJson {
                 json.name("ticks").value(finite(entity.impact().ticks()));
                 json.endObject();
             }
+            if (entity.particles() != null) writeParticles(json, entity.particles());
             json.endObject();
         }
         json.endArray();
 
+        if (!effects.isEmpty()) {
+            json.name("effects").beginArray();
+            for (LiveEffect effect : effects) {
+                json.beginObject();
+                json.name("id").value(effect.id());
+                json.name("type").value(effect.type());
+                json.name("x").value(finite(effect.position().getX()));
+                json.name("y").value(finite(effect.position().getY()));
+                json.name("z").value(finite(effect.position().getZ()));
+                if (effect.power() != 0) json.name("power").value(finite(effect.power()));
+                if (effect.destroy()) json.name("destroy").value(true);
+                if (effect.color() != 0) json.name("color").value(effect.color() & 0xFFFFFF);
+                json.name("time").value(effect.time());
+                json.endObject();
+            }
+            json.endArray();
+        }
+
+        json.endObject();
+    }
+
+    /** the particles of an entity or player (only the values that differ from the default) */
+    static void writeParticles(JsonWriter json, ParticleState particles) throws IOException {
+        if (particles.isEmpty()) return;
+        json.name("particles").beginObject();
+        if (particles.onFire()) json.name("fire").value(true);
+        if (!particles.swirls().isEmpty()) {
+            json.name("swirls").beginArray();
+            for (int color : particles.swirls()) json.value(Integer.toUnsignedLong(color));
+            json.endArray();
+            if (particles.ambient()) json.name("ambient").value(true);
+            if (particles.invisible()) json.name("invisible").value(true);
+        }
+        ParticleState.Cloud cloud = particles.cloud();
+        if (cloud != null) {
+            json.name("cloud").beginObject();
+            json.name("radius").value(finite(cloud.radius()));
+            json.name("color").value(Integer.toUnsignedLong(cloud.color()));
+            if (cloud.waiting()) json.name("waiting").value(true);
+            json.endObject();
+        }
         json.endObject();
     }
 

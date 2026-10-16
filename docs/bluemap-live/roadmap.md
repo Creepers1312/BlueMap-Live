@@ -126,7 +126,18 @@ Weitere Mobs folgen in späteren `0.3.x`-Versionen. Unbekannte Mobs erscheinen a
 
 ---
 
-## 0.4.0-alpha – Live-Blockänderungen und Truhen
+## 0.4.0-alpha – Effekte und Partikel (auf Wunsch des Nutzers vor die Blockänderungen gezogen)
+
+**Stand:** umgesetzt und automatisiert getestet (`phase-10.md`), in Minecraft noch nicht geprüft (Q27–Q31). Release-Notes: `releases/v0.4.0-alpha.md`.
+
+- Explosionen (Creeper, TNT, Ghast-Feuerball, Witherschädel, Endkristall) mit den Vanilla-Partikeln, erkannt beim Entfernen der auslösenden Entity.
+- Trankwirbel in der Farbe der aktiven Effekte, Partikelring beim Zerbrechen von Wurf- und Verweiltränken, Wolke des Verweiltranks.
+- Feuer an brennenden Entities und Spielern, Rauchwolke beim Tod.
+- Partikel-Regeln aus dem Vanilla-Code (CI-Dump), Texturen aus dem Ressourcenpaket; Abweichungen (keine Blockkollision, gemeinsames Licht) sind in `phase-10.md` §3 beschrieben.
+
+---
+
+## 0.5.0-alpha – Live-Blockänderungen und Truhen
 
 **Ziel:** Gesetzte und abgebaute Blöcke erscheinen ohne vollständiges Neurendern auf der Karte.
 
@@ -137,15 +148,6 @@ Weitere Mobs folgen in späteren `0.3.x`-Versionen. Unbekannte Mobs erscheinen a
    - Geöffnete Truhen, Doppeltruhen, Endertruhen und Shulkerkisten werden ohne Deckel in die Kachel gerendert; der Deckel wird im Webclient animiert.
    - Das Fass zeigt seinen Zustand über den Blockzustand `open`.
 4. **Vorbereitung** für Türen, Falltüren, Hebel und Knöpfe. Deren Zustand steht im Blockzustand und kommt mit den Blockänderungen; eigene Animationen erst danach.
-
----
-
-## 0.5.0-alpha – Effekte und Partikel (Näherung)
-
-- Partikel für Trankeffekte (Farbe aus den aktiven Effekten).
-- Wolke des Verweiltranks (eigenes Entity).
-- Treffer-, Explosions- und Zerbrechen-Effekte, soweit der Server sie kennt.
-- Klar als Näherung gekennzeichnet; exakte Vanilla-Partikel sind kein Ziel.
 
 ---
 

@@ -357,7 +357,8 @@ public class FabricPlayer extends Player {
                         sampleEquipment(player),
                         sampleItemUse(player),
                         hurtCount,
-                        vehicle
+                        vehicle,
+                        FabricParticles.sample(player)
                 )
         );
     }

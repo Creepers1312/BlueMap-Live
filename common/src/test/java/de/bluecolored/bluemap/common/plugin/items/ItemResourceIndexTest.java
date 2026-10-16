@@ -112,4 +112,18 @@ public class ItemResourceIndexTest {
         assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "misc/pumpkinblur"));
     }
 
+    @Test
+    public void testParticleTexturesAreIndexed() {
+        // only the particles the webapp draws (ParticleState.TEXTURES), not the other particles or those of mods
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "particle/explosion_15"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "particle/effect_0"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "particle/generic_7"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "block/fire_0"));
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "particle/note"));
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("somemod", "particle/explosion_0"));
+        assertTrue(ItemModelBaker.isProvidedTexture("minecraft:particle/spell_3"));
+        assertTrue(ItemModelBaker.isProvidedTexture("minecraft:block/fire_1"));
+        assertFalse(ItemModelBaker.isProvidedTexture("minecraft:block/stone"));
+    }
+
 }

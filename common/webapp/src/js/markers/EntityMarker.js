@@ -92,6 +92,15 @@ export function horseTick(horse, flags, random = Math.random) {
     if (horse.tailWag === 0 && random() < 1 / 200) horse.tailWag = 1;
 }
 
+/** vanilla EntityType dimensions (width, height) of the entities without a mob-state that can burn */
+const ENTITY_SIZES = {
+    "minecraft:item": {width: 0.25, height: 0.25},
+    "minecraft:arrow": {width: 0.5, height: 0.5},
+    "minecraft:spectral_arrow": {width: 0.5, height: 0.5},
+    "minecraft:trident": {width: 0.5, height: 0.5},
+};
+const DEFAULT_ENTITY_SIZE = {width: 0.25, height: 0.25};
+
 export class EntityMarker extends Marker {
 
     /**
@@ -171,7 +180,15 @@ export class EntityMarker extends Marker {
          */
         this.horse = {grass: 0, lastGrass: 0, angry: 0, lastAngry: 0, tailWag: 0};
         /** the samples wait for their playback-time (smooth movement although the responses arrive unevenly) */
-        this.playback = new PlaybackQueue(({entity, updateInterval}, due) => this.applyData(entity, updateInterval, due));
+        this.playback = new PlaybackQueue((sample, due) => {
+            if (sample.removed) this.removed = true;
+            else this.applyData(sample.entity, sample.updateInterval, due);
+        });
+        /** played back: the entity is not in the data anymore (removed by the manager, see scheduleRemoval) */
+        this.removed = false;
+        this.removalScheduled = false;
+        /** the particles the entity emits (see particles/ParticleData) */
+        this.particles = null;
         /** played back: the client-time (epoch-ms) the running interpolation started at (it was due), null otherwise */
         this.segmentStart = null;
         /** the rope of the leash (LeashView), null if not leashed */
@@ -224,7 +241,44 @@ export class EntityMarker extends Marker {
      */
     updateFromData(entity, updateInterval) {
         // BlueMap Live: applied evenly at its sample-time plus the playback-delay (see LivePlayback)
+        if (this.removalScheduled) {
+            // back in the data before the removal was played back
+            this.playback.queue = this.playback.queue.filter(item => !item.sample.removed);
+            this.removalScheduled = false;
+        }
         this.playback.push({entity, updateInterval}, entity.time, updateInterval);
+    }
+
+    /**
+     * The entity is not in the data anymore: it is removed when the playback reaches the next sample-time after its
+     * last sample (so e.g. an exploding creeper disappears together with its explosion), at once without a delay.
+     * @returns {boolean} true if the marker can be removed now
+     */
+    scheduleRemoval(updateInterval) {
+        if (this.removed) return true;
+        if (this.removalScheduled) return false;
+        const last = this.lastData;
+        if (LIVE_PLAYBACK.delay <= 0 || !last || last.time === null || !this.playback.applied) return true;
+        this.removalScheduled = true;
+        this.playback.schedule({removed: true}, last.time + Math.max(1, updateInterval));
+        return this.removed;
+    }
+
+    /**
+     * What the particle-system needs of the drawn entity, null if it emits nothing.
+     * @returns {import("./particles/LiveParticles.js").ParticleSource | null}
+     */
+    get particleSource() {
+        if (!this.particles || this.removed) return null;
+        const mob = this.lastData && this.lastData.mob;
+        const size = mob ? {width: mob.width, height: mob.height} : (ENTITY_SIZES[this.entityType] || DEFAULT_ENTITY_SIZE);
+        return {x: this.position.x, y: this.position.y, z: this.position.z, width: size.width, height: size.height,
+            particles: this.particles};
+    }
+
+    /** if the entity is dying (its death-animation ran): vanilla shows the death-poof when it is removed */
+    get dying() {
+        return this.deathTicks > 0;
     }
 
     /** @private */
@@ -248,7 +302,8 @@ export class EntityMarker extends Marker {
         tempVector.set(entity.position.x, entity.position.y, entity.position.z);
         const jump = first || tempVector.distanceTo(this.position) > MAX_INTERPOLATION_DISTANCE;
         const isMob = this.kind === "mob" || this.kind === "placeholder";
-        const flying = this.kind !== "item" && !isMob && !entity.onGround;
+        const flying = this.kind !== "item" && this.kind !== "particles" && !isMob && !entity.onGround;
+        this.particles = entity.particles || null;
         if (isMob) this.updateMobTarget(entity, jump);
 
         if (flying) {
@@ -351,7 +406,7 @@ export class EntityMarker extends Marker {
 
     /** @private */
     createView() {
-        if (!this.kind) return;
+        if (!this.kind || this.kind === "particles") return;
         if (this.kind === "mob") {
             this.mobTypeKey = this.selectMobType(this.lastSample && this.lastSample.mob);
             this.view = new MobModel(this.entityType, MOB_TYPES[this.mobTypeKey], this.mobCache, this.itemCache);

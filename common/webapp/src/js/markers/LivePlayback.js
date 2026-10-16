@@ -147,6 +147,20 @@ export class PlaybackQueue {
         this.release();
     }
 
+    /**
+     * Adds a sample with a known time (e.g. the removal of the entity at its next sample-time) without observing the
+     * clock (the time is not a received sample-time). Applied at once without a delay or before anything was applied.
+     */
+    schedule(sample, sampleTime) {
+        if (LIVE_PLAYBACK.delay <= 0 || !this.applied || this.appliedTime === null || !Number.isFinite(sampleTime)) {
+            this.flush();
+            this.applyNow(sample, Number.isFinite(sampleTime) ? sampleTime : null, this.now());
+            return;
+        }
+        this.queue.push({time: sampleTime, sample});
+        this.release();
+    }
+
     /** applies the next samples whose interpolation has started (called every frame) */
     release() {
         const now = this.now();

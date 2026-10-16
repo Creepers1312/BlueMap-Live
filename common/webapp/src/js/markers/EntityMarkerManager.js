@@ -30,6 +30,14 @@ import {DEFAULT_UPDATE_INTERVAL, isStaleResponse} from "./LivePlayerData";
 import {ItemAssetCache} from "./player/ItemAssetCache";
 import {MobAssetCache} from "./mob/MobAssetCache";
 import {Frustum, Matrix4} from "three";
+import {LIVE_CLOCK, LIVE_PLAYBACK} from "./LivePlayback.js";
+import {ParticleSystem} from "./particles/LiveParticles.js";
+import {ParticleView} from "./particles/ParticleView.js";
+
+/** effects that would be shown later than this (ms) after their playback-time are skipped (e.g. after a reload) */
+const MAX_EFFECT_LATENESS = 1500;
+/** vanilla PlayerEntity dimensions (standing, sneaking) */
+const PLAYER_WIDTH = 0.6, PLAYER_HEIGHT = 1.8, PLAYER_SNEAKING_HEIGHT = 1.5;
 
 export const ENTITY_MARKER_SET_ID = "bm-entities";
 
@@ -79,6 +87,14 @@ export class EntityMarkerManager extends MarkerManager {
         this.redraw = redraw;
         this.updateInterval = DEFAULT_UPDATE_INTERVAL;
         this.lastServerTime = null;
+
+        // BlueMap Live: particles and effects (see docs/bluemap-live/phase-10.md)
+        this.particleSystem = new ParticleSystem();
+        this.particleView = new ParticleView(this.itemCache.textures);
+        /** the ids of the effects that were seen (each effect is shown once) */
+        this.seenEffects = new Set();
+        /** @type {Array<{due: number, effect: import("./particles/ParticleData.js").LiveEffect}>} */
+        this.scheduledEffects = [];
 
         this.onRenderFrame = evt => this.animateEntities(evt.detail.delta / 1000);
         if (this.events) this.events.addEventListener("bluemapRenderFrame", this.onRenderFrame);
@@ -133,8 +149,114 @@ export class EntityMarkerManager extends MarkerManager {
             updated.add(marker);
         }
         set.markers.forEach(marker => {
-            if (!updated.has(marker)) set.remove(marker);
+            if (updated.has(marker)) return;
+            // removed when the playback reaches the removal (with the death-poof of a dying mob)
+            if (!marker.isEntityMarker || marker.scheduleRemoval(this.updateInterval)) this.removeMarker(set, marker);
         });
+        this.scheduleEffects(response.effects || []);
+        // the particle-textures are loaded as soon as something emits particles (before the playback shows it)
+        if ((response.effects && response.effects.length > 0) || response.entities.some(entity => entity.particles)) {
+            this.particleView.load();
+        }
+        return true;
+    }
+
+    /** @private */
+    removeMarker(set, marker) {
+        if (marker.isEntityMarker && marker.dying && set.visible && marker.visible !== false) {
+            const mob = marker.lastData && marker.lastData.mob;
+            if (mob) this.particleSystem.deathPoof(marker.position.x, marker.position.y, marker.position.z, mob.width, mob.height);
+        }
+        set.remove(marker);
+    }
+
+    /**
+     * The new effects of a response are shown at their playback-time (like the entities), at once without a delay.
+     * @private
+     */
+    scheduleEffects(effects) {
+        const now = Date.now();
+        const ids = new Set();
+        for (const effect of effects) {
+            ids.add(effect.id);
+            if (this.seenEffects.has(effect.id)) continue;
+            const playback = LIVE_PLAYBACK.delay > 0 && effect.time !== null ?
+                LIVE_CLOCK.playbackTime(effect.time, LIVE_PLAYBACK.delay + this.updateInterval) : null;
+            const due = playback !== null ? playback : now;
+            // too old: e.g. the effects of the last seconds (kept by the server) when the map is opened
+            const age = effect.time !== null && this.lastServerTime !== null ? this.lastServerTime - effect.time : 0;
+            if (due < now - MAX_EFFECT_LATENESS || age > this.updateInterval + LIVE_PLAYBACK.delay + MAX_EFFECT_LATENESS) continue;
+            this.scheduledEffects.push({due, effect});
+        }
+        // the ids that are not in the data anymore are not needed (the server keeps an effect for some seconds)
+        this.seenEffects = ids;
+    }
+
+    /** @private shows the effects whose time has come */
+    releaseEffects(visible) {
+        if (this.scheduledEffects.length === 0) return;
+        const now = Date.now();
+        this.scheduledEffects = this.scheduledEffects.filter(({due, effect}) => {
+            if (due > now) return true;
+            if (!visible) return false;
+            const p = effect.position;
+            if (effect.type === "explosion") this.particleSystem.explosion(p.x, p.y, p.z, effect.power, effect.destroy);
+            else this.particleSystem.splash(p.x, p.y, p.z, effect.color, effect.type === "instant_splash");
+            return false;
+        });
+    }
+
+    /**
+     * The drawn entities and players that emit particles.
+     * @private
+     * @returns {import("./particles/LiveParticles.js").ParticleSource[]}
+     */
+    particleSources(set) {
+        const sources = [];
+        set.markers.forEach(marker => {
+            if (!marker.isEntityMarker || marker.visible === false) return;
+            const source = marker.particleSource;
+            if (source) sources.push(source);
+        });
+        const players = this.root.markerSets.get("bm-players");
+        if (players && players.visible) {
+            players.markers.forEach(marker => {
+                const data = marker.lastPlayerData;
+                if (!data || !data.particles || marker.visible === false || !marker.anchor) return;
+                const position = marker.anchor.position;
+                const sneaking = data.state && data.state.sneaking;
+                sources.push({x: position.x, y: position.y, z: position.z, width: PLAYER_WIDTH,
+                    height: sneaking ? PLAYER_SNEAKING_HEIGHT : PLAYER_HEIGHT, particles: data.particles});
+            });
+        }
+        return sources;
+    }
+
+    /**
+     * Advances and draws the particles of a frame.
+     * @private
+     * @returns {boolean} if something is drawn (needs high-fps rendering)
+     */
+    animateParticles(set, dt) {
+        const visible = set.visible;
+        this.releaseEffects(visible);
+        if (!visible) {
+            this.particleSystem.clear();
+            this.particleView.group.visible = false;
+            return false;
+        }
+        this.particleView.updateAtlas();
+        const sources = this.particleSources(set);
+        if (sources.length === 0 && this.particleSystem.count === 0) {
+            this.particleView.group.visible = false;
+            return false;
+        }
+        this.particleSystem.step(dt, () => sources);
+        if (this.particleView.group.parent !== set) set.add(this.particleView.group);
+        this.particleView.group.visible = true;
+        if (this.camera) {
+            this.particleView.update(this.particleSystem, sources.filter(source => source.particles.fire), this.camera);
+        }
         return true;
     }
 
@@ -150,7 +272,9 @@ export class EntityMarkerManager extends MarkerManager {
         const frustum = this.camera ? viewFrustum(this.camera) : null;
         set.markers.forEach(marker => {
             if (marker.isEntityMarker && marker.step(dt, this.camera, frustum) && marker.visible) moving = true;
+            if (marker.isEntityMarker && marker.removed) this.removeMarker(set, marker);
         });
+        if (this.animateParticles(set, dt)) moving = true;
         if (moving && set.visible && this.redraw) this.redraw();
         this.updateLeashes(set);
         if (this.events) this.events.dispatchEvent(new CustomEvent(ENTITIES_STEPPED_EVENT, {detail: {markers: set.markers}}));
@@ -181,6 +305,8 @@ export class EntityMarkerManager extends MarkerManager {
         super.dispose();
         const set = this.getEntityMarkerSet(false);
         if (set) this.root.remove(set);
+        this.particleView.dispose();
+        this.particleSystem.clear();
         this.itemCache.dispose();
         this.entityCache.dispose();
         this.mobCache.dispose();

@@ -86,6 +86,11 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
         this.itemRequester = itemRequester;
     }
 
+    /** the textures of the particles (cheap if they were requested before) */
+    static void requestParticleTextures(Consumer<String> itemRequester) {
+        for (String texture : ParticleState.TEXTURES) itemRequester.accept(LivePlayersDataSupplier.TEXTURE_PREFIX + texture);
+    }
+
     private record Listed(LiveEntityState entity, double distanceSquared) {}
 
     @Override
@@ -94,6 +99,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
             serverWorld = server.getServerWorld(world).orElse(null);
 
         List<LiveEntityState> result = new ArrayList<>();
+        List<LiveEffect> effects = new ArrayList<>();
         if (config.isLiveEntities() && config.isLivePlayerMarkers() && serverWorld != null) {
 
             // the positions of the players that are shown on this map
@@ -109,6 +115,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                 double radius = config.getLiveEntitiesRadius();
                 double radiusSquared = radius * radius;
                 List<Listed> listed = new ArrayList<>();
+                boolean particles = false;
                 for (LiveEntityState entity : server.getLiveEntities(serverWorld)) {
                     if (config.getLiveEntitiesHiddenTypes().contains(entity.type())) continue;
                     double nearest = Double.MAX_VALUE;
@@ -116,6 +123,15 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                         nearest = Math.min(nearest, player.distanceSquared(entity.position()));
                     }
                     if (nearest <= radiusSquared) listed.add(new Listed(entity, nearest));
+                }
+
+                for (LiveEffect effect : server.getLiveEffects(serverWorld)) {
+                    for (Vector3d player : players) {
+                        if (player.distanceSquared(effect.position()) <= radiusSquared) {
+                            effects.add(effect);
+                            break;
+                        }
+                    }
                 }
 
                 listed.sort(Comparator.comparingDouble(Listed::distanceSquared));
@@ -133,14 +149,16 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                             LivePlayersDataSupplier.TEXTURE_PREFIX + ItemModelBaker.SKULL_TEXTURES.get(equipment.head().id()) : equipment.head().id());
                     }
                     entityRequester.accept(entity.type());
+                    if (entity.particles() != null) particles = true;
                     result.add(entity);
                 }
+                if (particles || !effects.isEmpty()) requestParticleTextures(itemRequester);
             }
         }
 
         try (StringWriter jsonString = new StringWriter();
              JsonWriter json = new JsonWriter(jsonString)) {
-            LiveEntitiesJson.write(json, System.currentTimeMillis(), updateIntervalMillis, result);
+            LiveEntitiesJson.write(json, System.currentTimeMillis(), updateIntervalMillis, result, effects);
             json.flush();
             return jsonString.toString();
         } catch (IOException ex) {

@@ -137,6 +137,14 @@ public interface Server {
     }
 
     /**
+     * The recent effects (explosions, splash-potions) in a world (BlueMap Live), oldest first.
+     * Platforms that do not support this return an empty list.
+     */
+    default List<de.bluecolored.bluemap.common.live.LiveEffect> getLiveEffects(ServerWorld world) {
+        return List.of();
+    }
+
+    /**
      * The latest sampled time and weather of a world (BlueMap Live), null if unknown or the world has no day-night-cycle
      * (no sky-light or a fixed time).
      */

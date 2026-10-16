@@ -128,6 +128,9 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
         if (value.startsWith("misc/enchanted_glint")) return true; // the enchantment-glint
         // shield, projectiles and the mob-textures of minecraft; the mob-textures of mods are not used (no models)
         if (value.startsWith("entity/")) return namespace.equals("minecraft");
+        // the particles the webapp draws (see the java ParticleState.TEXTURES)
+        if (value.startsWith("particle/")) return namespace.equals("minecraft") &&
+                de.bluecolored.bluemap.common.live.ParticleState.TEXTURES.contains(namespace + ":" + value);
         // the same folders are skipped for mods (BlueMap Live: with many mods their gui- and particle-textures
         // would take a lot of memory)
         int slash = value.indexOf('/');

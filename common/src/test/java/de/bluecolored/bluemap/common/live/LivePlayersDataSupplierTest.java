@@ -209,6 +209,30 @@ public class LivePlayersDataSupplierTest {
     }
 
     @Test
+    public void testEffectsAroundShownPlayersAndParticleTextures() {
+        TestPlayer player = new TestPlayer(overworld, new Vector3d(0, 64, 0));
+        player.snapshot = new Player.LiveSnapshot(overworld, state(new Vector3d(0, 64, 0), 0));
+        TestServer server = new TestServer(player);
+        server.effects = List.of(
+                new LiveEffect(1, LiveEffect.EXPLOSION, new Vector3d(10, 64, 0), 3, true, 0, 900),
+                new LiveEffect(2, LiveEffect.EXPLOSION, new Vector3d(200, 64, 0), 3, true, 0, 900) // outside of 30 blocks
+        );
+        List<String> requested = new ArrayList<>();
+        JsonArray effects = root(supplyEntities(new PluginConfig(), server, requested)).getAsJsonArray("effects");
+        assertEquals(1, effects.size());
+        assertEquals(1, effects.get(0).getAsJsonObject().get("id").getAsInt());
+        assertTrue(requested.contains("texture:minecraft:particle/explosion_0"), "the particle-textures are provided");
+        assertTrue(requested.contains("texture:minecraft:block/fire_0"));
+
+        // nothing with particles: the textures are not requested
+        server.effects = List.of();
+        server.entities = List.of(entity(1, "minecraft:item", new Vector3d(1, 64, 0), new HeldItem("minecraft:stone")));
+        List<String> none = new ArrayList<>();
+        assertFalse(root(supplyEntities(new PluginConfig(), server, none)).has("effects"));
+        assertEquals(List.of("minecraft:stone"), none);
+    }
+
+    @Test
     public void testEntitiesLimitHiddenTypesAndDisabled() throws Exception {
         TestPlayer player = new TestPlayer(overworld, Vector3d.ZERO);
         player.snapshot = new Player.LiveSnapshot(overworld, state(Vector3d.ZERO, 0));
@@ -396,6 +420,7 @@ public class LivePlayersDataSupplierTest {
     private class TestServer implements Server {
         private final List<Player> players;
         private List<LiveEntityState> entities = List.of();
+        private List<LiveEffect> effects = List.of();
 
         TestServer(Player... players) {
             this.players = List.of(players);
@@ -413,6 +438,9 @@ public class LivePlayersDataSupplierTest {
         @Override public void unregisterAllListeners() {}
         @Override public List<LiveEntityState> getLiveEntities(ServerWorld world) {
             return world == overworld ? entities : List.of();
+        }
+        @Override public List<LiveEffect> getLiveEffects(ServerWorld world) {
+            return world == overworld ? effects : List.of();
         }
     }
 

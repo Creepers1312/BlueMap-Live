@@ -32,6 +32,8 @@ import de.bluecolored.bluemap.common.commands.BrigadierExecutionHandler;
 import de.bluecolored.bluemap.common.commands.Commands;
 import de.bluecolored.bluemap.common.config.PluginConfig;
 import de.bluecolored.bluemap.common.live.HeldItem;
+import de.bluecolored.bluemap.common.live.LiveEffect;
+import de.bluecolored.bluemap.common.live.LiveEffectLog;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.common.live.LiveWorldTime;
@@ -49,6 +51,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
@@ -98,6 +101,8 @@ public class FabricMod implements ModInitializer, Server {
     // BlueMap Live: the entities around the players per world, sampled on the server-thread, read by the webserver
     private volatile Map<Key, List<LiveEntityState>> liveEntities = Map.of();
     private volatile Map<Key, LiveWorldTime> liveWorldTimes = Map.of();
+    // BlueMap Live: the recent explosions and splash-potions per world
+    private final Map<Key, LiveEffectLog> liveEffects = new ConcurrentHashMap<>();
     private int liveEntitySampleTicks = 0;
     private final List<FabricPlayer> onlinePlayerList;
 
@@ -186,6 +191,10 @@ public class FabricMod implements ModInitializer, Server {
         UseItemCallback.EVENT.register((player, world, hand) -> {
             if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.USE);
             return TypedActionResult.pass(ItemStack.EMPTY);
+        });
+
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+            if (world.getServer() == this.serverInstance) this.onEntityRemoved(entity, world);
         });
 
         ServerTickEvents.END_SERVER_TICK.register((MinecraftServer server) -> {
@@ -356,7 +365,7 @@ public class FabricMod implements ModInitializer, Server {
     /** the entity-types that are shown on the map (dropped items, thrown items, arrows, tridents and mobs) */
     private static boolean isLiveEntity(Entity entity) {
         return entity instanceof ItemEntity || entity instanceof FlyingItemEntity || entity instanceof PersistentProjectileEntity ||
-                FabricMobs.isLiveMob(entity) || FabricVehicles.isVehicle(entity);
+                FabricMobs.isLiveMob(entity) || FabricVehicles.isVehicle(entity) || FabricParticles.isParticleEntity(entity);
     }
 
     /** a protection against huge entity-amounts (e.g. farms), the data-supplier applies the configured limit */
@@ -464,7 +473,8 @@ public class FabricMod implements ModInitializer, Server {
                 item,
                 onGround,
                 withLeash(entity instanceof LivingEntity living ? FabricMobs.sample(living) : vehicle, entity),
-                impact
+                impact,
+                FabricParticles.sample(entity)
         );
     }
 
@@ -478,6 +488,23 @@ public class FabricMod implements ModInitializer, Server {
     @Override
     public List<LiveEntityState> getLiveEntities(ServerWorld world) {
         return liveEntities.getOrDefault(world.getDimension(), List.of());
+    }
+
+    /** the effect an entity caused when it was removed (explosions, splash-potions), only while live-entities are shown */
+    private void onEntityRemoved(Entity entity, net.minecraft.server.world.ServerWorld world) {
+        if (entity.getRemovalReason() == null || entity.getRemovalReason() == Entity.RemovalReason.UNLOADED_TO_CHUNK ||
+                entity.getRemovalReason() == Entity.RemovalReason.UNLOADED_WITH_PLAYER) return;
+        BlueMapService blueMap = pluginInstance.getBlueMap();
+        PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
+        if (config == null || !config.isLiveEntities() || !config.isLivePlayerMarkers()) return;
+        LiveEffectLog log = liveEffects.computeIfAbsent(getServerWorld(world).getDimension(), key -> new LiveEffectLog());
+        FabricParticles.onRemoved(entity, log, System.currentTimeMillis());
+    }
+
+    @Override
+    public List<LiveEffect> getLiveEffects(ServerWorld world) {
+        LiveEffectLog log = liveEffects.get(world.getDimension());
+        return log != null ? log.recent(System.currentTimeMillis()) : List.of();
     }
 
     @Override

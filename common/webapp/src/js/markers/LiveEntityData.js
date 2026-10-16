@@ -30,6 +30,7 @@
 
 import {BED_DIRECTIONS, bedTransform, parseEquipment, parseItem, resolveUpdateInterval, SUPPORTED_PROTOCOL} from "./LivePlayerData.js";
 import {MOB_TYPES} from "./mob/MobTypes.js";
+import {parseEffects, parseParticles} from "./particles/ParticleData.js";
 
 const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
 
@@ -217,6 +218,7 @@ export function parseEntity(raw) {
         item: parseItem(raw.item),
         mob: parseMob(raw.mob),
         impact: parseImpact(raw.impact),
+        particles: parseParticles(raw.particles),
     };
 }
 
@@ -246,19 +248,21 @@ export function parseEntitiesResponse(data) {
         updateInterval: resolveUpdateInterval(isFiniteNumber(data.updateInterval) ? data.updateInterval : null),
         entities,
         invalid,
+        effects: supported ? parseEffects(data.effects) : [],
     };
 }
 
 /**
  * How an entity is rendered.
  * @param entity {LiveEntity}
- * @returns {"item" | "arrow" | "projectile" | "thrown" | "mob" | "placeholder" | null} - null: not rendered (yet)
+ * @returns {"item" | "arrow" | "projectile" | "thrown" | "mob" | "placeholder" | "particles" | null} - null: not rendered (yet)
+ *  - particles: only the particles it emits (an area-effect-cloud)
  *  - mob: a vanilla mob-model (MobTypes), placeholder: a living entity without a model in the webapp
  */
 export function entityKind(entity) {
     if (entity.mob) return Object.prototype.hasOwnProperty.call(MOB_TYPES, entity.type) ? "mob" : "placeholder";
     if (ARROW_MODEL_TYPES.has(entity.type)) return "arrow";
-    if (!entity.item) return null;
+    if (!entity.item) return entity.particles ? "particles" : null;
     if (entity.type === "minecraft:item") return "item";
     if (PROJECTILE_TYPES.has(entity.type)) return "projectile";
     return "thrown";

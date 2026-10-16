@@ -16,6 +16,8 @@ import com.flowpowered.math.vector.Vector3d;
 import com.google.gson.stream.JsonWriter;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
+import de.bluecolored.bluemap.common.live.LiveEffectLog;
+import de.bluecolored.bluemap.common.live.ParticleState;
 import de.bluecolored.bluemap.common.live.LivePlayerState;
 import de.bluecolored.bluemap.common.live.LivePlayersJson;
 import de.bluecolored.bluemap.common.live.Armor;
@@ -90,6 +92,8 @@ public class LiveE2EServer {
     private final Map<String, byte[]> itemAssets = new HashMap<>();
     /** BlueMap Live entities (only in the overworld) */
     private final Map<Integer, LiveEntityState> entities = new LinkedHashMap<>();
+    /** explosions and splash-potions: /control?effect=explosion|splash|instant_splash&x=..&y=..&z=..&power=..&destroy=1&color=RGB */
+    private final LiveEffectLog effects = new LiveEffectLog();
 
     public LiveE2EServer(Path webroot) throws IOException {
         this.webroot = webroot;
@@ -249,7 +253,14 @@ public class LiveE2EServer {
                     new Vector3d(d(q, "vx"), d(q, "vy"), d(q, "vz")), System.currentTimeMillis(),
                     q.containsKey("item") ? new HeldItem(q.get("item")) : null, "1".equals(q.get("ground")) || mob != null, mob,
                     // projectiles: &impact=x,y,z,ticks (where the server predicted the hit on a block)
-                    q.containsKey("impact") ? impact(q.get("impact")) : null));
+                    q.containsKey("impact") ? impact(q.get("impact")) : null,
+                    particles(q)));
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        if (q.containsKey("effect")) {
+            effects.add(q.get("effect"), new Vector3d(d(q, "x"), d(q, "y"), d(q, "z")), d(q, "power"), "1".equals(q.get("destroy")),
+                    q.containsKey("color") ? Integer.parseInt(q.get("color"), 16) : 0, System.currentTimeMillis());
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }
@@ -325,7 +336,8 @@ public class LiveE2EServer {
                     use,
                     p.hurtCount,
                     q.containsKey("vehicle") ? new Vehicle(Integer.parseInt(q.get("vehicle")),
-                            new Vector3d(d(q, "vox"), d(q, "voy"), d(q, "voz")), (float) d(q, "vbody"), (float) d(q, "vhead")) : null
+                            new Vector3d(d(q, "vox"), d(q, "voy"), d(q, "voz")), (float) d(q, "vbody"), (float) d(q, "vhead")) : null,
+                    particles(q)
             );
         }
 
@@ -443,9 +455,25 @@ public class LiveE2EServer {
         StringWriter out = new StringWriter();
         try (JsonWriter json = new JsonWriter(out)) {
             LiveEntitiesJson.write(json, System.currentTimeMillis(), 250,
-                    mapId.equals("world") ? List.copyOf(entities.values()) : List.of());
+                    mapId.equals("world") ? List.copyOf(entities.values()) : List.of(),
+                    mapId.equals("world") ? effects.recent(System.currentTimeMillis()) : List.of());
         }
         send(ex, 200, "application/json", out.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * The particles of an entity or player: &fire=1&swirls=AARRGGBB,AARRGGBB&ambient=1&cloud=RADIUS,AARRGGBB[,waiting]
+     */
+    private static ParticleState particles(Map<String, String> q) {
+        List<Integer> swirls = new ArrayList<>();
+        if (q.containsKey("swirls")) for (String color : q.get("swirls").split(",")) swirls.add(Integer.parseUnsignedInt(color, 16));
+        ParticleState.Cloud cloud = null;
+        if (q.containsKey("cloud")) {
+            String[] parts = q.get("cloud").split(",");
+            cloud = new ParticleState.Cloud(Double.parseDouble(parts[0]), Integer.parseUnsignedInt(parts[1], 16),
+                    parts.length > 2 && parts[2].equals("waiting"));
+        }
+        return ParticleState.of("1".equals(q.get("fire")), swirls, "1".equals(q.get("ambient")), false, cloud);
     }
 
     /** baked by the real ItemModelBaker from a small, color-coded resource-pack (see E2EItemResources) */

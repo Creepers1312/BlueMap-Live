@@ -193,6 +193,8 @@ public final class LivePlayersJson {
                 json.endObject();
             }
 
+            if (state.particles() != null) LiveEntitiesJson.writeParticles(json, state.particles());
+
             ItemUse use = state.use();
             if (use != null) {
                 json.name("use").beginObject();

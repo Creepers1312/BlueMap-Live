@@ -43,6 +43,7 @@ import org.jetbrains.annotations.Nullable;
  * @param use the item the player is currently using, or null if none (or unknown on this platform)
  * @param hurtCount increased by one whenever the player gets hurt (wraps around), or null if unknown on this platform
  * @param vehicle the vehicle the player rides, or null if none (or unknown on this platform)
+ * @param particles the particles the player emits (fire, potion-swirls), null if none (or unknown on this platform)
  */
 public record LivePlayerState(
         Vector3d position,
@@ -56,8 +57,16 @@ public record LivePlayerState(
         @Nullable Equipment equipment,
         @Nullable ItemUse use,
         @Nullable Integer hurtCount,
-        @Nullable Vehicle vehicle
+        @Nullable Vehicle vehicle,
+        @Nullable ParticleState particles
 ) {
+
+    public LivePlayerState(Vector3d position, Vector3d rotation, double bodyYaw, Vector3d velocity, int generation,
+                           long time, @Nullable MovementState movement, @Nullable SwingState swing,
+                           @Nullable Equipment equipment, @Nullable ItemUse use, @Nullable Integer hurtCount,
+                           @Nullable Vehicle vehicle) {
+        this(position, rotation, bodyYaw, velocity, generation, time, movement, swing, equipment, use, hurtCount, vehicle, null);
+    }
 
     public LivePlayerState(Vector3d position, Vector3d rotation, double bodyYaw, Vector3d velocity, int generation,
                            long time, @Nullable MovementState movement, @Nullable SwingState swing,

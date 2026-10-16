@@ -132,6 +132,9 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                         TEXTURE_PREFIX + ItemModelBaker.SKULL_TEXTURES.get(equipment.head().id()) : equipment.head().id());
                 }
 
+                if (snapshot.state() != null && snapshot.state().particles() != null && config.isLivePlayerExtendedData())
+                    LiveEntitiesDataSupplier.requestParticleTextures(itemRequester);
+
                 entries.add(new LivePlayersJson.Entry(
                         player.getUuid().toString(),
                         player.getName().toPlainString(),
