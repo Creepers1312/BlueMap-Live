@@ -12,7 +12,7 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 >   - Gegenstände auf dem Kopf (geschnitzter Kürbis, Blöcke) und Köpfe (Schädel).
 >   - Rüstungsverzierungen und Verzauberungsglanz der Rüstung.
 > - **Woher die Werte stammen:** Die neuen Animationen und Feature-Renderer sind aus dem Bytecode von Minecraft 1.21.1 nachgebaut. Ein CI-Test gibt dazu die Instruktionen der Vanilla-Methoden aus (`VanillaAnimationDumpTest`), siehe Abschnitt 3.
-> - **In Minecraft geprüft** (Rückmeldung des Nutzers): Tag-Nacht-Zyklus, Kopf-Gegenstände, Tropenfische, Schlagposen, Rüstung, Pandas, Glanz und Sitzpose, nach den Korrekturen in Abschnitt 9. Nicht einzeln zurückgemeldet: siehe `singleplayer-test.md`.
+> - **In Minecraft geprüft** (Rückmeldung des Nutzers): Tag-Nacht-Zyklus, Kopf-Gegenstände, Tropenfische, Schlagposen, Rüstung, Pandas, Glanz, Sitzpose, Slimes, Warden, Halsbänder und Pferderüstung, nach den Korrekturen in Abschnitt 9. Nicht einzeln zurückgemeldet: siehe `singleplayer-test.md`.
 
 ## 1. Tag-Nacht-Zyklus der Welt
 
