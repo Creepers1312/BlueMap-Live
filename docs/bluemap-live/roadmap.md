@@ -114,6 +114,15 @@ Weitere Mobs folgen in späteren `0.3.x`-Versionen. Unbekannte Mobs erscheinen a
 
 ---
 
+## 0.3.x – Rüstung, Mob-Details, alle Mobs (auf Wunsch des Nutzers vor den Blockänderungen)
+
+**Stand:**
+- Umgesetzt und automatisiert getestet (`phase-7.md`): Rüstung an Spielern und Mobs, Mooshroom-Pilze, Enderman-Block, Creeper-Aufblitzen und 60 weitere Mob-Arten von 1.21 (alle außer dem Enderdrachen).
+- Die Modelldaten aller 97 Ebenen prüft das CI gegen Minecraft.
+- Offen: Prüfung in Minecraft (P1–P10).
+
+---
+
 ## 0.4.0-alpha – Live-Blockänderungen und Truhen
 
 **Ziel:** Gesetzte und abgebaute Blöcke erscheinen ohne vollständiges Neurendern auf der Karte.

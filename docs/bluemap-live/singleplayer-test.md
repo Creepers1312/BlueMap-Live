@@ -245,6 +245,21 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | O11 | Tier ohne Modell in der Webapp (Wolf, Pferd, Allay …) | Durchsichtiger Kasten in Hitbox-Größe mit Namen; dreht sich mit dem Tier |
 | O12 | Viele Mobs (Farm, 50+) | Karte bleibt flüssig; höchstens `live-entities-limit` (Standard 200), die nächsten zuerst; mit `live-entities-hidden-types: ["minecraft:zombie"]` keine Zombies |
 
+**Rüstung, Mob-Details, weitere Mobs (`phase-7.md`, alle offen)**
+
+| # | Prüfung | Erwartung |
+|---|---|---|
+| P1 | Eigene Rüstung anziehen (Eisen, Diamant, Netherit, Gold, Kettenhemd), F5-Vergleich | Gleiche Rüstung am Kartenmodell, folgt Armen und Beinen; nicht rot bei Schaden |
+| P2 | Gefärbte Lederrüstung | Farbe wie im Spiel, Überzug ungefärbt |
+| P3 | Zombie/Skelett mit Rüstung (natürlich gespawnt oder per Befehl) | Rüstung am Mob, auch bei Baby-Zombies |
+| P4 | Mooshroom (rot und braun), Baby-Mooshroom | Pilze auf Rücken und Kopf; beim Baby keine |
+| P5 | Enderman mit Block (z. B. Gras, Blume) | Block in den Händen vor dem Körper |
+| P6 | Creeper zündet | Schwillt an und blinkt weiß |
+| P7 | Neue Mobs: Illager, Hexe, Golems, Pferde, Wölfe, Katzen, Füchse, Lamas, Bienen, Fische, Wächter … | Richtige Modelle, Texturen und Varianten (Fell-/Farbvarianten, Pferdeabzeichen) |
+| P8 | Plünderer/Diener greifen an, Magier zaubert | Arme wie im Spiel (Armbrust, Axt erhoben, Zauberpose); sonst verschränkte Arme |
+| P9 | Gesattelte Pferde/Strider, Esel/Lama mit Truhe | Sattel bzw. Truhen sichtbar |
+| P10 | Enderdrache | Platzhalter mit Namen |
+
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 
 ---
