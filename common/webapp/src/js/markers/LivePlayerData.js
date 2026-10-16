@@ -114,7 +114,36 @@ export function parseEquipment(value) {
         offHand: parseItem(value.offHand),
         leftHanded: value.mainArm === "left",
         fishing: value.fishing === true,
+        armor: parseArmor(value.armor),
     };
+}
+
+const TEXTURE_KEY_PATTERN = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/;
+export const ARMOR_SLOT_NAMES = ["head", "chest", "legs", "feet"];
+
+/**
+ * @param value {any}
+ * @returns {Object<string, Array<{texture: string, color: number | null}>> | null} - per slot the texture-layers
+ *  (vanilla ArmorFeatureRenderer), null if no armor is worn
+ */
+export function parseArmor(value) {
+    if (!value || typeof value !== "object") return null;
+    const armor = {};
+    let any = false;
+    for (const slot of ARMOR_SLOT_NAMES) {
+        if (!Array.isArray(value[slot])) continue;
+        const layers = [];
+        for (const layer of value[slot].slice(0, 4)) {
+            if (!layer || typeof layer.texture !== "string" || !TEXTURE_KEY_PATTERN.test(layer.texture) || layer.texture.includes("..")) continue;
+            const color = Number.isInteger(layer.color) && layer.color >= 0 && layer.color <= 0xFFFFFF ? layer.color : null;
+            layers.push({texture: layer.texture, color});
+        }
+        if (layers.length > 0) {
+            armor[slot] = layers;
+            any = true;
+        }
+    }
+    return any ? armor : null;
 }
 
 const USE_ACTION_PATTERN = /^[a-z_]{1,32}$/;

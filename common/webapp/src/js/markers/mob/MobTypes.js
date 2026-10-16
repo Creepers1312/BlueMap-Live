@@ -59,6 +59,7 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  *     hidden?: string[],                parts that are not rendered by the vanilla renderer
  *     arms?: boolean,                   held items are shown (vanilla HeldItemFeatureRenderer)
  *     slimArms?: boolean,               skeleton-arms (2 px): vanilla SkeletonEntityModel.setArmAngle shifts the item by 1 px
+ *     armorLayers?: {inner: string, outer: string},  the armor-models (default: the player armor-models)
  *     lyingAngle?: number,              vanilla LivingEntityRenderer.getLyingAngle (degrees, default 90)
  *     slime?: boolean,                  scaled by the size (vanilla SlimeEntityRenderer)
  *     creeper?: boolean                 swells before the explosion (vanilla CreeperEntityRenderer)
@@ -86,6 +87,7 @@ export function villagerTextures(folder, variant, baby) {
 const VILLAGER_LEVELS = {1: "stone", 2: "iron", 3: "gold", 4: "emerald", 5: "diamond"};
 
 const PLAYER_HIDDEN = ["ear", "cloak"];
+const PIGLIN_ARMOR = {inner: "minecraft:piglin#inner_armor", outer: "minecraft:piglin#outer_armor"};
 
 /** @type {Object<string, MobType>} */
 export const MOB_TYPES = {
@@ -109,11 +111,12 @@ export const MOB_TYPES = {
     "minecraft:wither_skeleton": biped("skeleton", "minecraft:wither_skeleton#main", E + "skeleton/wither_skeleton", {scale: 1.2, slimArms: true}),
     "minecraft:zombie_villager": {
         ...biped("zombie", "minecraft:zombie_villager#main", null),
+        armorLayers: {inner: "minecraft:zombie_villager#inner_armor", outer: "minecraft:zombie_villager#outer_armor"},
         layers: [{model: "minecraft:zombie_villager#main", texture: mob => villagerTextures("zombie_villager", mob.variant, mob.baby)}],
     },
-    "minecraft:piglin": biped("piglin", "minecraft:piglin#main", E + "piglin/piglin", {hidden: PLAYER_HIDDEN}),
-    "minecraft:piglin_brute": biped("piglin", "minecraft:piglin_brute#main", E + "piglin/piglin_brute", {hidden: PLAYER_HIDDEN}),
-    "minecraft:zombified_piglin": biped("zombified_piglin", "minecraft:zombified_piglin#main", E + "piglin/zombified_piglin", {hidden: PLAYER_HIDDEN}),
+    "minecraft:piglin": biped("piglin", "minecraft:piglin#main", E + "piglin/piglin", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR}),
+    "minecraft:piglin_brute": biped("piglin", "minecraft:piglin_brute#main", E + "piglin/piglin_brute", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR}),
+    "minecraft:zombified_piglin": biped("zombified_piglin", "minecraft:zombified_piglin#main", E + "piglin/zombified_piglin", {hidden: PLAYER_HIDDEN, armorLayers: PIGLIN_ARMOR}),
 
     "minecraft:creeper": {
         animation: "creeper", creeper: true,

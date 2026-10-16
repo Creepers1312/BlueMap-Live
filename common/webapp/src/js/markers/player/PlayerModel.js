@@ -27,6 +27,10 @@ import {Group, Mesh} from "three";
 import {getPlayerModelGeometries} from "./PlayerModelGeometry.js";
 import {PART_NAMES, PIXEL_SCALE, playerModelLayout} from "./PlayerModelLayout.js";
 import {ItemView} from "./ItemView.js";
+import {ArmorView} from "../mob/ArmorView.js";
+
+/** vanilla armor-part -> the bone of the player-model it follows */
+const ARMOR_BONES = {head: "head", hat: "head", body: "body", right_arm: "rightArm", left_arm: "leftArm", right_leg: "rightLeg", left_leg: "leftLeg"};
 
 /**
  * Creates a mesh that is ignored by raycasting, so the model never intercepts the normal map-interactions (clicks)
@@ -98,6 +102,12 @@ export class PlayerModel extends Group {
         /** vanilla hurt-overlay (red) is shown */
         this.hurt = false;
 
+        // worn armor (vanilla ArmorFeatureRenderer): one group per bone, in vanilla model-space (rotated 180° around x:
+        // y down, facing -z), its origin is the joint of the part like in the vanilla armor-model
+        this.armorAnchors = {};
+        this.armor = itemCache ? new ArmorView(itemCache.textures, {inner: "minecraft:player#inner_armor", outer: "minecraft:player#outer_armor"},
+            (model, part) => this.armorAnchor(ARMOR_BONES[part])) : null;
+
         /** true if a skin (the players or the default skin) is displayed */
         this.hasSkin = false;
         this.visible = false; // until a skin can be displayed
@@ -164,7 +174,8 @@ export class PlayerModel extends Group {
         const geometries = getPlayerModelGeometries(variant);
         for (const name of PART_NAMES) {
             const bone = this.parts[name];
-            bone.clear();
+            // the skin-meshes are replaced, the armor stays
+            bone.children.filter(child => child.isMesh).forEach(child => bone.remove(child));
 
             const {layout, base, overlay} = geometries.get(name);
 
@@ -270,17 +281,40 @@ export class PlayerModel extends Group {
     applyMaterials(skin) {
         const materials = this.hurt ? this.skinCache.hurtMaterials(skin) : skin;
         for (const name of PART_NAMES) {
-            const [baseMesh, overlayMesh] = this.parts[name].children;
-            if (!baseMesh) continue;
+            const baseMesh = this.parts[name].getObjectByName(name + "-base");
+            const overlayMesh = this.parts[name].getObjectByName(name + "-overlay");
+            if (!baseMesh || !overlayMesh) continue;
             baseMesh.material = materials.baseMaterial;
             overlayMesh.material = materials.overlayMaterial;
         }
     }
 
     /**
+     * @param armor {Object<string, Array<{texture: string, color: number | null}>> | null} - see LivePlayerData.parseArmor
+     */
+    setArmor(armor) {
+        if (this.armor) this.armor.update(armor);
+    }
+
+    /** @private */
+    armorAnchor(boneName) {
+        if (!boneName) return null;
+        let anchor = this.armorAnchors[boneName];
+        if (!anchor) {
+            anchor = new Group();
+            anchor.name = boneName + "-armor";
+            anchor.rotation.x = Math.PI;
+            this.parts[boneName].add(anchor);
+            this.armorAnchors[boneName] = anchor;
+        }
+        return anchor;
+    }
+
+    /**
      * Releases the skin. The shared geometries and the default skin are not disposed.
      */
     dispose() {
+        if (this.armor) this.armor.dispose();
         for (const slot of Object.values(this.itemSlots)) slot.dispose();
         this.skinCache.defaultSkinListeners.delete(this.onSkinStateChanged);
         if (this.skin) {

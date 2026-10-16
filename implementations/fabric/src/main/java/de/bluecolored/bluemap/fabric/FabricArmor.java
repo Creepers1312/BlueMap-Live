@@ -31,10 +31,13 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ArmorItem;
 import net.minecraft.item.ArmorMaterial;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.registry.tag.ItemTags;
 import net.minecraft.util.Identifier;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -62,16 +65,82 @@ final class FabricArmor {
     private static @Nullable List<Armor.Layer> layers(LivingEntity entity, EquipmentSlot slot) {
         ItemStack stack = entity.getEquippedStack(slot);
         if (!(stack.getItem() instanceof ArmorItem armorItem) || armorItem.getSlotType() != slot) return null;
-        ArmorMaterial material = armorItem.getMaterial().value();
         boolean innerModel = slot == EquipmentSlot.LEGS;
         Integer color = stack.isIn(ItemTags.DYEABLE) ? DyedColorComponent.getColor(stack, DEFAULT_DYE_COLOR) & 0xFFFFFF : null;
 
         List<Armor.Layer> layers = new ArrayList<>();
-        for (ArmorMaterial.Layer layer : material.layers()) {
-            String key = textureKey(layer.getTexture(innerModel));
-            if (key != null) layers.add(new Armor.Layer(key, layer.isDyeable() ? color : null));
+        RegistryEntry<?> material;
+        try {
+            material = materialEntry(armorItem);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            return null;
+        }
+        try {
+            for (Object layer : materialLayers(material.value())) {
+                String key = textureKey((Identifier) layerTexture(layer).invoke(layer, innerModel));
+                boolean dyeable = (boolean) layerDyeable(layer).invoke(layer);
+                if (key != null) layers.add(new Armor.Layer(key, dyeable ? color : null));
+            }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            // the vanilla layers of the material: <id>_layer_1/2, leather with a dyeable layer and an overlay
+            layers.clear();
+            String id = material.getKey().map(key -> key.getValue().toString()).orElse(null);
+            if (id == null) return null;
+            int colon = id.indexOf(':');
+            String base = id.substring(0, colon) + ":models/armor/" + id.substring(colon + 1) + "_layer_" + (innerModel ? 2 : 1);
+            if (id.equals("minecraft:leather")) {
+                layers.add(new Armor.Layer(base, color));
+                layers.add(new Armor.Layer(base + "_overlay", null));
+            } else {
+                layers.add(new Armor.Layer(base, null));
+            }
         }
         return layers.isEmpty() ? null : List.copyOf(layers);
+    }
+
+    // ArmorMaterial is a record whose components have no yarn-names in 1.21: they are found by their types
+
+    private static @Nullable Method materialMethod, layersAccessor, textureMethod, dyeableMethod;
+
+    /** ArmorItem.getMaterial(): the registry-entry of the armor-material */
+    private static RegistryEntry<?> materialEntry(ArmorItem item) throws ReflectiveOperationException {
+        if (materialMethod == null) {
+            for (Method method : ArmorItem.class.getDeclaredMethods()) {
+                if (method.getReturnType() == RegistryEntry.class && method.getParameterCount() == 0 &&
+                        java.lang.reflect.Modifier.isPublic(method.getModifiers()) &&
+                        (materialMethod == null || method.getName().equals("getMaterial"))) materialMethod = method;
+            }
+            if (materialMethod == null) throw new NoSuchMethodException("ArmorItem.getMaterial");
+        }
+        return (RegistryEntry<?>) materialMethod.invoke(item);
+    }
+
+    private static List<?> materialLayers(Object material) throws ReflectiveOperationException {
+        if (layersAccessor == null) {
+            for (RecordComponent component : ArmorMaterial.class.getRecordComponents()) {
+                if (component.getType() == List.class) layersAccessor = component.getAccessor();
+            }
+            if (layersAccessor == null) throw new NoSuchMethodException("ArmorMaterial.layers");
+        }
+        return (List<?>) layersAccessor.invoke(material);
+    }
+
+    /** ArmorMaterial.Layer.getTexture(boolean secondLayer) */
+    private static Method layerTexture(Object layer) throws NoSuchMethodException {
+        if (textureMethod == null) {
+            for (Method method : layer.getClass().getMethods()) {
+                if (method.getReturnType() == Identifier.class && method.getParameterCount() == 1 &&
+                        method.getParameterTypes()[0] == boolean.class) textureMethod = method;
+            }
+            if (textureMethod == null) throw new NoSuchMethodException("ArmorMaterial.Layer.getTexture");
+        }
+        return textureMethod;
+    }
+
+    /** ArmorMaterial.Layer.isDyeable() */
+    private static Method layerDyeable(Object layer) throws NoSuchMethodException {
+        if (dyeableMethod == null) dyeableMethod = layer.getClass().getMethod("isDyeable");
+        return dyeableMethod;
     }
 
     /** "minecraft:textures/models/armor/iron_layer_1.png" -> "minecraft:models/armor/iron_layer_1" */

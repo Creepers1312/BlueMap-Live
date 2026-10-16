@@ -28,6 +28,7 @@ import {ANIMATIONS, createTransform, resetTransform} from "./MobAnimations.js";
 import {creeperSwelling, deathAngle, isLayerShown, layerTextures, sheepWoolColor, slimeScale, VANILLA_MODELS} from "./MobTypes.js";
 import {ItemView} from "../player/ItemView.js";
 import {itemPredicates} from "../player/PlayerItemPoses.js";
+import {ArmorView} from "./ArmorView.js";
 
 /** vanilla LivingEntityRenderer: the model is moved down by 1.501 blocks after the flip */
 const MODEL_OFFSET = -1.501;
@@ -102,6 +103,20 @@ export class MobModel extends Group {
         /** per layer: {layer, bones: Map(path -> Group), meshes: Mesh[]} */
         this.layerViews = mobType.layers.map(layer => this.buildLayer(layer));
 
+        // worn armor (biped mobs, vanilla ArmorFeatureRenderer): bones of the inner and outer armor-model
+        this.armor = null;
+        if (mobType.arms && itemCache) {
+            const armorLayers = mobType.armorLayers || {inner: "minecraft:player#inner_armor", outer: "minecraft:player#outer_armor"};
+            const armorBones = {};
+            for (const model of ["inner", "outer"]) {
+                const view = this.buildLayer({model: armorLayers[model]}, false);
+                view.armor = true;
+                this.layerViews.push(view);
+                armorBones[model] = view.bones;
+            }
+            this.armor = new ArmorView(itemCache.textures, armorLayers, (model, part) => armorBones[model].get(part) || null);
+        }
+
         this.mob = {variant: null, baby: false, flags: new Set()};
         this.hurt = false;
         this.wasBaby = null;
@@ -118,7 +133,7 @@ export class MobModel extends Group {
     }
 
     /** @private */
-    buildLayer(layer) {
+    buildLayer(layer, withMeshes = true) {
         const data = VANILLA_MODELS.models[layer.model];
         const geometries = getLayerGeometries(layer.model, data);
         const hidden = new Set(this.mobType.hidden || []);
@@ -135,7 +150,7 @@ export class MobModel extends Group {
                 const target = parent || (headParts.has(name) ? this.headGroup : this.bodyGroup);
                 target.add(bone);
                 bones.set(path, bone);
-                const geometry = geometries.get(path);
+                const geometry = withMeshes ? geometries.get(path) : null;
                 if (geometry) {
                     const mesh = nonInteractiveMesh(geometry, null);
                     mesh.visible = false;
@@ -159,6 +174,7 @@ export class MobModel extends Group {
             [...mob.flags].join() !== [...this.mob.flags].join();
         this.mob = mob;
         this.items = items;
+        if (this.armor) this.armor.update(items.armor || null);
         if (changed) this.updateMaterials();
 
         if (mob.baby !== this.wasBaby) {
@@ -232,7 +248,7 @@ export class MobModel extends Group {
 
         // vanilla EnergySwirlOverlayFeatureRenderer (charged creeper): the texture moves by 0.01 per tick
         for (const {layer, meshes} of this.layerViews) {
-            if (layer.type !== "energy" || !meshes[0] || !meshes[0].material || !meshes[0].material.map) continue;
+            if (!layer.type || layer.type !== "energy" || !meshes[0] || !meshes[0].material || !meshes[0].material.map) continue;
             const shift = (input.age * 0.01) % 1;
             meshes[0].material.map.offset.set(shift, -shift);
         }
@@ -244,7 +260,8 @@ export class MobModel extends Group {
         const asset = this.asset;
         if (asset.state === "failed") this.assetCache.retry(asset);
         let any = false;
-        for (const {layer, meshes} of this.layerViews) {
+        for (const {layer, meshes, armor} of this.layerViews) {
+            if (armor) continue;
             const shown = isLayerShown(layer, this.mob);
             const tint = layer.tint === "sheep" ? sheepWoolColor(this.mob.variant) : null;
             const material = shown ? this.assetCache.material(asset, layerTextures(layer, this.mob), layer.type || "cutout", tint, this.hurt && layer.type !== "eyes" && layer.type !== "energy") : null;
@@ -309,6 +326,7 @@ export class MobModel extends Group {
     }
 
     dispose() {
+        if (this.armor) this.armor.dispose();
         if (this.itemSlots) {
             this.itemSlots.right.dispose();
             this.itemSlots.left.dispose();

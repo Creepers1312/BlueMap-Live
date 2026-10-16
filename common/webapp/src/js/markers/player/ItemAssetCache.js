@@ -25,6 +25,7 @@
 
 import {BufferGeometry, Float32BufferAttribute, FrontSide, MeshBasicMaterial, NearestFilter, Texture} from "three";
 import {createSkinBoxGeometry} from "./PlayerModelGeometry.js";
+import {TextureAssetCache} from "../mob/TextureAssetCache.js";
 
 /*
  * Loads the item-assets (baked item-models, see the java ItemModelBaker and docs/bluemap-live/phase-4.md) and shares
@@ -204,6 +205,20 @@ export class ItemAssetCache {
         /** @type {Map<string, ItemEntry>} */
         this.entries = new Map();
         this.disposed = false;
+        this.textureCache = null;
+    }
+
+    /**
+     * The cache of the single textures next to the item-assets (assets/textures/, e.g. the armor-layers), created on
+     * first use and disposed with this cache.
+     * @returns {TextureAssetCache}
+     */
+    get textures() {
+        if (!this.textureCache) {
+            const base = this.baseUrl ? this.baseUrl.replace(/items\/$/, "textures/") : null;
+            this.textureCache = new TextureAssetCache(base && base !== this.baseUrl ? base : null);
+        }
+        return this.textureCache;
     }
 
     /**
@@ -259,6 +274,7 @@ export class ItemAssetCache {
         this.disposed = true;
         this.entries.forEach(entry => this.disposeEntry(entry));
         this.entries.clear();
+        if (this.textureCache) this.textureCache.dispose();
     }
 
     /** @private */

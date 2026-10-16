@@ -220,6 +220,7 @@ export class EntityMarker extends Marker {
                 mainHand: equipment ? equipment.mainHand : null,
                 offHand: equipment ? equipment.offHand : null,
                 leftHanded: !!(equipment && equipment.leftHanded),
+                armor: equipment ? equipment.armor : null,
             });
         } else if (this.view && this.view.isPlaceholderModel) {
             this.view.setSize(mob.width, mob.height);

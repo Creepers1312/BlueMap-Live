@@ -276,7 +276,19 @@ test("held items are parsed and validated", () => {
     assert.equal(equipment.mainHand.id, "minecraft:diamond_sword");
     assert.equal(equipment.offHand, null);
     assert.equal(equipment.fishing, true);
-    assert.deepEqual(parseEquipment({}), {mainHand: null, offHand: null, leftHanded: false, fishing: false}, "empty hands");
+    assert.deepEqual(parseEquipment({}), {mainHand: null, offHand: null, leftHanded: false, fishing: false, armor: null}, "empty hands");
+
+    // armor: per slot the texture-layers (vanilla ArmorFeatureRenderer), invalid entries are dropped
+    const armor = parseEquipment({armor: {
+        head: [{texture: "minecraft:models/armor/iron_layer_1"}],
+        legs: [{texture: "minecraft:models/armor/leather_layer_2", color: 0xA06540}, {texture: "minecraft:models/armor/leather_layer_2_overlay"}],
+        chest: [{texture: "../evil"}], feet: "x",
+    }}).armor;
+    assert.deepEqual(armor, {
+        head: [{texture: "minecraft:models/armor/iron_layer_1", color: null}],
+        legs: [{texture: "minecraft:models/armor/leather_layer_2", color: 0xA06540}, {texture: "minecraft:models/armor/leather_layer_2_overlay", color: null}],
+    });
+    assert.equal(parseEquipment({armor: {}}).armor, null);
     assert.equal(parseEquipment(null), null);
 
     assert.deepEqual(parseItemUse({hand: "off", action: "block", ticks: 12}), {mainHand: false, action: "block", ticks: 12});
