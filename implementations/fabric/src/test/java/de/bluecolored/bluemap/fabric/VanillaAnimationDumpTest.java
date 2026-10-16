@@ -50,33 +50,29 @@ public class VanillaAnimationDumpTest {
     private static final Map<String, Set<String>> METHODS = new LinkedHashMap<>();
     static {
         // poses: sitting, sleeping, lying
-        METHODS.put(RENDER + "LivingEntityRenderer", Set.of("setupTransforms", "getLyingAngle", "getYaw"));
         // tropical fish, pufferfish
         // collars, carpets, horse-armor, glowing layers
-        METHODS.put(RENDER + "WardenEntityRenderer", Set.of());
         // attacks: the models and where the server advances the swing
         // the dilations of the feature-layers; the parts and the alphas of the warden-layers
-        METHODS.put(MODEL + "WardenEntityModel", Set.of("<init>", "getTendrils", "getBody", "getHeadAndLimbs", "getBodyHeadAndLimbs"));
-        METHODS.put(RENDER + "WardenEntityRenderer", Set.of());
-        METHODS.put("net/minecraft/entity/mob/WardenEntity", Set.of("getHeartPitch", "getTendrilPitch", "tick"));
         // armor-trims and the glint, heads on the head
-        METHODS.put(FEATURE + "ArmorFeatureRenderer", Set.of());
-        METHODS.put(FEATURE + "HeadFeatureRenderer", Set.of("<init>"));
         // skulls on the head: the models, textures and the render-transformation
-        METHODS.put("net/minecraft/client/render/block/entity/SkullBlockEntityRenderer", Set.of());
-        METHODS.put("net/minecraft/client/render/block/entity/SkullBlockEntityModel", Set.of());
-        METHODS.put(MODEL + "SkullEntityModel", Set.of());
-        METHODS.put(MODEL + "DragonHeadEntityModel", Set.of("setHeadRotation"));
-        METHODS.put(MODEL + "PiglinHeadEntityModel", Set.of("setHeadRotation"));
         // armor-trims: the texture-path of a trim
-        METHODS.put("net/minecraft/item/trim/ArmorTrim", Set.of());
-        METHODS.put("net/minecraft/client/texture/atlas/PalettedPermutationsAtlasSource", Set.of());
-        METHODS.put("net/minecraft/client/texture/atlas/PalettedPermutationsAtlasSource$PalettedSpriteRegion", Set.of());
         // the enchantment-glint: texturing (scroll, rotation, scale) and the textures of the render-layers
-        METHODS.put("net/minecraft/client/render/RenderPhase", Set.of("setupGlintTexturing", "<clinit>"));
-        METHODS.put("net/minecraft/client/render/RenderPhase$Texturing", Set.of());
+        METHODS.put("net/minecraft/client/render/RenderPhase", Set.of("setupGlintTexturing", "method_23540", "method_23539",
+                "method_23538", "method_23537", "method_30675", "method_29994"));
+        METHODS.put("net/minecraft/client/render/RenderLayer", Set.of("getArmorEntityGlint", "getEntityGlint", "getGlint", "<clinit>"));
+
         METHODS.put("net/minecraft/client/render/item/ItemRenderer", Set.of("<clinit>"));
     }
+
+    /** text-resources of the game (shaders, atlas-definitions), printed as they are */
+    private static final List<String> RESOURCES = List.of(
+            "assets/minecraft/shaders/core/rendertype_armor_entity_glint.json",
+            "assets/minecraft/shaders/core/rendertype_armor_entity_glint.fsh",
+            "assets/minecraft/shaders/core/rendertype_armor_entity_glint.vsh",
+            "assets/minecraft/shaders/include/fog.glsl",
+            "assets/minecraft/atlases/armor_trims.json"
+    );
 
     private static final Map<Integer, String> OPCODES = new HashMap<>();
     static {
@@ -104,6 +100,12 @@ public class VanillaAnimationDumpTest {
                 bytes = in.readAllBytes();
             }
             dumpClass(bytes, entry.getValue(), lines);
+        }
+        for (String resource : RESOURCES) {
+            try (InputStream in = getClass().getClassLoader().getResourceAsStream(resource)) {
+                lines.add(resource + ": " + (in == null ? "not found" : new String(in.readAllBytes(), StandardCharsets.UTF_8)
+                        .replaceAll("\\s+", " ")));
+            }
         }
         writeAnnotations(lines);
     }

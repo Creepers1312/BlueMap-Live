@@ -288,4 +288,35 @@ public class ItemModelBakerTest {
         assertFalse(ItemModelBaker.isSupportedEntity("minecraft:ender_dragon"));
     }
 
+
+    @Test
+    public void testArmorTrimSprite() {
+        // vanilla PalettedPermutationsAtlasSource: palette-key -> palette by rgb, alpha * palette-alpha / 255
+        TestResources resources = new TestResources();
+        BufferedImage key = new BufferedImage(2, 1, BufferedImage.TYPE_INT_ARGB);
+        key.setRGB(0, 0, 0xFFE0E0E0);
+        key.setRGB(1, 0, 0xFF202020);
+        BufferedImage iron = new BufferedImage(2, 1, BufferedImage.TYPE_INT_ARGB);
+        iron.setRGB(0, 0, 0xFFCCCCCC);
+        iron.setRGB(1, 0, 0x80111111);
+        BufferedImage pattern = new BufferedImage(4, 1, BufferedImage.TYPE_INT_ARGB);
+        pattern.setRGB(0, 0, 0xFFE0E0E0); // key color 0
+        pattern.setRGB(1, 0, 0x80202020); // key color 1 with half alpha
+        pattern.setRGB(2, 0, 0x00E0E0E0); // transparent: stays
+        pattern.setRGB(3, 0, 0x40123456); // not in the key: own color
+        resources.textures.put("minecraft:trims/color_palettes/trim_palette", key);
+        resources.textures.put("minecraft:trims/color_palettes/iron_darker", iron);
+        resources.textures.put("minecraft:trims/models/armor/coast_leggings", pattern);
+
+        assertTrue(ItemModelBaker.isProvidedTexture("minecraft:trims/models/armor/coast_leggings_iron_darker"));
+        BufferedImage sprite = ItemModelBaker.providedTexture(resources, "minecraft:trims/models/armor/coast_leggings_iron_darker");
+        assertNotNull(sprite, "pattern 'coast_leggings', material 'iron_darker'");
+        assertEquals(0xFFCCCCCC, sprite.getRGB(0, 0));
+        assertEquals((0x80 * 0x80 / 255) << 24 | 0x111111, sprite.getRGB(1, 0));
+        assertEquals(0, sprite.getRGB(2, 0) >>> 24);
+        assertEquals(0x40123456, sprite.getRGB(3, 0));
+        assertNull(ItemModelBaker.providedTexture(resources, "minecraft:trims/models/armor/coast_leggings_gold"), "no palette");
+        assertFalse(ItemModelBaker.isProvidedTexture("minecraft:block/stone"));
+    }
+
 }

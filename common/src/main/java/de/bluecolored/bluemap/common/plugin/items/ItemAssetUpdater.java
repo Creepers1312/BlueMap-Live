@@ -151,7 +151,7 @@ public class ItemAssetUpdater {
             try {
                 Collection<MapStorage> mapStorages = storages.get();
                 ItemModelBaker.Resources resources = mapStorages != null ? getResources() : null;
-                java.awt.image.BufferedImage image = resources != null ? resources.texture(textureKey) : null;
+                java.awt.image.BufferedImage image = resources != null ? ItemModelBaker.providedTexture(resources, textureKey) : null;
                 if (image == null) {
                     if (resources == null) requestedTextures.remove(textureKey); // not ready yet
                     return;

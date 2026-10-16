@@ -125,7 +125,7 @@ export class MobAssetCache {
      * The (shared) material of a model-layer, created on first use.
      * @param entry {MobEntry}
      * @param textureKeys {string[]} - the textures, drawn onto each other in this order (the first is required)
-     * @param kind {"cutout" | "bright" | "translucent" | "eyes" | "energy"} - bright: cutout at full light (not darkened)
+     * @param kind {"cutout" | "bright" | "translucent" | "emissive" | "eyes" | "energy"} - bright: cutout at full light (not darkened)
      * @param tint {number | null} - rgb-color the texture is multiplied with
      * @param hurt {boolean} - with the red hurt-overlay
      * @param white {number} - the vanilla white-overlay level (0: none, 1..15), ignored when hurt (vanilla: the
@@ -165,6 +165,10 @@ export class MobAssetCache {
                     applyEntityShader(material);
                 } else if (kind === "bright") {
                     material.alphaTest = 0.1; // entity-cutout with block-light 15 (vanilla GlowSquidEntityRenderer.getBlockLight)
+                } else if (kind === "emissive") {
+                    // vanilla RenderLayer.getEntityTranslucentEmissive: translucent, not darkened by the light
+                    material.transparent = true;
+                    material.depthWrite = false;
                 } else if (kind === "translucent") {
                     material.transparent = true;
                     applyEntityShader(material);

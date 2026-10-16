@@ -653,3 +653,25 @@ test("feature-layers: collars of tamed wolves and cats, llama-carpets, horse-arm
     // the feature-layers are verified against Minecraft like the other layers (model-check)
     for (const layer of ["minecraft:cat#collar", "minecraft:llama#decor", "minecraft:horse#armor"]) assert.ok(VANILLA_MODELS.models[layer], layer);
 });
+
+test("warden: emissive layers with their parts and pulsating alphas (vanilla WardenFeatureRenderer)", async () => {
+    const W = "minecraft:entity/warden/";
+    const cache = fakeMobCache({[W + "warden"]: 1, [W + "warden_bioluminescent_layer"]: 1, [W + "warden_pulsating_spots_1"]: 1,
+        [W + "warden_pulsating_spots_2"]: 1});
+    const model = new MobModel("minecraft:warden", MOB_TYPES["minecraft:warden"], cache, null);
+    await flush(); await flush();
+    model.setState(parseMob({}), {mainHand: null, offHand: null, leftHanded: false, armor: null});
+    const [main, bio, spots1, spots2] = model.layerViews;
+    assert.equal(main.meshes.length, 10, "all parts with cuboids");
+    assert.equal(bio.meshes.length, 5, "head and limbs");
+    assert.equal(spots1.meshes.length, 6, "body, head and limbs");
+    model.animate(input({age: 0}), 0, 0, false);
+    near(spots1.ownMaterial.opacity, 0.25, "spots 1 at age 0");
+    near(spots2.ownMaterial.opacity, 0, "spots 2 in the other phase");
+    assert.notEqual(spots1.ownMaterial, spots1.ownMaterialBase, "own material (the alpha differs per warden)");
+    model.animate(input({age: Math.PI / 0.045}), 0, 0, false);
+    near(spots1.ownMaterial.opacity, 0, "spots 1 half a period later");
+    near(spots2.ownMaterial.opacity, 0.25, "spots 2");
+    near(bio.ownMaterial.opacity, 1, "bioluminescent layer");
+    model.dispose();
+});

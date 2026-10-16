@@ -185,6 +185,8 @@ export class MobModel extends Group {
         const geometries = getLayerGeometries(layer.model, data);
         const hidden = new Set(this.mobType.hidden || []);
         const headParts = new Set(this.mobType.headParts || []);
+        // a layer of only some parts (vanilla WardenFeatureRenderer: the other parts are hidden, their children not)
+        const only = layer.parts ? new Set(layer.parts) : null;
         const bones = new Map();
         const meshes = [];
         const build = (parts, prefix, parent) => {
@@ -197,7 +199,7 @@ export class MobModel extends Group {
                 const target = parent || (headParts.has(name) ? this.headGroup : this.bodyGroup);
                 target.add(bone);
                 bones.set(path, bone);
-                const geometry = withMeshes ? geometries.get(path) : null;
+                const geometry = withMeshes && (!only || only.has(path)) ? geometries.get(path) : null;
                 if (geometry) {
                     const mesh = nonInteractiveMesh(geometry, null);
                     mesh.visible = false;
@@ -333,6 +335,11 @@ export class MobModel extends Group {
             this.updateMaterials();
         }
 
+        // animated alphas of layers (vanilla WardenFeatureRenderer: the pulsating spots)
+        for (const view of this.layerViews) {
+            if (view.layer.alpha && view.ownMaterial) view.ownMaterial.opacity = Math.min(1, Math.max(0, view.layer.alpha(input)));
+        }
+
         // vanilla EnergySwirlOverlayFeatureRenderer (charged creeper): the texture moves by 0.01 per tick
         for (const {layer, meshes} of this.layerViews) {
             if (!layer.type || layer.type !== "energy" || !meshes[0] || !meshes[0].material || !meshes[0].material.map) continue;
@@ -354,8 +361,19 @@ export class MobModel extends Group {
             const shown = isLayerShown(layer, this.mob);
             const tint = layerTint(layer, this.mob);
             const overlay = layer.type !== "eyes" && layer.type !== "energy";
-            const material = shown ? this.assetCache.material(asset, layerTextures(layer, this.mob), layer.type || "cutout", tint,
-                this.hurt && overlay, overlay ? this.white : 0) : null;
+            const overlay2 = overlay && layer.type !== "emissive";
+            let material = shown ? this.assetCache.material(asset, layerTextures(layer, this.mob), layer.type || "cutout", tint,
+                this.hurt && overlay2, overlay2 ? this.white : 0) : null;
+            // an animated alpha (vanilla WardenFeatureRenderer): an own copy of the shared material per model
+            if (material && layer.alpha) {
+                const view = this.layerViews.find(v => v.layer === layer);
+                if (!view.ownMaterial || view.ownMaterialBase !== material) {
+                    if (view.ownMaterial) view.ownMaterial.dispose();
+                    view.ownMaterial = material.clone();
+                    view.ownMaterialBase = material;
+                }
+                material = view.ownMaterial;
+            }
             for (const mesh of meshes) {
                 mesh.material = material;
                 mesh.visible = !!material;
@@ -543,6 +561,7 @@ export class MobModel extends Group {
     }
 
     dispose() {
+        for (const view of this.layerViews) if (view.ownMaterial) view.ownMaterial.dispose();
         for (const {view} of this.blocks) view.dispose();
         if (this.armor) this.armor.dispose();
         if (this.itemSlots) {

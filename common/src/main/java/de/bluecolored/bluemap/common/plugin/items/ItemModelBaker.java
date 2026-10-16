@@ -145,10 +145,70 @@ public class ItemModelBaker {
         return ENTITY_MODELS.containsKey(entityType) || MobTextures.TEXTURES.containsKey(entityType);
     }
 
-    /** textures that are provided on their own (requested by the live-data): the armor-textures */
+    /** textures that are provided on their own (requested by the live-data): the armor-textures and armor-trims */
     static boolean isProvidedTexture(String textureKey) {
         int colon = textureKey.indexOf(':');
-        return textureKey.startsWith("models/armor/", colon + 1);
+        return textureKey.startsWith("models/armor/", colon + 1) || textureKey.startsWith(TRIM_SPRITES, colon + 1);
+    }
+
+    /** the sprites of vanilla ArmorTrim.getGenericModelId / getLeggingsModelId: &lt;pattern&gt;[_leggings]_&lt;material&gt; */
+    static final String TRIM_SPRITES = "trims/models/armor/";
+    static final String TRIM_PALETTES = "trims/color_palettes/";
+    /** vanilla atlases/armor_trims.json: the palette-key of the paletted permutations */
+    static final String TRIM_PALETTE_KEY = "minecraft:trims/color_palettes/trim_palette";
+
+    /**
+     * A texture of the resource-pack, or a generated armor-trim sprite like vanilla PalettedPermutationsAtlasSource
+     * (the permutations named like their palettes, as in the vanilla atlas armor_trims.json).
+     */
+    static @Nullable BufferedImage providedTexture(Resources resources, String textureKey) {
+        BufferedImage texture = resources.texture(textureKey);
+        if (texture != null) return texture;
+        int colon = textureKey.indexOf(':');
+        if (!textureKey.startsWith(TRIM_SPRITES, colon + 1)) return null;
+        String namespace = textureKey.substring(0, colon);
+        String rest = textureKey.substring(colon + 1 + TRIM_SPRITES.length());
+        // "coast_leggings_iron_darker": the first split with an existing pattern-texture and palette
+        for (int i = rest.indexOf('_'); i > 0; i = rest.indexOf('_', i + 1)) {
+            BufferedImage pattern = resources.texture(namespace + ":" + TRIM_SPRITES + rest.substring(0, i));
+            if (pattern == null) continue;
+            BufferedImage palette = resources.texture(namespace + ":" + TRIM_PALETTES + rest.substring(i + 1));
+            if (palette == null) palette = resources.texture("minecraft:" + TRIM_PALETTES + rest.substring(i + 1));
+            BufferedImage key = resources.texture(TRIM_PALETTE_KEY);
+            if (palette == null || key == null) continue;
+            return applyPalette(pattern, key, palette);
+        }
+        return null;
+    }
+
+    /**
+     * vanilla PalettedPermutationsAtlasSource.toMapper and its pixel-function: the colors of the palette-key (with alpha)
+     * map to the colors of the palette; pixels with alpha 0 stay, others get the mapped color (unknown: opaque own
+     * color) with alpha * mapped alpha / 255.
+     */
+    static BufferedImage applyPalette(BufferedImage texture, BufferedImage key, BufferedImage palette) {
+        int[] keys = key.getRGB(0, 0, key.getWidth(), key.getHeight(), null, 0, key.getWidth());
+        int[] values = palette.getRGB(0, 0, palette.getWidth(), palette.getHeight(), null, 0, palette.getWidth());
+        if (keys.length != values.length) throw new IllegalArgumentException("palette mapping has different sizes");
+        Map<Integer, Integer> mapping = new HashMap<>();
+        for (int i = 0; i < keys.length; i++) {
+            if ((keys[i] >>> 24) != 0) mapping.put(keys[i] & 0xFFFFFF, values[i]);
+        }
+        BufferedImage result = new BufferedImage(texture.getWidth(), texture.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < texture.getHeight(); y++) {
+            for (int x = 0; x < texture.getWidth(); x++) {
+                int color = texture.getRGB(x, y);
+                int alpha = color >>> 24;
+                if (alpha == 0) {
+                    result.setRGB(x, y, color);
+                    continue;
+                }
+                int rgb = color & 0xFFFFFF;
+                int mapped = mapping.getOrDefault(rgb, 0xFF000000 | rgb);
+                result.setRGB(x, y, ((alpha * (mapped >>> 24) / 255) << 24) | (mapped & 0xFFFFFF));
+            }
+        }
+        return result;
     }
 
     /** protection against huge folders (a resource-pack with very many villager-textures) */

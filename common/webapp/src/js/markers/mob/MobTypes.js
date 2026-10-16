@@ -45,7 +45,9 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  * @typedef MobLayer {{
  *     model: string,                    the model-layer in vanilla-mob-models.json
  *     texture: string | function(mob): string,
- *     type?: "cutout" | "bright" | "translucent" | "eyes" | "energy",
+ *     type?: "cutout" | "bright" | "translucent" | "emissive" | "eyes" | "energy",
+ *     parts?: string[],                 only these parts (vanilla WardenFeatureRenderer)
+ *     alpha?: function(input): number,  animated alpha of the layer
  *     tint?: "sheep" | function(mob): number | null,   the wool-color of the sheep, or a color (0xRRGGBB)
  *     flag?: string, unlessFlag?: string, adult?: boolean  only shown with / without this flag, only for adults
  *     flagPrefix?: string               only shown with a flag that starts with this prefix (e.g. "collar_")
@@ -70,6 +72,9 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  *     headItemScale?: number[]          the scale the renderer passes to the HeadFeatureRenderer
  * }}
  */
+
+/** vanilla WardenEntityModel.headAndLimbs */
+const WARDEN_HEAD_AND_LIMBS = ["bone/body/head", "bone/body/left_arm", "bone/body/right_arm", "bone/left_leg", "bone/right_leg"];
 
 /** vanilla PiglinEntityRenderer: the HeadFeatureRenderer-scale */
 const PIGLIN_HEAD_SCALE = [1.0019531, 1, 1.0019531];
@@ -355,7 +360,20 @@ Object.assign(MOB_TYPES, {
     "minecraft:turtle": simple("generic", "minecraft:turtle#main", E + "turtle/big_sea_turtle"),
     "minecraft:vex": simple("allay", "minecraft:vex#main", mob => E + "illager/vex" + (mob.flags.has("charging") ? "_charging" : "")),
     "minecraft:wandering_trader": simple("villager", "minecraft:wandering_trader#main", E + "wandering_trader", {scale: 0.9375, headItem: true}),
-    "minecraft:warden": simple("generic", "minecraft:warden#main", E + "warden/warden"),
+    // vanilla WardenEntityRenderer: WardenFeatureRenderers (translucent-emissive) with their parts and alphas; the
+    // heart and the tendrils pulse with client-side states (heartbeat, vibrations) and are not shown
+    "minecraft:warden": {
+        ...simple("generic", "minecraft:warden#main", E + "warden/warden"),
+        layers: [
+            {model: "minecraft:warden#main", texture: E + "warden/warden"},
+            {model: "minecraft:warden#main", texture: E + "warden/warden_bioluminescent_layer", type: "emissive", alpha: () => 1,
+                parts: WARDEN_HEAD_AND_LIMBS},
+            {model: "minecraft:warden#main", texture: E + "warden/warden_pulsating_spots_1", type: "emissive",
+                alpha: input => Math.max(0, Math.cos(input.age * 0.045) * 0.25), parts: ["bone/body", ...WARDEN_HEAD_AND_LIMBS]},
+            {model: "minecraft:warden#main", texture: E + "warden/warden_pulsating_spots_2", type: "emissive",
+                alpha: input => Math.max(0, Math.cos(input.age * 0.045 + Math.PI) * 0.25), parts: ["bone/body", ...WARDEN_HEAD_AND_LIMBS]},
+        ],
+    },
     "minecraft:witch": simple("villager", "minecraft:witch#main", E + "witch", {scale: 0.9375}),
     "minecraft:wither": simple("wither", "minecraft:wither#main", E + "wither/wither", {scale: 2}),
     "minecraft:wolf": {
