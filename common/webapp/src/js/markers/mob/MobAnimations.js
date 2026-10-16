@@ -933,27 +933,63 @@ export function strider(p, input) {
     }
 }
 
-/** horses (approximation of AbstractHorseEntityModel: walking legs, head; saddle and chests by flags, baby-legs) */
+/**
+ * vanilla HorseEntityModel.animateModel and setAngles (1.21): head (clamped to +-20 degrees, bobbing while galloping),
+ * grazing (input.horse.grass), rearing (input.horse.angry), legs (slower in water), tail (lifted with the speed,
+ * wagging), baby-legs, saddle (straps only while ridden). The chests of donkeys and mules (DonkeyEntityModel).
+ */
 export function horse(p, input) {
-    const f = input.limbAngle, g = input.limbDistance;
-    p.head_parts.pitch += input.headPitch * DEG;
-    p.head_parts.yaw += input.headYaw * DEG;
-    const swing = cos(f * 0.6662) * 0.8 * g;
+    const f = input.limbAngle, g = input.limbDistance, flags = input.flags;
+    const pose = input.horse || {grass: 0, angry: 0, tailWag: false};
+    const head = p.head_parts, body = p.body, tail = p["body/tail"];
+    const k = Math.max(-20, Math.min(20, input.headYaw));
+    let l = input.headPitch * DEG;
+    if (g > 0.2) l += cos(f * 0.8) * 0.15 * g;
+    const m = pose.grass, n = pose.angry, o = 1 - n, r = input.age;
+    const eating = 0; // vanilla getEatingAnimationProgress (feeding): not sampled
+    head.pivotY = 4;
+    head.pivotZ = -12;
+    body.pitch = 0;
+    head.pitch = PI / 6 + l;
+    head.yaw = k * DEG;
+    const s = flags.has("in_water") ? 0.2 : 1;
+    const t = cos(s * f * 0.6662 + PI);
+    const u = t * 0.8 * g;
+    const rest = 1 - Math.max(n, m);
+    const v = rest * (PI / 6 + l + eating * sin(r) * 0.05);
+    head.pitch = n * (PI / 12 + l) + m * (2.1816616 + sin(r) * 0.05) + v;
+    head.yaw = n * k * DEG + rest * head.yaw;
+    head.pivotY = n * -4 + m * 11 + rest * head.pivotY;
+    head.pivotZ = n * -4 + m * -12 + rest * head.pivotZ;
+    body.pitch = n * -PI / 4 + o * body.pitch;
+    const w = PI / 12 * n;
+    const x = cos(r * 0.6 + PI);
+    const frontY = 2 * n + 14 * o, frontZ = -6 * n - 10 * o;
     for (const prefix of ["", "baby_"]) {
         const leg = name => p[name.replace("_leg", "_" + prefix + "leg")];
-        if (leg("right_hind_leg")) leg("right_hind_leg").pitch = swing;
-        if (leg("left_hind_leg")) leg("left_hind_leg").pitch = -swing;
-        if (leg("right_front_leg")) leg("right_front_leg").pitch = -swing;
-        if (leg("left_front_leg")) leg("left_front_leg").pitch = swing;
+        leg("left_front_leg").pivotY = leg("right_front_leg").pivotY = frontY;
+        leg("left_front_leg").pivotZ = leg("right_front_leg").pivotZ = frontZ;
+        leg("left_hind_leg").pitch = w - t * 0.5 * g * o;
+        leg("right_hind_leg").pitch = w + t * 0.5 * g * o;
+        leg("left_front_leg").pitch = (-PI / 3 + x) * n + u * o;
+        leg("right_front_leg").pitch = (-PI / 3 - x) * n - u * o;
     }
-    p["body/tail"] && (p["body/tail"].pitch += g * 0.5);
-    const baby = !!input.baby, saddled = input.flags.has("saddled"), chest = input.flags.has("chest");
-    for (const [path, t] of Object.entries(p)) {
+    if (tail) {
+        tail.pitch = PI / 6 + g * 0.75;
+        tail.pivotY = -5 + g;
+        tail.pivotZ = 2 + g * 2;
+        tail.yaw = pose.tailWag ? cos(r * 0.7) : 0;
+    }
+    const baby = !!input.baby, saddled = flags.has("saddled"), ridden = flags.has("ridden");
+    for (const [path, part] of Object.entries(p)) {
         const name = path.substring(path.lastIndexOf("/") + 1);
-        if (name.endsWith("_leg")) t.visible = name.includes("baby") === baby;
-        if (name.includes("saddle") || name === "mouth_saddle_wrap") t.visible = saddled;
-        if (name.endsWith("_chest")) t.visible = chest;
+        if (name.endsWith("_leg")) part.visible = name.includes("baby") === baby;
+        if (name === "saddle" || name === "left_saddle_mouth" || name === "right_saddle_mouth" || name === "head_saddle" ||
+            name === "mouth_saddle_wrap") part.visible = saddled;
+        if (name === "left_saddle_line" || name === "right_saddle_line") part.visible = saddled && ridden;
+        if (name.endsWith("_chest")) part.visible = flags.has("chest");
     }
+    body.pivotY = 11; // setAngles
 }
 
 /** vanilla LlamaEntityModel: legs, head, chests by flag */

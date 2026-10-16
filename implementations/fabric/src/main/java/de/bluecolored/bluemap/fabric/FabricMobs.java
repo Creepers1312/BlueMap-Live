@@ -225,7 +225,14 @@ final class FabricMobs {
         }
 
         // states of further mobs that change the model, the texture or the animation
-        if (entity instanceof AbstractHorseEntity horse && horse.isSaddled()) flags.add("saddled");
+        if (entity instanceof AbstractHorseEntity horse) {
+            if (horse.isSaddled()) flags.add("saddled");
+            // vanilla HorseEntityModel.animateModel: grazing, rearing, slower legs in water, straps while ridden
+            if (horse.isEatingGrass()) flags.add("eating_grass");
+            if (horse.isAngry()) flags.add("angry");
+            if (horse.isTouchingWater()) flags.add("in_water");
+            if (horse.hasPassengers()) flags.add("ridden");
+        }
         if (entity instanceof AbstractDonkeyEntity donkey && donkey.hasChest()) flags.add("chest");
         if (entity instanceof StriderEntity strider) {
             if (strider.isSaddled()) flags.add("saddled");

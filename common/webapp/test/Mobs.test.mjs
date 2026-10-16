@@ -15,7 +15,7 @@ import {MobAssetCache} from "../src/js/markers/mob/MobAssetCache.js";
 import {MobModel} from "../src/js/markers/mob/MobModel.js";
 import {placeholderLabel} from "../src/js/markers/mob/PlaceholderModel.js";
 import {entityKind, parseEntity, parseMob} from "../src/js/markers/LiveEntityData.js";
-import {EntityMarker} from "../src/js/markers/EntityMarker.js";
+import {EntityMarker, horseTick} from "../src/js/markers/EntityMarker.js";
 
 const flush = () => new Promise(r => setTimeout(r, 0));
 const PI = Math.PI;
@@ -801,4 +801,55 @@ test("vehicles: boats, rafts and minecarts with the transforms of their vanilla 
     assert.equal(cart.offset.rotation.y, 0);
     assert.ok(Math.abs(cart.poseGroup.rotation.z - -PI / 4) < 1e-9, "vanilla MinecartEntityRenderer: rotate z by -pitch");
     cart.dispose();
+});
+
+test("horses follow vanilla HorseEntityModel: grazing, rearing, walking, tail, straps", () => {
+    const horse = partsOf("minecraft:horse#main");
+    const run = extra => ANIMATIONS.horse(horse, input(extra));
+
+    run({headPitch: 0, headYaw: 40});
+    assert.ok(Math.abs(horse.head_parts.pitch - PI / 6) < 1e-9 && Math.abs(horse.head_parts.yaw - 20 * PI / 180) < 1e-9, "head-yaw clamped to 20");
+    assert.equal(horse.body.pivotY, 11);
+
+    // grazing: the head down to the ground (2.18 rad), moved to y 11
+    run({age: 0, horse: {grass: 1, angry: 0, tailWag: false}});
+    assert.ok(Math.abs(horse.head_parts.pitch - 2.1816616) < 1e-6);
+    assert.equal(horse.head_parts.pivotY, 11);
+
+    // rearing: the body tilted up by 45 degrees, front legs raised to y 2
+    run({age: 0, horse: {grass: 0, angry: 1, tailWag: false}});
+    assert.ok(Math.abs(horse.body.pitch - -PI / 4) < 1e-9);
+    assert.equal(horse.left_front_leg.pivotY, 2);
+    assert.ok(Math.abs(horse.right_hind_leg.pitch - PI / 12) < 1e-9);
+
+    // galloping: legs as vanilla (0.8 * cos(f * 0.6662 + pi) * g), the tail lifted, slower in water
+    run({limbAngle: 1, limbDistance: 1});
+    const t = Math.cos(0.6662 + PI);
+    assert.ok(Math.abs(horse.left_front_leg.pitch - t * 0.8) < 1e-9 && Math.abs(horse.right_front_leg.pitch + t * 0.8) < 1e-9);
+    assert.ok(Math.abs(horse.left_hind_leg.pitch + t * 0.5) < 1e-9);
+    assert.ok(Math.abs(horse["body/tail"].pitch - (PI / 6 + 0.75)) < 1e-9);
+    run({limbAngle: 1, limbDistance: 1, flags: new Set(["in_water"])});
+    assert.ok(Math.abs(horse.left_front_leg.pitch - Math.cos(0.2 * 0.6662 + PI) * 0.8) < 1e-9);
+
+    // saddle always with the saddle, the straps only while ridden
+    run({flags: new Set(["saddled"])});
+    assert.equal(horse["body/saddle"].visible, true);
+    assert.equal(horse["head_parts/left_saddle_line"].visible, false);
+    run({flags: new Set(["saddled", "ridden"])});
+    assert.equal(horse["head_parts/left_saddle_line"].visible, true);
+
+    // vanilla AbstractHorseEntity.tick: progress per tick
+    const pose = {grass: 0, lastGrass: 0, angry: 0, lastAngry: 0, tailWag: 0};
+    horseTick(pose, new Set(["eating_grass"]), () => 1);
+    assert.ok(Math.abs(pose.grass - 0.45) < 1e-9);
+    horseTick(pose, new Set(["angry"]), () => 1);
+    assert.equal(pose.grass, 0, "rearing stops grazing");
+    assert.ok(Math.abs(pose.angry - 0.45) < 1e-9);
+    horseTick(pose, new Set(), () => 1);
+    const a = 0.45;
+    assert.ok(Math.abs(pose.angry - (a + (0.8 * a * a * a - a) * 0.6 - 0.05)) < 1e-9);
+    horseTick(pose, new Set(), () => 0);
+    assert.equal(pose.tailWag, 1, "the tail starts to wag");
+    for (let i = 0; i < 8; i++) horseTick(pose, new Set(), () => 1);
+    assert.equal(pose.tailWag, 0, "for 8 ticks");
 });

@@ -291,6 +291,7 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q19 | Verzauberte Rüstung; Skelett- und Creeperkopf auf dem Kopf | Glanz läuft über die Rüstung; Kopf sitzt etwas größer als der eigene Kopf |
 | Q20 | Auf Pferd, Schwein, Boot und Lore sitzen; Zombie-Jockey bzw. Pillager auf Verwüster | Beine sitzend nach vorn gespreizt, Arme leicht nach vorn, keine Laufbewegung; Körper dreht mit dem Reittier |
 | Q21 | Mit dem Pferd galoppieren und Kurven reiten; Boot (auch Bambusfloß, Kistenboot) fahren und rudern; Lore auf Schienen mit Steigung | Reiter bleibt auf dem Pferd bzw. im Boot, auch bei Tempo; Boot mit Holzart und Rudern; Lore folgt der Steigung |
+| Q22 | Pferde auf Gras beobachten; ungezähmtes Pferd reiten, bis es steigt; galoppieren | Kopf senkt sich zum Grasen und nickt; Pferd steigt auf die Hinterbeine; beim Galopp nickt der Kopf und der Schweif hebt sich |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

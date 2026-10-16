@@ -66,6 +66,26 @@ const tempVector = new Vector3();
 /** a pose-progress (0..1) that runs up while active and down otherwise, per tick */
 const progress = (value, active, up, down, ticks) => active ? Math.min(1, value + up * ticks) : Math.max(0, value - down * ticks);
 
+/**
+ * vanilla AbstractHorseEntity.tick (per tick): grazing and rearing approach their state, rearing stops grazing;
+ * the tail wags for 8 ticks (tickMovement: started with a chance of 1 / 200 per tick)
+ */
+export function horseTick(horse, flags, random = Math.random) {
+    horse.lastGrass = horse.grass;
+    if (flags.has("eating_grass")) horse.grass = Math.min(1, horse.grass + (1 - horse.grass) * 0.4 + 0.05);
+    else horse.grass = Math.max(0, horse.grass + (0 - horse.grass) * 0.4 - 0.05);
+    horse.lastAngry = horse.angry;
+    if (flags.has("angry")) {
+        horse.grass = horse.lastGrass = 0;
+        horse.angry = Math.min(1, horse.angry + (1 - horse.angry) * 0.4 + 0.05);
+    } else {
+        const a = horse.angry;
+        horse.angry = Math.max(0, a + (0.8 * a * a * a - a) * 0.6 - 0.05);
+    }
+    if (horse.tailWag > 0 && ++horse.tailWag > 8) horse.tailWag = 0;
+    if (horse.tailWag === 0 && random() < 1 / 200) horse.tailWag = 1;
+}
+
 export class EntityMarker extends Marker {
 
     /**
@@ -139,6 +159,11 @@ export class EntityMarker extends Marker {
         /** vanilla SlimeEntity: stretch, targetStretch and the last ground-state (per tick) */
         this.slime = {stretch: 0, target: 0, onGround: true};
         this.warning = 0;
+        /**
+         * vanilla AbstractHorseEntity: eatingGrassAnimationProgress, angryAnimationProgress (with their values of the
+         * previous tick, interpolated by the tick-progress) and tailWagTicks
+         */
+        this.horse = {grass: 0, lastGrass: 0, angry: 0, lastAngry: 0, tailWag: 0};
         /** vanilla BoatEntity.paddlePhases (left, right) */
         this.paddles = [0, 0];
         this.animationInput = {
@@ -415,6 +440,7 @@ export class EntityMarker extends Marker {
         this.tickRemainder += ticks;
         for (let i = 0; this.tickRemainder >= 1 && i < 20; i++) {
             this.tickRemainder -= 1;
+            if (MOB_TYPES[this.mobTypeKey]?.animation === "horse") horseTick(this.horse, mob.flags);
             // vanilla SlimeEntity.tick: the stretch follows the target, landing squashes, jumping stretches
             const slime = this.slime;
             slime.stretch += (slime.target - slime.stretch) * 0.5;
@@ -453,6 +479,12 @@ export class EntityMarker extends Marker {
         input.warning = this.warning;
         input.entityPitch = entity.rotation.pitch;
         input.vehiclePitch = r.pitch;
+        const horse = this.horse, part = this.tickRemainder;
+        input.horse = {
+            grass: horse.lastGrass + (horse.grass - horse.lastGrass) * part,
+            angry: horse.lastAngry + (horse.angry - horse.lastAngry) * part,
+            tailWag: horse.tailWag > 0,
+        };
         // vanilla BoatEntity.tick: the phase of a moving paddle grows by pi / 8 per tick, it is 0 while not rowing
         const paddles = this.paddles;
         paddles[0] = mob.flags.has("paddle_left") ? paddles[0] + Math.PI / 8 * ticks : 0;
@@ -469,6 +501,7 @@ export class EntityMarker extends Marker {
             (catPose.sleep > 0 && catPose.sleep < 1) || (catPose.headDown > 0 && catPose.headDown < 1) ||
             (pandaPose.sit > 0 && pandaPose.sit < 1) || (pandaPose.lie > 0 && pandaPose.lie < 1) ||
             (this.warning > 0 && this.warning < 1) || Math.abs(this.slime.stretch) > 1e-3 || paddles[0] > 0 || paddles[1] > 0 ||
+            horse.grass > 0 || horse.angry > 0 || horse.tailWag > 0 ||
             !!(this.view && this.view.armor && this.view.armor.hasGlint); // the moving enchantment-glint
     }
 
