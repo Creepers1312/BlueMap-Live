@@ -91,4 +91,4 @@ Anschließend `e2e-out/regression-0.png` und `regression-1.png` vergleichen (z. 
 
 Hinweis: Die Kamera wird über die normale Seitenadresse gesetzt (`#world:x:y:z:distance:rotation:angle:tilt:ortho:view`). Ein direktes Setzen von `controlsManager.distance` wird von den Map-Controls überschrieben. Dann werden keine Hires-Tiles geladen; das gilt für das Original genauso.
 
-**Fahrzeuge (Phase 8):** Spieler: `&riding=1&vehicle=ID&vox=..&voy=..&voz=..&vbody=..&vhead=..` (Versatz und Drehungen relativ zur Fahrzeugdrehung). Boote und Loren als Mob: `&entity=ID&mob=1&type=minecraft:boat&variant=oak&flags=paddle_left,paddle_right`; Platzhaltertexturen `entity/boat/oak` und `entity/minecart`.
+**Fahrzeuge (Phase 8):** Spieler: `&riding=1&vehicle=ID&vox=..&voy=..&voz=..&vbody=..&vhead=..` (Versatz und Drehungen relativ zur Fahrzeugdrehung). Boote und Loren als Mob: `&entity=ID&mob=1&type=minecraft:boat&variant=oak&flags=paddle_left,paddle_right`; Platzhaltertexturen `entity/boat/oak` und `entity/minecart`. Leine an Mob/Boot: `&leash=ENTITY_ID` oder `&leashPlayer=UUID`, Enden `&lsx/lsy/lsz` (Entity) und `&lex/ley/lez` (Halter); Knoten als Mob `minecraft:leash_knot`.

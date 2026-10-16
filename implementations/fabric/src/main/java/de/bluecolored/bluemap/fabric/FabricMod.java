@@ -463,9 +463,16 @@ public class FabricMod implements ModInitializer, Server {
                 now,
                 item,
                 onGround,
-                entity instanceof LivingEntity living ? FabricMobs.sample(living) : vehicle,
+                withLeash(entity instanceof LivingEntity living ? FabricMobs.sample(living) : vehicle, entity),
                 impact
         );
+    }
+
+    /** the leash of a mob or boat (the rope is drawn by the webapp) */
+    private static @Nullable LiveMobState withLeash(@Nullable LiveMobState mob, Entity entity) {
+        if (mob == null) return null;
+        de.bluecolored.bluemap.common.live.Leash leash = FabricVehicles.leash(entity);
+        return leash != null ? mob.withLeash(leash) : mob;
     }
 
     @Override

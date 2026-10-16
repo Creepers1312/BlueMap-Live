@@ -129,7 +129,9 @@ final class MobTextures {
             Map.entry("minecraft:hopper_minecart", List.of("minecraft:entity/minecart")),
             Map.entry("minecraft:tnt_minecart", List.of("minecraft:entity/minecart")),
             Map.entry("minecraft:spawner_minecart", List.of("minecraft:entity/minecart")),
-            Map.entry("minecraft:command_block_minecart", List.of("minecraft:entity/minecart"))
+            Map.entry("minecraft:command_block_minecart", List.of("minecraft:entity/minecart")),
+            // vanilla LeashKnotEntityRenderer.TEXTURE
+            Map.entry("minecraft:leash_knot", List.of("minecraft:entity/lead_knot"))
     );
 
 }

@@ -99,6 +99,17 @@ public final class LiveEntitiesJson {
         if (mob.swingTicks() >= 0) json.name("swingTicks").value(mob.swingTicks());
         if (mob.attackTicks() > 0) json.name("attackTicks").value(mob.attackTicks());
         if (mob.bedOffset() != 0 && Double.isFinite(mob.bedOffset())) json.name("bedOffset").value(mob.bedOffset());
+        Leash leash = mob.leash();
+        if (leash != null && (leash.holderEntity() != null || leash.holderPlayer() != null)) {
+            json.name("leash").beginObject();
+            if (leash.holderEntity() != null) json.name("entity").value(leash.holderEntity());
+            else json.name("player").value(leash.holderPlayer().toString());
+            json.name("start");
+            writeVector(json, leash.start());
+            json.name("end");
+            writeVector(json, leash.end());
+            json.endObject();
+        }
         if (!mob.models().isEmpty()) {
             json.name("models").beginArray();
             for (String model : mob.models()) json.value(model);

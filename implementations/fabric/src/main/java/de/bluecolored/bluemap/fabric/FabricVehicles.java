@@ -24,12 +24,19 @@
  */
 package de.bluecolored.bluemap.fabric;
 
+import de.bluecolored.bluemap.common.live.Leash;
 import de.bluecolored.bluemap.common.live.LiveMobState;
+import de.bluecolored.bluemap.common.live.Vehicle;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.Leashable;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.decoration.LeashKnotEntity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.vehicle.AbstractMinecartEntity;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.util.math.Vec3d;
+
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -45,8 +52,40 @@ final class FabricVehicles {
     /** set if a vehicle-method is not available in this version: the details are not sampled anymore */
     private static volatile boolean detailsUnavailable = false;
 
+    /** boats, minecarts and the knots of leashes on fences (vanilla LeashKnotEntityRenderer) */
     static boolean isVehicle(Entity entity) {
-        return (entity instanceof BoatEntity || entity instanceof AbstractMinecartEntity) && !entity.isInvisible();
+        return (entity instanceof BoatEntity || entity instanceof AbstractMinecartEntity || entity instanceof LeashKnotEntity) &&
+                !entity.isInvisible();
+    }
+
+    /** set if a leash-method is not available in this version: leashes are not sampled anymore */
+    private static volatile boolean leashUnavailable = false;
+
+    /**
+     * The leash of an entity, both ends as vanilla EntityRenderer.renderLeash computes them (tick-progress 1):
+     * at the entity its getLeashOffset turned by lerpYaw + 90 degrees, at the holder its getLeashPos. Each end is given
+     * relative to its entity in the frame of the drawn yaw (see drawnRotation), so the webapp can follow both.
+     */
+    static @Nullable Leash leash(Entity entity) {
+        if (leashUnavailable || !(entity instanceof Leashable leashable)) return null;
+        try {
+            Entity holder = leashable.getLeashHolder();
+            if (holder == null) return null;
+            double yaw = entity.lerpYaw(1f) * Math.PI / 180 + Math.PI / 2;
+            Vec3d offset = entity.getLeashOffset(1f);
+            double dx = Math.cos(yaw) * offset.z + Math.sin(yaw) * offset.x;
+            double dz = Math.sin(yaw) * offset.z - Math.cos(yaw) * offset.x;
+            Vec3d end = holder.getLeashPos(1f), holderPos = holder.getPos();
+            return new Leash(
+                    holder instanceof PlayerEntity ? null : holder.getId(),
+                    holder instanceof PlayerEntity ? holder.getUuid() : null,
+                    Vehicle.toLocal(dx, offset.y, dz, drawnRotation(entity)[0]),
+                    Vehicle.toLocal(end.x - holderPos.x, end.y - holderPos.y, end.z - holderPos.z, drawnRotation(holder)[0])
+            );
+        } catch (LinkageError e) {
+            leashUnavailable = true;
+            return null;
+        }
     }
 
     /**

@@ -14,7 +14,8 @@ import {
 import {MobAssetCache} from "../src/js/markers/mob/MobAssetCache.js";
 import {MobModel} from "../src/js/markers/mob/MobModel.js";
 import {placeholderLabel} from "../src/js/markers/mob/PlaceholderModel.js";
-import {entityKind, parseEntity, parseMob} from "../src/js/markers/LiveEntityData.js";
+import {entityKind, parseEntity, parseLeash, parseMob} from "../src/js/markers/LiveEntityData.js";
+import {leashSpan, leashVertices} from "../src/js/markers/LeashView.js";
 import {EntityMarker, horseTick} from "../src/js/markers/EntityMarker.js";
 
 const flush = () => new Promise(r => setTimeout(r, 0));
@@ -852,4 +853,51 @@ test("horses follow vanilla HorseEntityModel: grazing, rearing, walking, tail, s
     assert.equal(pose.tailWag, 1, "the tail starts to wag");
     for (let i = 0; i < 8; i++) horseTick(pose, new Set(), () => 1);
     assert.equal(pose.tailWag, 0, "for 8 ticks");
+});
+
+test("leashes like vanilla EntityRenderer.renderLeash: parsed, spanned to the drawn holder, a hanging rope", async () => {
+    const leash = parseLeash({player: "069a79f4-44e9-4726-a5be-fca90e38aaf5", start: {x: 0, y: 1, z: 0.3}, end: {x: -0.2, y: 0.8, z: 0.07}});
+    assert.deepEqual(leash.start, {x: 0, y: 1, z: 0.3});
+    assert.equal(leash.entity, null);
+    assert.equal(parseLeash({entity: 5, start: {x: 0, y: 0, z: 0}}), null, "no end");
+    assert.equal(parseLeash({start: {x: 0, y: 0, z: 0}, end: {x: 0, y: 0, z: 0}}), null, "no holder");
+    assert.equal(parseMob({bodyYaw: 0, leash: {entity: 7, start: {x: 0, y: 1, z: 0}, end: {x: 0, y: 0.2, z: 0}}}).leash.entity, 7);
+
+    // both ends turned by the drawn yaws of their entities
+    const span = leashSpan({start: {x: 0, y: 1, z: 0.3}, end: {x: 0, y: 0.2, z: 0}},
+        {position: {x: 0, y: 64, z: 0}, yaw: 90}, {position: {x: 3, y: 65, z: 0}, yaw: 0});
+    assert.ok(Math.abs(span.start.x - -0.3) < 1e-9 && Math.abs(span.start.z) < 1e-9, "yaw 90: forward is -x");
+    assert.ok(Math.abs(span.delta.x - 3.3) < 1e-9 && Math.abs(span.delta.y - 0.2) < 1e-9);
+
+    // the rope: from 0 to the end, hanging (dy < 0: dy - dy * (1 - t)^2), every other piece darker
+    const {positions, colors} = leashVertices(4, -2, 0);
+    const vertex = i => [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]];
+    // width: k = dz * s, l = dx * s with s = 0.025 / horizontal-length / 2; first vertex (x - k, y + 0.025, z + l)
+    assert.deepEqual(vertex(0).map(v => Math.round(v * 1e6) / 1e6), [0, 0.025, 0.0125]);
+    const last = vertex(24 * 2);
+    assert.ok(Math.abs(last[0] - 4) < 1e-6 && Math.abs(last[1] - (-2 + 0.025)) < 1e-6);
+    const mid = vertex(12 * 2);
+    assert.ok(Math.abs(mid[1] - (-2 + 2 * 0.25 + 0.025)) < 1e-6, "t = 0.5: dy - dy * 0.25");
+    assert.ok(Math.abs(colors[0] - 0.35) < 1e-6 && Math.abs(colors[2 * 3] - 0.5) < 1e-6, "0.7 * brown, then brown");
+
+    // the knot on a fence: vanilla LeashKnotEntityRenderer only flips the model
+    const cache = fakeMobCache({"minecraft:entity/lead_knot": 1});
+    const knot = new MobModel("minecraft:leash_knot", MOB_TYPES["minecraft:leash_knot"], cache, null);
+    knot.setState({variant: null, baby: false, flags: new Set(), size: 0}, {mainHand: null, offHand: null, leftHanded: false});
+    knot.animate(input(), 0, 0, false);
+    assert.equal(knot.yawGroup.position.y, 0);
+    assert.equal(knot.offset.position.y, 0);
+    knot.dispose();
+
+    // the entity-marker draws the rope to the holder
+    const marker = new EntityMarker("bm-entity-30", null, null, fakeMobCache({"minecraft:entity/cow/cow": 1}));
+    marker.updateFromData(parseEntity({id: 30, type: "minecraft:cow", position: {x: 0, y: 64, z: 0}, time: 1000,
+        mob: {bodyYaw: 0, headYaw: 0, leash: {entity: 31, start: {x: 0, y: 1, z: 0.4}, end: {x: 0, y: 0.2, z: 0}}}}), 250);
+    marker.step(0.05, null);
+    marker.updateLeash({position: {x: 2, y: 64, z: 0}, yaw: 0});
+    assert.ok(marker.leashView, "rope shown");
+    assert.deepEqual(marker.leashView.position.toArray().map(v => Math.round(v * 1e6) / 1e6), [0, 1, 0.4]);
+    marker.updateLeash(null);
+    assert.equal(marker.leashView, null, "holder not shown: no rope");
+    marker.dispose();
 });

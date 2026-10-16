@@ -133,6 +133,7 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/cow/cow", rect(64, 32, 0, 0, 64, 32, COW));
         textures.put("minecraft:entity/boat/oak", rect(128, 64, 0, 0, 128, 64, BOAT));
         textures.put("minecraft:entity/minecart", rect(64, 32, 0, 0, 64, 32, MINECART));
+        textures.put("minecraft:entity/lead_knot", rect(32, 32, 0, 0, 32, 32, BOAT));
         textures.put("minecraft:entity/sheep/sheep", rect(64, 32, 0, 0, 64, 32, SHEEP));
         textures.put("minecraft:entity/sheep/sheep_fur", rect(64, 32, 0, 0, 64, 32, WOOL));
         textures.put("minecraft:entity/villager/villager", square(64, 0, 0, 64, 64, VILLAGER));

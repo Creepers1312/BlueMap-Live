@@ -50,6 +50,7 @@ import java.util.List;
  *                    0 if none
  * @param bedOffset lying in a bed: how far the model is moved towards the head-end (vanilla
  *                  <code>getEyeHeight(STANDING) - 0.1</code>), 0 otherwise
+ * @param leash the leash of the entity, or null if it is not leashed
  */
 public record LiveMobState(
         double bodyYaw,
@@ -66,8 +67,22 @@ public record LiveMobState(
         List<String> flags,
         int swingTicks,
         int attackTicks,
-        double bedOffset
+        double bedOffset,
+        @Nullable Leash leash
 ) {
+
+    public LiveMobState(double bodyYaw, double headYaw, int hurtTime, int deathTime, boolean baby,
+                        @Nullable Equipment equipment, @Nullable String variant, int size, double width, double height,
+                        List<String> models, List<String> flags, int swingTicks, int attackTicks, double bedOffset) {
+        this(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height, models, flags,
+                swingTicks, attackTicks, bedOffset, null);
+    }
+
+    /** this state with the given leash */
+    public LiveMobState withLeash(@Nullable Leash leash) {
+        return new LiveMobState(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height,
+                models, flags, swingTicks, attackTicks, bedOffset, leash);
+    }
 
     public LiveMobState {
         models = List.copyOf(models);

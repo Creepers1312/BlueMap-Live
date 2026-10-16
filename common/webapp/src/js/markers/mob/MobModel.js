@@ -111,7 +111,7 @@ export class MobModel extends Group {
         this.root = new Group();
         this.root.scale.setScalar(1 / 16);
         this.offset.position.y = MODEL_OFFSET;
-        // vanilla BoatEntityRenderer / MinecartEntityRenderer: up by 0.375 (yaw-group), no -1.501 after the flip,
+        // vanilla BoatEntityRenderer / MinecartEntityRenderer / LeashKnotEntityRenderer: no -1.501 after the flip,
         // boats are turned by 90 degrees after the flip
         if (mobType.vehicle) {
             this.offset.position.y = 0;
@@ -321,7 +321,7 @@ export class MobModel extends Group {
         this.poseGroup.position.set(0, 0, 0);
         this.poseGroup.rotation.set(0, bed && !dying ? MathUtils.degToRad(270) : 0, 0);
         // vanilla MinecartEntityRenderer: up by 0.375, turned by 180 - yaw, then by -pitch around z (on rails: the slope)
-        if (this.mobType.vehicle) {
+        if (this.mobType.vehicle === "boat" || this.mobType.vehicle === "minecart") {
             this.yawGroup.position.y = 0.375;
             if (this.mobType.vehicle === "minecart") this.poseGroup.rotation.z = MathUtils.degToRad(-(input.vehiclePitch || 0));
         }

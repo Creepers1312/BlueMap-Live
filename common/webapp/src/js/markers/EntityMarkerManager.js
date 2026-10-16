@@ -136,7 +136,24 @@ export class EntityMarkerManager extends MarkerManager {
             if (marker.isEntityMarker && marker.step(dt, this.camera) && marker.visible) moving = true;
         });
         if (moving && set.visible && this.redraw) this.redraw();
+        this.updateLeashes(set);
         if (this.events) this.events.dispatchEvent(new CustomEvent(ENTITIES_STEPPED_EVENT, {detail: {markers: set.markers}}));
+    }
+
+    /**
+     * The leashes of the frame: from the drawn entity to its drawn holder (an entity or a player).
+     * @param set {MarkerSet}
+     */
+    updateLeashes(set) {
+        const players = this.root.markerSets.get("bm-players");
+        set.markers.forEach(marker => {
+            if (!marker.isEntityMarker) return;
+            const leash = marker.leash;
+            let holder = null;
+            if (leash && leash.entity !== null) holder = set.markers.get("bm-entity-" + leash.entity);
+            else if (leash && leash.player !== null && players && players.visible) holder = players.markers.get("bm-player-" + leash.player);
+            marker.updateLeash(holder && holder.visible !== false && holder.anchor ? holder.anchor : null);
+        });
     }
 
     clear() {

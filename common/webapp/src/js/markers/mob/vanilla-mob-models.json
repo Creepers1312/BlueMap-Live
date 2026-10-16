@@ -832,6 +832,9 @@
   "right_arm":{"pivot":[0,-7,0],"cuboids":[{"uv":[60,21],"box":[-13,-2.5,-3,4,30,6]}]},
   "right_leg":{"pivot":[-4,11,0],"cuboids":[{"uv":[37,0],"box":[-3.5,-3,-3,6,16,5]}]}
  }},
+ "minecraft:leash_knot#main":{"texture":[32, 32],"parts":{
+  "knot":{"cuboids":[{"uv":[0,0],"box":[-3,-8,-3,6,8,6]}]}
+ }},
  "minecraft:llama#decor":{"texture":[128, 64],"parts":{
   "body":{"pivot":[0,5,2],"rotation":[1.5707964,0,0],"cuboids":[{"uv":[29,0],"box":[-6,-10,-7,12,18,10],"dilation":0.5}]},
   "head":{"pivot":[0,7,-6],"cuboids":[{"uv":[0,0],"box":[-2,-14,-10,4,4,9],"dilation":0.5},{"uv":[0,14],"box":[-4,-16,-6,8,18,6],"dilation":0.5,"name":"neck"},{"uv":[17,0],"box":[-4,-19,-4,3,3,2],"dilation":0.5,"name":"ear"},{"uv":[17,0],"box":[1,-19,-4,3,3,2],"dilation":0.5,"name":"ear"}]},

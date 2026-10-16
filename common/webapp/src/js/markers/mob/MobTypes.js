@@ -70,7 +70,8 @@ const BIPED_CHILD = [true, 16, 0, 2, 2, 24];
  *     carriedBlock?: boolean,           the block of the enderman (block-model from mob.models)
  *     headItem?: boolean | "villager",  vanilla HeadFeatureRenderer: an item on the head (villager: 3 px higher)
  *     headItemScale?: number[]          the scale the renderer passes to the HeadFeatureRenderer
- *     vehicle?: "boat" | "minecart"     drawn with the transforms of BoatEntityRenderer / MinecartEntityRenderer
+ *     vehicle?: "boat" | "minecart" | "knot"  drawn with the transforms of BoatEntityRenderer / MinecartEntityRenderer /
+ *                                       LeashKnotEntityRenderer
  * }}
  */
 
@@ -404,6 +405,8 @@ Object.assign(MOB_TYPES, {
     "minecraft:chest_boat": boat("chest_boat", "minecraft:chest_boat#main", "minecraft:chest_raft"),
     "minecraft:raft": boat("boat", "minecraft:raft#main"),
     "minecraft:chest_raft": boat("chest_boat", "minecraft:chest_raft#main"),
+    // vanilla LeashKnotEntityRenderer: scale(-1, -1, 1) only
+    "minecraft:leash_knot": {animation: "none", vehicle: "knot", layers: [{model: "minecraft:leash_knot#main", texture: E + "lead_knot"}]},
     ...Object.fromEntries(MINECARTS.map(type => ["minecraft:" + type, {
         animation: "none", vehicle: "minecart", layers: [{model: "minecraft:minecart#main", texture: E + "minecart"}],
     }])),

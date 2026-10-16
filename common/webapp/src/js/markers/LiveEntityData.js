@@ -180,7 +180,26 @@ export function parseMob(value) {
         models: Array.isArray(value.models) ?
             value.models.slice(0, 4).filter(model => typeof model === "string" && TYPE_PATTERN.test(model) && !model.includes("..")) : [],
         equipment: parseEquipment(value.equipment),
+        leash: parseLeash(value.leash),
     };
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * @param value {any}
+ * @returns {{entity: number | null, player: string | null, start: {x: number, y: number, z: number},
+ *     end: {x: number, y: number, z: number}} | null} - the leash: the holder (entity-id or player-uuid) and both
+ *     ends relative to their entity, in the frame of its drawn yaw
+ */
+export function parseLeash(value) {
+    if (!value || typeof value !== "object") return null;
+    const entity = Number.isInteger(value.entity) ? value.entity : null;
+    const player = typeof value.player === "string" && UUID_PATTERN.test(value.player) ? value.player : null;
+    const start = parseVector(value.start), end = parseVector(value.end);
+    if ((entity === null && player === null) || !start || !end) return null;
+    if ([start, end].some(v => Math.abs(v.x) > 8 || Math.abs(v.y) > 8 || Math.abs(v.z) > 8)) return null;
+    return {entity, player, start, end};
 }
 
 /**

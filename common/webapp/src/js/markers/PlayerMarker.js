@@ -270,6 +270,12 @@ export class PlayerMarker extends Marker {
         this.applyDisplay();
     }
 
+    /** the drawn position (feet) and body-yaw, e.g. for the leashes the player holds */
+    get anchor() {
+        const state = this.shownState;
+        return {position: {x: state.x, y: state.y, z: state.z}, yaw: state.bodyYaw};
+    }
+
     /** @private the displayed state: interpolated, or on the vehicle while riding */
     get shownState() {
         return this.attached ? {...this.displayed, ...this.attached} : this.displayed;

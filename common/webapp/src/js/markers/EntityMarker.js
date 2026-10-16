@@ -31,6 +31,7 @@ import {
 import {angleDelta, interpolationDuration} from "./LivePlayerData.js";
 import {MobModel} from "./mob/MobModel.js";
 import {CREEPER_FUSE_TICKS, limbTarget, MOB_TYPES} from "./mob/MobTypes.js";
+import {LeashView, leashSpan} from "./LeashView.js";
 import {PlaceholderModel} from "./mob/PlaceholderModel.js";
 
 /** beyond this camera-distance (blocks) entities are not shown */
@@ -164,12 +165,48 @@ export class EntityMarker extends Marker {
          * previous tick, interpolated by the tick-progress) and tailWagTicks
          */
         this.horse = {grass: 0, lastGrass: 0, angry: 0, lastAngry: 0, tailWag: 0};
+        /** the rope of the leash (LeashView), null if not leashed */
+        this.leashView = null;
         /** vanilla BoatEntity.paddlePhases (left, right) */
         this.paddles = [0, 0];
         this.animationInput = {
             limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0, swingOffHand: false, attackTicks: 0,
             flags: new Set(), mainHand: null, leftHanded: false, wingAngle: 0,
         };
+    }
+
+    /** the leash of this entity (LiveEntityData.parseLeash), null if none */
+    get leash() {
+        const mob = this.lastData && this.lastData.mob;
+        return mob && mob.leash || null;
+    }
+
+    /** the drawn position (feet) and yaw, e.g. for riders and leashes */
+    get anchor() {
+        return {position: this.position, yaw: this.rotation3.body};
+    }
+
+    /**
+     * Draws the leash to the drawn holder (called after the entities of the frame are stepped).
+     * @param holder {{position: {x, y, z}, yaw: number} | null} - the drawn holder, null: no leash shown
+     */
+    updateLeash(holder) {
+        const leash = this.leash;
+        if (!leash || !holder) {
+            if (this.leashView) {
+                this.remove(this.leashView);
+                this.leashView.dispose();
+                this.leashView = null;
+            }
+            return;
+        }
+        if (!this.leashView) {
+            this.leashView = new LeashView();
+            this.add(this.leashView);
+        }
+        const span = leashSpan(leash, this.anchor, holder);
+        this.leashView.position.set(span.start.x, span.start.y, span.start.z);
+        this.leashView.set(span.delta.x, span.delta.y, span.delta.z);
     }
 
     /**
@@ -547,6 +584,8 @@ export class EntityMarker extends Marker {
         super.dispose();
         if (this.view) this.view.dispose();
         this.view = null;
+        if (this.leashView) this.leashView.dispose();
+        this.leashView = null;
         this.body.clear();
     }
 

@@ -290,6 +290,24 @@ public class LivePlayersDataSupplierTest {
         assertEquals(3, swingJson.get("swingTicks").getAsInt());
         assertFalse(swingJson.has("attackTicks"));
 
+        // leashes: held by an entity (fence-knot) or a player, both ends relative to their entity
+        java.util.UUID holder = java.util.UUID.fromString("069a79f4-44e9-4726-a5be-fca90e38aaf5");
+        LiveMobState onKnot = swinging.withLeash(new Leash(9, null, new Vector3d(0, 1.2, 0.3), new Vector3d(0, 0.2, 0)));
+        LiveMobState onPlayer = swinging.withLeash(new Leash(null, holder, new Vector3d(0, 1.2, 0.3), new Vector3d(-0.22, 0.8, 0.07)));
+        server.entities = List.of(
+                new LiveEntityState(6, "minecraft:cow", new Vector3d(1, 0, 0), 0, 0, Vector3d.ZERO, 1000, null, true, onKnot),
+                new LiveEntityState(7, "minecraft:cow", new Vector3d(1, 0, 1), 0, 0, Vector3d.ZERO, 1000, null, true, onPlayer),
+                new LiveEntityState(8, "minecraft:cow", new Vector3d(2, 0, 1), 0, 0, Vector3d.ZERO, 1000, null, true, golem));
+        JsonArray leashed = entities(supplyEntities(new PluginConfig(), server, new ArrayList<>()));
+        JsonObject knotLeash = leashed.get(0).getAsJsonObject().getAsJsonObject("mob").getAsJsonObject("leash");
+        assertEquals(9, knotLeash.get("entity").getAsInt());
+        assertFalse(knotLeash.has("player"));
+        assertEquals(1.2, knotLeash.getAsJsonObject("start").get("y").getAsDouble(), 1e-9);
+        JsonObject playerLeash = leashed.get(1).getAsJsonObject().getAsJsonObject("mob").getAsJsonObject("leash");
+        assertEquals(holder.toString(), playerLeash.get("player").getAsString());
+        assertEquals(-0.22, playerLeash.getAsJsonObject("end").get("x").getAsDouble(), 1e-9);
+        assertFalse(leashed.get(2).getAsJsonObject().getAsJsonObject("mob").has("leash"), "not leashed");
+
         // flags are sorted and unique
         assertEquals(List.of("a", "b"), new LiveMobState(0, 0, 0, 0, false, null, null, 0, 1, 1, List.of("b", "a", "b")).flags());
     }

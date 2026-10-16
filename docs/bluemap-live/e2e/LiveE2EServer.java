@@ -26,6 +26,7 @@ import de.bluecolored.bluemap.common.live.LiveEntitiesJson;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.common.live.LiveWorldTime;
+import de.bluecolored.bluemap.common.live.Leash;
 import de.bluecolored.bluemap.common.live.MovementState;
 import de.bluecolored.bluemap.common.live.Vehicle;
 import de.bluecolored.bluemap.common.live.SwingState;
@@ -235,6 +236,11 @@ public class LiveE2EServer {
                         q.containsKey("models") ? List.of(q.get("models").split(";")) : List.of(),
                         q.containsKey("flags") && !q.get("flags").isEmpty() ? List.of(q.get("flags").split(",")) : List.of(),
                         q.containsKey("swing") ? (int) d(q, "swing") : -1, (int) d(q, "attack"));
+                // leash: &leash=ENTITY_ID or &leashPlayer=UUID, ends &lsx..&lsy..&lsz.. (entity) &lex..&ley..&lez.. (holder)
+                if (q.containsKey("leash") || q.containsKey("leashPlayer")) mob = mob.withLeash(new Leash(
+                        q.containsKey("leash") ? Integer.valueOf(q.get("leash")) : null,
+                        q.containsKey("leashPlayer") ? java.util.UUID.fromString(q.get("leashPlayer")) : null,
+                        new Vector3d(d(q, "lsx"), d(q, "lsy"), d(q, "lsz")), new Vector3d(d(q, "lex"), d(q, "ley"), d(q, "lez"))));
             }
             entities.put(id, new LiveEntityState(id, q.getOrDefault("type", "minecraft:item"),
                     new Vector3d(d(q, "x"), d(q, "y"), d(q, "z")), d(q, "yaw"), d(q, "pitch"),
