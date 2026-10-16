@@ -271,6 +271,7 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 - Danach bestätigt: Boote mit Ruderanimation, Loren, Lama-Teppiche, Verzierungen (Q18), Schädel und Glanz (Q19), Dorfbewohner legen sich schlafen.
 - Gemeldet: Leine fehlte (jetzt eingebaut, Q23); Bett unter dem Dorfbewohner fehlte (Kartenblock, erscheint nach dem Neu-Rendern des Bereichs).
 - Danach bestätigt: Betten erscheinen, Leine funktioniert. Gemeldet: schlafender Spieler lag nicht (jetzt eingebaut, Q24).
+- Dynamische Lichter (Q25): vom Nutzer bestätigt („funktioniert“).
 
 | # | Prüfung | Erwartung |
 |---|---|---|
