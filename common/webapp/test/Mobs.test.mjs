@@ -17,6 +17,10 @@ import {placeholderLabel} from "../src/js/markers/mob/PlaceholderModel.js";
 import {entityKind, parseEntity, parseLeash, parseMob} from "../src/js/markers/LiveEntityData.js";
 import {leashSpan, leashVertices} from "../src/js/markers/LeashView.js";
 import {EntityMarker, horseTick} from "../src/js/markers/EntityMarker.js";
+import {LIVE_PLAYBACK} from "../src/js/markers/LivePlayback.js";
+
+// these tests apply every sample at once (the playback-buffer is tested in LivePlayback.test.mjs)
+LIVE_PLAYBACK.delay = 0;
 
 const flush = () => new Promise(r => setTimeout(r, 0));
 const PI = Math.PI;

@@ -151,8 +151,12 @@ public final class LiveEntitiesJson {
         json.endObject();
     }
 
-    private static double finite(double value) {
-        return Double.isFinite(value) ? value : 0;
+    /**
+     * Finite and rounded to 1/1000 (positions to 1 mm, angles to 0.001 degrees): the entity-data is requested several
+     * times per second, the full double-precision would only add digits.
+     */
+    static double finite(double value) {
+        return Double.isFinite(value) ? Math.round(value * 1000) / 1000.0 : 0;
     }
 
 }

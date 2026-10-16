@@ -28,7 +28,12 @@ import { DEFAULT_UPDATE_INTERVAL } from "./LivePlayerData";
 import { PlayerSkinCache } from "./player/PlayerSkinCache";
 import { ItemAssetCache } from "./player/ItemAssetCache";
 import { WORLD_TIME_EVENT } from "./WorldTimeLighting";
-import { ENTITIES_STEPPED_EVENT, ENTITY_MARKER_SET_ID } from "./EntityMarkerManager";
+import { ENTITIES_STEPPED_EVENT, ENTITY_MARKER_SET_ID, viewFrustum } from "./EntityMarkerManager";
+import { Sphere } from "three";
+
+/** the sphere around the marker (at head-height) that is tested against the view, in blocks */
+const PLAYER_VIEW_RADIUS = 2.5;
+const viewSphere = new Sphere();
 import { applyDynamicLights, playerLights } from "./DynamicLights";
 
 export const PLAYER_MARKER_SET_ID = "bm-players";
@@ -96,6 +101,8 @@ export class PlayerMarkerManager extends MarkerManager {
         if (!playerMarkerSet) return;
 
         const setVisible = playerMarkerSet.visible;
+        // only players in the view of the camera need a high frame-rate (BlueMapApp sets the camera)
+        const frustum = this.camera ? viewFrustum(this.camera) : null;
         dt = Math.min(Math.max(dt, 0), MAX_ANIMATION_STEP);
         let active = false;
         // without (shown) live entities there is no vehicle to draw a rider on
@@ -104,7 +111,8 @@ export class PlayerMarkerManager extends MarkerManager {
         playerMarkerSet.markers.forEach(marker => {
             if (!marker.isPlayerMarker) return;
             if (noEntities) marker.attachTo(null);
-            if (marker.stepAnimation(dt) && setVisible && marker.visible && marker.model.visible) active = true;
+            if (marker.stepAnimation(dt) && setVisible && marker.visible && marker.model.visible &&
+                (!frustum || frustum.intersectsSphere(viewSphere.set(marker.position, PLAYER_VIEW_RADIUS)))) active = true;
         });
         // dynamic lights: players holding light-emitting items light the map (only shown players)
         if (this.lightUniforms) {

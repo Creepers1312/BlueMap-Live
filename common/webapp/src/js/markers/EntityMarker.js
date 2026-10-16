@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {Group, MathUtils, Vector3} from "three";
+import {Group, MathUtils, Sphere, Vector3} from "three";
 import {Marker} from "./Marker.js";
 import {ItemView} from "./player/ItemView.js";
 import {
@@ -32,10 +32,15 @@ import {angleDelta, interpolationDuration} from "./LivePlayerData.js";
 import {MobModel} from "./mob/MobModel.js";
 import {CREEPER_FUSE_TICKS, limbTarget, MOB_TYPES} from "./mob/MobTypes.js";
 import {LeashView, leashSpan} from "./LeashView.js";
+import {LIVE_PLAYBACK, PlaybackQueue} from "./LivePlayback.js";
 import {PlaceholderModel} from "./mob/PlaceholderModel.js";
 
 /** beyond this camera-distance (blocks) entities are not shown */
 const ENTITY_MAX_DISTANCE = 300;
+
+/** the radius of the sphere around an entity that is tested against the view (blocks, big mobs included) */
+const VIEW_RADIUS = 4;
+const tempSphere = new Sphere();
 
 /** moving further than this (blocks) between two updates is not interpolated */
 const MAX_INTERPOLATION_DISTANCE = 16;
@@ -165,6 +170,10 @@ export class EntityMarker extends Marker {
          * previous tick, interpolated by the tick-progress) and tailWagTicks
          */
         this.horse = {grass: 0, lastGrass: 0, angry: 0, lastAngry: 0, tailWag: 0};
+        /** the samples wait for their playback-time (smooth movement although the responses arrive unevenly) */
+        this.playback = new PlaybackQueue(({entity, updateInterval}, due) => this.applyData(entity, updateInterval, due));
+        /** played back: the client-time (epoch-ms) the running interpolation started at (it was due), null otherwise */
+        this.segmentStart = null;
         /** the rope of the leash (LeashView), null if not leashed */
         this.leashView = null;
         /** vanilla BoatEntity.paddlePhases (left, right) */
@@ -214,6 +223,12 @@ export class EntityMarker extends Marker {
      * @param updateInterval {number} - ms until the next update
      */
     updateFromData(entity, updateInterval) {
+        // BlueMap Live: applied evenly at its sample-time plus the playback-delay (see LivePlayback)
+        this.playback.push({entity, updateInterval}, entity.time, updateInterval);
+    }
+
+    /** @private */
+    applyData(entity, updateInterval, due = Date.now()) {
         if (this.kind === null) {
             this.lastSample = entity;
             this.kind = entityKind(entity);
@@ -262,7 +277,9 @@ export class EntityMarker extends Marker {
             } else {
                 this.from.copy(this.position);
                 this.progress = 0;
-                this.duration = interpolationDuration(previous, entity, updateInterval) / 1000;
+                this.duration = interpolationDuration(previous, entity, updateInterval, LIVE_PLAYBACK.delay > 0) / 1000;
+                // played back: the interpolation follows the time since the sample was due (not the frames)
+                this.segmentStart = LIVE_PLAYBACK.delay > 0 ? due : null;
             }
         }
 
@@ -385,14 +402,17 @@ export class EntityMarker extends Marker {
      * @param camera {import("three").Camera | null}
      * @returns {boolean} true if the entity is moving (high frame-rate needed)
      */
-    step(dt, camera) {
+    step(dt, camera, frustum = null) {
+        this.playback.release();
         this.age += dt * 20;
 
         let moving = false;
         if (this.predicting) {
             moving = this.stepPrediction(dt);
         } else if (this.progress < 1) {
-            this.progress = this.duration > 0 ? Math.min(1, this.progress + dt / this.duration) : 1;
+            if (this.duration <= 0) this.progress = 1;
+            else if (this.segmentStart !== null) this.progress = Math.min(1, Math.max(0, (Date.now() - this.segmentStart) / (this.duration * 1000)));
+            else this.progress = Math.min(1, this.progress + dt / this.duration);
             this.position.lerpVectors(this.from, this.to, this.progress);
             moving = true;
         }
@@ -400,9 +420,19 @@ export class EntityMarker extends Marker {
         // the model may still be loading or change its override
         this.updateView();
 
+        // only shown entities (near enough and in the view) are animated and need a high frame-rate,
+        // the others only follow their position and timers
         const body = this.body;
+        if (camera) {
+            const distance = Marker.calculateDistanceToCameraPlane(this.position, camera);
+            body.visible = distance <= ENTITY_MAX_DISTANCE;
+        }
+        const inView = body.visible && this.visible !== false && (!frustum || frustum.containsPoint(this.position) ||
+            frustum.intersectsSphere(tempSphere.set(this.position, VIEW_RADIUS)));
+        this.inView = inView;
+
         if (this.kind === "mob" || this.kind === "placeholder") {
-            if (this.stepMob(dt)) moving = true;
+            if (this.stepMob(dt, inView)) moving = true;
         } else if (this.kind === "item") {
             const motion = droppedItemMotion(this.age, this.motionOffset);
             body.position.set(0, motion.bob + 0.25 * (this.view ? this.view.displayScaleY : 1), 0);
@@ -417,12 +447,7 @@ export class EntityMarker extends Marker {
         } else if (this.kind === "projectile") {
             body.quaternion.setFromUnitVectors(FORWARD, tempVector.copy(this.direction).normalize());
         }
-
-        if (camera) {
-            const distance = Marker.calculateDistanceToCameraPlane(this.position, camera);
-            body.visible = distance <= ENTITY_MAX_DISTANCE;
-        }
-        return moving;
+        return moving && inView;
     }
 
     /**
@@ -431,7 +456,7 @@ export class EntityMarker extends Marker {
      * @private
      * @returns {boolean} true if it is animated (high frame-rate needed)
      */
-    stepMob(dt) {
+    stepMob(dt, inView = true) {
         const entity = this.lastData;
         if (!entity || !entity.mob) return false;
         const mob = entity.mob;
@@ -530,6 +555,8 @@ export class EntityMarker extends Marker {
 
         const hurt = this.hurtTime > 0 || dying;
         const fuse = this.fuseTicks / (CREEPER_FUSE_TICKS - 2);
+        // off-screen: the model is not posed (the pose is computed again as soon as it is shown)
+        if (!inView) return false;
         if (this.view && this.view.isMobModel) this.view.animate(input, r.body, this.deathTicks, hurt, fuse);
         else if (this.view && this.view.isPlaceholderModel) this.view.animate(r.body, hurt);
 

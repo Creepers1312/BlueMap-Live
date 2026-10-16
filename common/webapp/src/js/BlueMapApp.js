@@ -34,6 +34,7 @@ import {PopupMarker} from "./PopupMarker";
 import {MarkerSet} from "./markers/MarkerSet";
 import {getLocalStorage, round, setLocalStorage} from "./Utils";
 import {i18n, setLanguage} from "../i18n";
+import {LIVE_PLAYBACK} from "./markers/LivePlayback";
 import {PlayerMarkerManager} from "./markers/PlayerMarkerManager";
 import {EntityMarkerManager} from "./markers/EntityMarkerManager";
 import {NormalMarkerManager} from "./markers/NormalMarkerManager";
@@ -112,6 +113,11 @@ export class BlueMapApp {
             worldTime: {
                 enabled: false,
                 available: false
+            },
+            // BlueMap Live: the playback-delay of the live-data and the frame-rate-limit
+            live: {
+                delay: LIVE_PLAYBACK.delay,
+                fpsLimit: 0
             }
         });
 
@@ -412,6 +418,18 @@ export class BlueMapApp {
      * BlueMap Live: the map-lighting follows the day-night-cycle of the world (or BlueMaps own day/night-switch)
      * @param enabled {boolean}
      */
+    /** BlueMap Live: the playback-delay of the live-data in ms (0: off), see LivePlayback */
+    setLivePlaybackDelay(delay) {
+        LIVE_PLAYBACK.delay = Math.max(0, Math.min(2000, Number(delay) || 0));
+        this.appState.live.delay = LIVE_PLAYBACK.delay;
+    }
+
+    /** BlueMap Live: the highest frame-rate while something moves (0: unlimited) */
+    setFpsLimit(limit) {
+        this.mapViewer.data.fpsLimit = Math.max(0, Number(limit) || 0);
+        this.appState.live.fpsLimit = this.mapViewer.data.fpsLimit;
+    }
+
     setWorldTimeLighting(enabled) {
         this.worldTimeLighting.setEnabled(enabled);
         this.saveUserSettings();
@@ -436,6 +454,7 @@ export class BlueMapApp {
         );
         // BlueMap Live: dynamic lights of the players in the map-shader
         this.playerMarkerManager.lightUniforms = this.mapViewer.data.uniforms;
+        this.playerMarkerManager.camera = this.mapViewer.camera;
         this.playerMarkerManager.setAutoUpdateInterval(0);
         return this.playerMarkerManager.update()
             .then(() => {
@@ -714,6 +733,8 @@ export class BlueMapApp {
         this.setChunkBorders(this.loadUserSetting("chunkBorders", this.mapViewer.data.uniforms.chunkBorders.value))
         this.setDebug(this.loadUserSetting("debug", this.appState.debug));
         this.worldTimeLighting.setEnabled(this.loadUserSetting("worldTime", this.appState.worldTime.enabled));
+        this.setLivePlaybackDelay(this.loadUserSetting("livePlaybackDelay", this.appState.live.delay));
+        this.setFpsLimit(this.loadUserSetting("fpsLimit", this.appState.live.fpsLimit));
 
         alert(this.events, "Settings loaded!", "info");
     }
@@ -737,6 +758,8 @@ export class BlueMapApp {
         this.saveUserSetting("chunkBorders", this.mapViewer.data.uniforms.chunkBorders.value);
         this.saveUserSetting("debug", this.appState.debug);
         this.saveUserSetting("worldTime", this.appState.worldTime.enabled);
+        this.saveUserSetting("livePlaybackDelay", this.appState.live.delay);
+        this.saveUserSetting("fpsLimit", this.appState.live.fpsLimit);
 
         alert(this.events, "Settings saved!", "info");
     }

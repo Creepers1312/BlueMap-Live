@@ -61,6 +61,7 @@ public class ItemAssetUpdater {
     private final Set<String> requestedEntities = ConcurrentHashMap.newKeySet();
     private final Set<String> requestedTextures = ConcurrentHashMap.newKeySet();
     private @Nullable ItemModelBaker.Resources resources;
+    private long lastResourcesUse = 0;
 
     /**
      * @param storages supplies the storages of all maps, returns null if not ready
@@ -190,7 +191,19 @@ public class ItemAssetUpdater {
 
     private synchronized @Nullable ItemModelBaker.Resources getResources() throws Exception {
         if (resources == null) resources = resourcesLoader.load();
+        lastResourcesUse = System.currentTimeMillis();
         return resources;
+    }
+
+    /**
+     * Releases the resources if they have not been used for the given time (the baked assets stay in the storage,
+     * the resources are only needed for items that are held for the first time). They are loaded again when needed.
+     * @return true if they were released
+     */
+    public synchronized boolean releaseIdleResources(long idleMillis, long now) {
+        if (resources == null || now - lastResourcesUse < idleMillis) return false;
+        resources = null;
+        return true;
     }
 
 }

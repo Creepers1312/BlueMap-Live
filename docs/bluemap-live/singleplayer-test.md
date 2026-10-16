@@ -300,6 +300,7 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q23 | Tier an der Leine führen; Leine an einen Zaun knoten; Boot an der Leine | Seil hängt durch zwischen Kopf des Tiers und Hand bzw. Knoten, folgt beim Laufen; Knoten am Zaun sichtbar |
 | Q24 | Nachts ins Bett legen (am besten zu zweit oder mit `/gamerule playersSleepingPercentage 200`, damit die Nacht nicht sofort vorbei ist) | Spieler liegt im Bett, Kopf am Kopfende, wie ein schlafender Dorfbewohner |
 | Q25 | Nachts mit Uhr-Knopf an: Fackel, Laterne, Lavaeimer in die Hand nehmen und herumlaufen | Karte um den Spieler wird heller (Fackel etwa 14 Blöcke Reichweite), wandert mit; ohne Licht wieder dunkel |
+| Q26 | Karte über das Internet öffnen (nicht im eigenen Netz), Spieler und Mobs beim Laufen beobachten; im Kartenmenü „Live-Anzeige“ die Glättung auf „Aus“ und zurück stellen; Bildrate auf 30 FPS | Mit Glättung laufen Figuren ohne Stocken (etwa eine halbe Sekunde verzögert); ohne Glättung wie bisher; Einstellungen bleiben nach dem Neuladen erhalten |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

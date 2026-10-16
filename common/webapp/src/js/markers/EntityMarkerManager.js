@@ -29,6 +29,7 @@ import {entityKind, parseEntitiesResponse} from "./LiveEntityData";
 import {DEFAULT_UPDATE_INTERVAL, isStaleResponse} from "./LivePlayerData";
 import {ItemAssetCache} from "./player/ItemAssetCache";
 import {MobAssetCache} from "./mob/MobAssetCache";
+import {Frustum, Matrix4} from "three";
 
 export const ENTITY_MARKER_SET_ID = "bm-entities";
 
@@ -45,6 +46,19 @@ const MAX_ANIMATION_STEP = 0.25;
  * arrows and other projectiles and mobs, in an own (toggleable) marker-set "Entities".
  * Animated in the existing render-loop of the map-viewer (bluemapRenderFrame), like the player-models.
  */
+const frustum = new Frustum();
+const projectionView = new Matrix4();
+
+/**
+ * @param camera {import("three").Camera}
+ * @returns {Frustum} the view of the camera (shared object, valid until the next call)
+ */
+export function viewFrustum(camera) {
+    camera.updateMatrixWorld();
+    projectionView.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    return frustum.setFromProjectionMatrix(projectionView);
+}
+
 export class EntityMarkerManager extends MarkerManager {
 
     /**
@@ -132,8 +146,10 @@ export class EntityMarkerManager extends MarkerManager {
         if (!set) return;
         dt = Math.min(Math.max(dt, 0), MAX_ANIMATION_STEP);
         let moving = false;
+        // the view of the camera: entities outside of it are not animated and need no high frame-rate
+        const frustum = this.camera ? viewFrustum(this.camera) : null;
         set.markers.forEach(marker => {
-            if (marker.isEntityMarker && marker.step(dt, this.camera) && marker.visible) moving = true;
+            if (marker.isEntityMarker && marker.step(dt, this.camera, frustum) && marker.visible) moving = true;
         });
         if (moving && set.visible && this.redraw) this.redraw();
         this.updateLeashes(set);

@@ -14,6 +14,19 @@
       <SwitchButton v-if="appState.worldTime.available" :on="appState.worldTime.enabled" @action="$bluemap.setWorldTimeLighting(!appState.worldTime.enabled)">{{ $t("lighting.worldTime.button") }}</SwitchButton>
     </Group>
 
+    <Group :title="$t('live.title')">
+      <div class="bm-live-setting-label">{{ $t("live.smoothing") }}</div>
+      <SimpleButton v-for="delay of playbackDelays" :key="delay"
+                    :active="appState.live.delay === delay"
+                    @action="$bluemap.setLivePlaybackDelay(delay); $bluemap.saveUserSettings()"
+      >{{ delay === 0 ? $t("live.smoothingOff") : delay + " ms" }}</SimpleButton>
+      <div class="bm-live-setting-label">{{ $t("live.fpsLimit") }}</div>
+      <SimpleButton v-for="limit of fpsLimits" :key="limit"
+                    :active="appState.live.fpsLimit === limit"
+                    @action="$bluemap.setFpsLimit(limit); $bluemap.saveUserSettings()"
+      >{{ limit === 0 ? $t("live.fpsUnlimited") : limit + " FPS" }}</SimpleButton>
+    </Group>
+
     <Group :title="$t('resolution.title')">
       <SimpleButton v-for="stage of qualityStages" :key="stage.name"
                     :active="mapViewer.superSampling === stage.value"
@@ -71,6 +84,7 @@ import SimpleButton from "./SimpleButton.vue";
 import Slider from "./Slider.vue";
 import SwitchButton from "./SwitchButton.vue";
 import {i18n, setLanguage} from "../../i18n";
+import {PLAYBACK_DELAYS} from "../../js/markers/LivePlayback";
 
 const themes = [
   {get name(){ return i18n.t("theme.default")}, value: null},
@@ -105,6 +119,8 @@ name: "SettingsMenu",
 
       qualityStages: qualityStages,
       themes: themes,
+      playbackDelays: PLAYBACK_DELAYS,
+      fpsLimits: [0, 60, 30],
     }
   },
   computed: {
@@ -134,5 +150,9 @@ name: "SettingsMenu",
 </script>
 
 <style>
-
+.bm-live-setting-label {
+  padding: 0.5em 1em 0.25em;
+  opacity: 0.75;
+  font-size: 0.9em;
+}
 </style>

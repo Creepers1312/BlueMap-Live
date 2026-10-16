@@ -46,6 +46,15 @@ const browser = await chromium.launch({
     args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
 });
 const page = await browser.newPage({viewport: {width: 1280, height: 800}});
+// these steps check the movement itself: the samples are applied when they arrive (no playback-buffer,
+// see playback-e2e.mjs for the buffer)
+await page.addInitScript(() => {
+    const off = setInterval(() => {
+        if (!window.bluemap?.setLivePlaybackDelay) return;
+        window.bluemap.setLivePlaybackDelay(0);
+        clearInterval(off);
+    }, 5);
+});
 
 const pageErrors = [];
 page.on("pageerror", e => pageErrors.push(e.message));

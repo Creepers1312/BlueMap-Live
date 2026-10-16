@@ -6,6 +6,10 @@ import assert from "node:assert/strict";
 
 import {PlayerAnimator, SWING_DURATION} from "../src/js/markers/player/PlayerAnimator.js";
 import {parsePlayer} from "../src/js/markers/LivePlayerData.js";
+import {LIVE_PLAYBACK} from "../src/js/markers/LivePlayback.js";
+
+// these tests apply every sample at once (the playback-buffer is tested in LivePlayback.test.mjs)
+LIVE_PLAYBACK.delay = 0;
 
 const UUID = "069a79f4-44e9-4726-a5be-fca90e38aaf5";
 

@@ -248,6 +248,30 @@ public class ItemModelBakerTest {
         assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "entity/zombie/zombie")); // mob-textures
         assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "gui/widgets"));
         assertTrue(ItemResourceIndex.isItemRelevantTexture("mymod", "anything/else"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("mymod", "item/hammer"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("mymod", "models/armor/ruby_layer_1"), "armor of mods");
+        // with many mods their gui-, particle- and mob-textures would take a lot of memory (not used by item-models)
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("mymod", "gui/container"));
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("mymod", "particle/spark"));
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("mymod", "entity/giant_squid"));
+    }
+
+    @Test
+    public void testIdleResourcesAreReleased() throws Exception {
+        int[] loads = {0};
+        ItemAssetUpdater updater = new ItemAssetUpdater(() -> null, () -> {
+            loads[0]++;
+            return new TestResources();
+        }, Runnable::run);
+        assertFalse(updater.releaseIdleResources(1000, System.currentTimeMillis()), "nothing loaded yet");
+        java.lang.reflect.Method get = ItemAssetUpdater.class.getDeclaredMethod("getResources");
+        get.setAccessible(true);
+        get.invoke(updater);
+        assertEquals(1, loads[0]);
+        assertFalse(updater.releaseIdleResources(60_000, System.currentTimeMillis()), "used recently");
+        assertTrue(updater.releaseIdleResources(60_000, System.currentTimeMillis() + 120_000), "unused: released");
+        get.invoke(updater);
+        assertEquals(2, loads[0], "loaded again when needed");
     }
 
     @Test

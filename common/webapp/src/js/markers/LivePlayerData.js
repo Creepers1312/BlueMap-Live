@@ -420,12 +420,20 @@ export function angleDelta(a, b) {
  * @param previous {LivePlayer | null}
  * @param next {LivePlayer}
  * @param updateInterval {number}
+ * @param buffered {boolean} - the samples are played back at their sample-times (LivePlayback): the whole time
+ *   between the samples, without the limit of the update-interval
  * @returns {number}
  */
-export function interpolationDuration(previous, next, updateInterval) {
+export function interpolationDuration(previous, next, updateInterval, buffered = false) {
     let duration = updateInterval;
     if (previous && previous.time !== null && next.time !== null && next.time > previous.time) {
-        duration = Math.min(next.time - previous.time, updateInterval);
+        // played back (see LivePlayback): the samples are applied as far apart as they were taken, also if some were
+        // missed (requested less often than sampled), so the movement takes the whole time between them
+        duration = buffered ? Math.min(next.time - previous.time, MAX_BUFFERED_INTERPOLATION) :
+            Math.min(next.time - previous.time, updateInterval);
     }
     return Math.min(MAX_UPDATE_INTERVAL, Math.max(50, duration));
 }
+
+/** the longest interpolation of played back samples (ms), e.g. after the page was in the background */
+export const MAX_BUFFERED_INTERPOLATION = 2000;

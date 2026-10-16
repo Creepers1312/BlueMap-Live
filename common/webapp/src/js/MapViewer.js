@@ -77,6 +77,8 @@ export class MapViewer {
 				}
 			},
 			superSampling: 1,
+			// BlueMap Live: the highest frame-rate while something moves (0: unlimited, the display-rate)
+			fpsLimit: 0,
 			loadedCenter: new Vector2(0, 0),
 			loadedHiresViewDistance: 200,
 			loadedLowresViewDistance: 2000,
@@ -300,7 +302,8 @@ export class MapViewer {
 		}
 
 		// render
-		if (delta >= 50 || Date.now() - this.lastRedrawChange < 1000) {
+		const minDelta = this.data.fpsLimit > 0 ? 1000 / this.data.fpsLimit - 1 : 0;
+		if (delta >= 50 || (Date.now() - this.lastRedrawChange < 1000 && delta >= minDelta)) {
 			this.lastFrame = now;
 			this.render(delta);
 		}

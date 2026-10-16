@@ -10,6 +10,10 @@ import {
 } from "../src/js/markers/LiveEntityData.js";
 import {EntityMarker} from "../src/js/markers/EntityMarker.js";
 import {buildArrowGeometry, ItemAssetCache} from "../src/js/markers/player/ItemAssetCache.js";
+import {LIVE_PLAYBACK} from "../src/js/markers/LivePlayback.js";
+
+// these tests apply every sample at once (the playback-buffer is tested in LivePlayback.test.mjs)
+LIVE_PLAYBACK.delay = 0;
 
 const flush = () => new Promise(r => setTimeout(r, 0));
 

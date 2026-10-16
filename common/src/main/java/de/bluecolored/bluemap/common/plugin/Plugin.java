@@ -321,6 +321,11 @@ public class Plugin implements ServerEventListener {
                         // if nothing is being actively rendered, clear caches and pools to release some heap-space
                         if (!renderManager.isRunning() || renderManager.getCurrentRenderTask() == null)
                             ArrayTileModel.instancePool().clear();
+
+                        // BlueMap Live: the resources for item-models are only kept while they are used
+                        ItemAssetUpdater items = itemAssetUpdater;
+                        if (items != null && items.releaseIdleResources(TimeUnit.MINUTES.toMillis(10), System.currentTimeMillis()))
+                            Logger.global.logDebug("Released the unused resources of the item-models.");
                     }
                 };
                 daemonTimer.schedule(saveTask, TimeUnit.MINUTES.toMillis(10), TimeUnit.MINUTES.toMillis(10));

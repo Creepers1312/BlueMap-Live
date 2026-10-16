@@ -30,6 +30,7 @@ import {angleDelta, bedTransform, DEFAULT_UPDATE_INTERVAL, interpolationDuration
 import {PlayerModel} from "./player/PlayerModel";
 import {PlayerSkinCache} from "./player/PlayerSkinCache";
 import {PlayerAnimator} from "./player/PlayerAnimator";
+import {LIVE_PLAYBACK, PlaybackQueue} from "./LivePlayback";
 
 const Y_AXIS = new Vector3(0, 1, 0), Z_AXIS = new Vector3(0, 0, 1);
 const tempQuaternion = new Quaternion();
@@ -112,6 +113,11 @@ export class PlayerMarker extends Marker {
 
         // limb-animations, stepped by the PlayerMarkerManager in the render-loop of the map-viewer
         this.animator = new PlayerAnimator();
+
+        /** the samples wait for their playback-time (smooth movement although the responses arrive unevenly) */
+        this.playback = new PlaybackQueue(({markerData, updateInterval}, due) => this.applyData(markerData, updateInterval, due));
+        /** played back: the running interpolation, computed every frame from the time it was due */
+        this.segment = null;
     }
 
     /**
@@ -158,6 +164,17 @@ export class PlayerMarker extends Marker {
      * @param updateInterval {number} - the expected time until the next update in ms
      */
     updateFromData(markerData, updateInterval = DEFAULT_UPDATE_INTERVAL) {
+        // BlueMap Live: applied evenly at its sample-time plus the playback-delay (see LivePlayback)
+        this.playback.push({markerData, updateInterval}, markerData.time, updateInterval);
+    }
+
+    /**
+     * @private
+     * @param markerData {import("./LivePlayerData").LivePlayer}
+     * @param updateInterval {number}
+     * @param due {number} - client-time (epoch-ms) when the sample was due
+     */
+    applyData(markerData, updateInterval, due = Date.now()) {
         const previous = this.lastPlayerData;
 
         // ignore position-updates that are older than the current state
@@ -165,7 +182,7 @@ export class PlayerMarker extends Marker {
             // teleport, respawn, world-change: the animation starts fresh as well
             if (isDiscontinuous(previous, markerData)) this.animator.reset();
             this.animator.setTarget(markerData);
-            this.updateMovement(previous, markerData, updateInterval);
+            this.updateMovement(previous, markerData, updateInterval, due);
             this.lastPlayerData = markerData;
             this.vehicle = markerData.vehicle;
             this.applyDisplay(); // e.g. into or out of the bed
@@ -199,7 +216,7 @@ export class PlayerMarker extends Marker {
     /**
      * @private
      */
-    updateMovement(previous, next, updateInterval) {
+    updateMovement(previous, next, updateInterval, due = Date.now()) {
         const target = {
             x: next.position.x,
             y: next.position.y,
@@ -213,6 +230,7 @@ export class PlayerMarker extends Marker {
             this.movementAnimation.cancel();
             this.movementAnimation = null;
         }
+        this.segment = null;
 
         // teleport, respawn, world-change, first update: jump directly to the new state
         if (isDiscontinuous(previous, next)) {
@@ -233,6 +251,15 @@ export class PlayerMarker extends Marker {
 
         if (!delta.x && !delta.y && !delta.z && !delta.bodyYaw && !delta.headYaw && !delta.pitch) return;
 
+        const duration = interpolationDuration(previous, next, updateInterval, LIVE_PLAYBACK.delay > 0);
+        if (LIVE_PLAYBACK.delay > 0) {
+            // played back: the position follows the time since the sample was due (see stepAnimation), so the
+            // movement does not wait for the next frame and runs without stops from sample to sample
+            this.segment = {start, delta, startTime: due, duration};
+            this.stepSegment();
+            return;
+        }
+
         this.movementAnimation = animate(progress => {
             this.applyMovement({
                 x: start.x + delta.x * progress,
@@ -242,7 +269,29 @@ export class PlayerMarker extends Marker {
                 headYaw: start.headYaw + delta.headYaw * progress,
                 pitch: start.pitch + delta.pitch * progress,
             });
-        }, interpolationDuration(previous, next, updateInterval));
+        }, duration);
+    }
+
+    /**
+     * @private
+     * Played back: applies the interpolation at the current time.
+     * @returns {boolean} true while it moves
+     */
+    stepSegment() {
+        const segment = this.segment;
+        if (!segment) return false;
+        const progress = Math.min(1, Math.max(0, (Date.now() - segment.startTime) / segment.duration));
+        const {start, delta} = segment;
+        this.applyMovement({
+            x: start.x + delta.x * progress,
+            y: start.y + delta.y * progress,
+            z: start.z + delta.z * progress,
+            bodyYaw: start.bodyYaw + delta.bodyYaw * progress,
+            headYaw: start.headYaw + delta.headYaw * progress,
+            pitch: start.pitch + delta.pitch * progress,
+        });
+        if (progress >= 1) this.segment = null;
+        return true;
     }
 
     /**
@@ -315,6 +364,8 @@ export class PlayerMarker extends Marker {
      * @returns {boolean} true if the model is currently moving and should be rendered with a high frame-rate
      */
     stepAnimation(dt) {
+        this.playback.release();
+        const moving = this.stepSegment();
         const state = this.shownState;
         const active = this.animator.step(dt,
             MathUtils.degToRad(state.pitch),
@@ -322,7 +373,7 @@ export class PlayerMarker extends Marker {
         );
         this.model.applyPose(this.animator.pose);
         // the enchantment-glint moves all the time (vanilla texture-matrix by the time): keep rendering
-        return active || !!(this.model.armor && this.model.armor.hasGlint);
+        return active || moving || !!(this.model.armor && this.model.armor.hasGlint);
     }
 
     dispose() {

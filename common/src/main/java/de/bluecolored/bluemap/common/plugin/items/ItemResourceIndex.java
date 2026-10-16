@@ -45,11 +45,12 @@ import java.util.stream.Stream;
  * The model-jsons and the (item-relevant) textures of the resource-packs, read once from the same pack-roots
  * (and with the same priority: the first root that has a resource wins) that BlueMap uses to render the maps.
  * <p>BlueMap itself does not keep the display-transformations, overrides and item-textures, so they are read here.
- * Only the raw files are kept in memory (model-jsons and the pngs of item/block textures, a few MB for vanilla).</p>
+ * Only the raw files are kept in memory (model-jsons and the pngs of item/block textures, a few MB for vanilla;
+ * the gui-, particle- and mob-textures of mods are left out). It is released again when unused (ItemAssetUpdater).</p>
  */
 public class ItemResourceIndex implements ItemModelBaker.Resources {
 
-    /** texture-folders of the minecraft namespace that are never used by item-models */
+    /** texture-folders that are never used by item-models (minecraft and mods) */
     private static final Set<String> SKIPPED_TEXTURE_FOLDERS = Set.of(
             "gui", "environment", "painting", "particle", "font", "map", "mob_effect", "trims", "colormap",
             "effect", "models", "misc"
@@ -122,11 +123,13 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
     }
 
     static boolean isItemRelevantTexture(String namespace, String value) {
-        if (!namespace.equals("minecraft")) return true;
-        if (value.startsWith("entity/")) return true; // shield, projectiles and the mob-textures
-        if (value.startsWith("models/armor/")) return true; // armor-layers
+        if (value.startsWith("models/armor/")) return true; // armor-layers (also of mods)
         if (value.startsWith("trims/models/armor/") || value.startsWith("trims/color_palettes/")) return true; // armor-trims
         if (value.startsWith("misc/enchanted_glint")) return true; // the enchantment-glint
+        // shield, projectiles and the mob-textures of minecraft; the mob-textures of mods are not used (no models)
+        if (value.startsWith("entity/")) return namespace.equals("minecraft");
+        // the same folders are skipped for mods (BlueMap Live: with many mods their gui- and particle-textures
+        // would take a lot of memory)
         int slash = value.indexOf('/');
         return slash < 0 || !SKIPPED_TEXTURE_FOLDERS.contains(value.substring(0, slash));
     }
