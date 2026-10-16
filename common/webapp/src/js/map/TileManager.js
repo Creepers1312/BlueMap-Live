@@ -224,18 +224,17 @@ export class TileManager {
      * @param x {number}
      * @param z {number}
      * @param cacheHash {number | string}
-     * @returns {boolean} if the tile is loaded (and is reloaded)
+     * @returns {Promise<void> | null} - resolved when the tile was loaded again, null if it is not loaded
      */
     reloadTile(x, z, cacheHash) {
         const tileHash = hashTile(x, z);
         this.cacheHashes.delete(tileHash);
         this.cacheHashes.set(tileHash, cacheHash);
         if (this.cacheHashes.size > 10000) this.cacheHashes.delete(this.cacheHashes.keys().next().value);
-        if (this.unloaded) return false;
+        if (this.unloaded) return null;
         const tile = this.tiles.get(tileHash);
-        if (!tile || tile.unloaded) return false;
-        tile.reload(this.tileLoader, cacheHash);
-        return true;
+        if (!tile || tile.unloaded) return null;
+        return tile.reload(this.tileLoader, cacheHash);
     }
 
     handleLoadedTile = tile => {

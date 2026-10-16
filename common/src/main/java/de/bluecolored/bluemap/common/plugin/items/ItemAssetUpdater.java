@@ -141,7 +141,7 @@ public class ItemAssetUpdater {
 
     /** if the block-state is valid (and normalized: properties sorted by name) */
     public static boolean isValidBlockState(String state) {
-        return state.length() <= 512 && BLOCK_STATE.matcher(state).matches();
+        return state.length() <= 512 && !state.contains("..") && BLOCK_STATE.matcher(state).matches();
     }
 
     /**

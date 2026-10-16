@@ -34,6 +34,8 @@ import {LIVE_CLOCK, LIVE_PLAYBACK} from "./LivePlayback.js";
 import {ParticleSystem} from "./particles/LiveParticles.js";
 import {ParticleView} from "./particles/ParticleView.js";
 import {ChestLidView} from "./ChestLidView.js";
+import {PreviewStore} from "./blocks/BlockPreviewData.js";
+import {BlockAssetCache, BlockPreviewView} from "./blocks/BlockPreviewView.js";
 
 /** effects that would be shown later than this (ms) after their playback-time are skipped (e.g. after a reload) */
 const MAX_EFFECT_LATENESS = 1500;
@@ -104,6 +106,14 @@ export class EntityMarkerManager extends MarkerManager {
         /** the uniforms of the map-shader (hidden boxes), set by the app */
         this.mapUniforms = null;
 
+        // BlueMap Live: previews of block-changes until the tile is rendered again (see docs/bluemap-live/phase-11.md),
+        // created by the app with the tile-settings of the map (initBlockPreviews)
+        this.blockPreviews = null;
+        this.blockView = null;
+        this.blockAssets = null;
+        /** @type {Array<{due: number, blocks: object[]}>} */
+        this.scheduledBlocks = [];
+
         this.onRenderFrame = evt => this.animateEntities(evt.detail.delta / 1000);
         if (this.events) this.events.addEventListener("bluemapRenderFrame", this.onRenderFrame);
     }
@@ -163,6 +173,7 @@ export class EntityMarkerManager extends MarkerManager {
         });
         this.scheduleEffects(response.effects || []);
         this.scheduleContainers(response.containers || [], response.serverTime);
+        if (this.blockPreviews && response.blocks && response.blocks.length > 0) this.scheduleBlocks(response.blocks);
         // the particle-textures are loaded as soon as something emits particles (before the playback shows it)
         if ((response.effects && response.effects.length > 0) || response.entities.some(entity => entity.particles)) {
             this.particleView.load();
@@ -232,6 +243,62 @@ export class EntityMarkerManager extends MarkerManager {
         const drawn = this.chestLids.step(dt);
         this.chestLids.applyHiddenBoxes(this.mapUniforms);
         return drawn;
+    }
+
+    /**
+     * @param hires {{tileSize: {x: number, z: number}, translate: {x: number, z: number}}} - the hires-settings of the map
+     * @param blocksUrl {string} - assets/blocks/ of the map
+     */
+    initBlockPreviews(hires, blocksUrl) {
+        this.blockPreviews = new PreviewStore(hires);
+        this.blockAssets = new BlockAssetCache(blocksUrl, () => this.blockView && this.blockView.invalidate());
+        this.blockView = new BlockPreviewView(this.blockPreviews, this.blockAssets);
+    }
+
+    /**
+     * A tile was rendered again (see LiveTileUpdater): its confirmed previews are removed.
+     * @param tile {{x: number, z: number, chunks: number[]}}
+     */
+    confirmTile(tile) {
+        if (this.blockPreviews) this.blockPreviews.confirm(tile);
+    }
+
+    /**
+     * The block-changes are shown at their playback-time (like the entities that cause them), at once without a delay.
+     * @private
+     */
+    scheduleBlocks(blocks) {
+        const now = Date.now();
+        const byDue = new Map();
+        for (const block of blocks) {
+            const playback = LIVE_PLAYBACK.delay > 0 ? LIVE_CLOCK.playbackTime(block.time, LIVE_PLAYBACK.delay + this.updateInterval) : null;
+            const due = playback !== null ? Math.min(playback, now + 5000) : now;
+            const key = Math.round(due / 50);
+            if (!byDue.has(key)) byDue.set(key, {due, blocks: []});
+            byDue.get(key).blocks.push(block);
+        }
+        byDue.forEach(item => this.scheduledBlocks.push(item));
+        this.scheduledBlocks.sort((a, b) => a.due - b.due);
+        if (this.scheduledBlocks.length > 200) this.scheduledBlocks.splice(0, this.scheduledBlocks.length - 200);
+    }
+
+    /**
+     * Applies the due block-changes and draws the previews.
+     * @private
+     * @returns {boolean} if something changed
+     */
+    animateBlocks(set) {
+        if (!this.blockPreviews) return false;
+        const now = Date.now();
+        while (this.scheduledBlocks.length > 0 && this.scheduledBlocks[0].due <= now) {
+            this.blockPreviews.apply(this.scheduledBlocks.shift().blocks);
+        }
+        this.blockPreviews.expire();
+        // the previews are part of the map (shown with a hidden entity-set as well)
+        if (this.blockView.group.parent !== this.root) this.root.add(this.blockView.group);
+        const changed = this.blockView.update();
+        this.blockView.applyHiddenBlocks(this.mapUniforms);
+        return changed;
     }
 
     /** @private shows the effects whose time has come */
@@ -309,6 +376,7 @@ export class EntityMarkerManager extends MarkerManager {
         const set = this.getEntityMarkerSet(false);
         if (!set) return;
         dt = Math.min(Math.max(dt, 0), MAX_ANIMATION_STEP);
+        if (this.animateBlocks(set) && this.redraw) this.redraw();
         let moving = false;
         // the view of the camera: entities outside of it are not animated and need no high frame-rate
         const frustum = this.camera ? viewFrustum(this.camera) : null;
@@ -352,6 +420,13 @@ export class EntityMarkerManager extends MarkerManager {
         this.particleSystem.clear();
         this.chestLids.dispose();
         this.chestLids.applyHiddenBoxes(this.mapUniforms);
+        if (this.blockView) {
+            this.blockPreviews.clear();
+            this.blockView.update();
+            this.blockView.applyHiddenBlocks(this.mapUniforms);
+            this.blockView.dispose();
+            this.blockAssets.dispose();
+        }
         this.itemCache.dispose();
         this.entityCache.dispose();
         this.mobCache.dispose();

@@ -233,6 +233,24 @@ public class LivePlayersDataSupplierTest {
     }
 
     @Test
+    public void testBlockChangesAroundShownPlayersWithTheirAssets() throws Exception {
+        TestPlayer player = new TestPlayer(overworld, new Vector3d(0, 64, 0));
+        player.snapshot = new Player.LiveSnapshot(overworld, state(new Vector3d(0, 64, 0), 0));
+        TestServer server = new TestServer(player);
+        server.blocks = List.of(
+                new LiveBlockLog.Change(1, 5, 64, 0, "minecraft:air", new String[] {"minecraft:dirt", null, null, null, null, null}, 900),
+                new LiveBlockLog.Change(2, 500, 64, 0, "minecraft:stone", null, 900) // outside of 96 blocks
+        );
+        List<String> requested = new ArrayList<>();
+        JsonObject blocks = root(supplyEntities(new PluginConfig(), server, requested)).getAsJsonObject("blocks");
+        assertEquals(1, blocks.getAsJsonArray("changes").size());
+        assertTrue(requested.containsAll(List.of("block:minecraft:air", "block:minecraft:dirt")), requested.toString());
+        assertFalse(requested.contains("block:minecraft:stone"));
+        assertFalse(root(supplyEntities(config("liveBlockPreview", false), server, new ArrayList<>())).has("blocks"));
+        assertFalse(root(supplyEntities(config("liveBlockUpdates", false), server, new ArrayList<>())).has("blocks"));
+    }
+
+    @Test
     public void testOpenContainersAroundShownPlayers() {
         TestPlayer player = new TestPlayer(overworld, new Vector3d(0, 64, 0));
         player.snapshot = new Player.LiveSnapshot(overworld, state(new Vector3d(0, 64, 0), 0));
@@ -442,6 +460,7 @@ public class LivePlayersDataSupplierTest {
         private List<LiveEntityState> entities = List.of();
         private List<LiveEffect> effects = List.of();
         private List<OpenContainer> containers = List.of();
+        private List<LiveBlockLog.Change> blocks = List.of();
 
         TestServer(Player... players) {
             this.players = List.of(players);
@@ -459,6 +478,9 @@ public class LivePlayersDataSupplierTest {
         @Override public void unregisterAllListeners() {}
         @Override public List<LiveEntityState> getLiveEntities(ServerWorld world) {
             return world == overworld ? entities : List.of();
+        }
+        @Override public List<LiveBlockLog.Change> getLiveBlockChanges(ServerWorld world) {
+            return world == overworld ? blocks : List.of();
         }
         @Override public List<OpenContainer> getOpenContainers(ServerWorld world) {
             return world == overworld ? containers : List.of();

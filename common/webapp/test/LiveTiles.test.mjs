@@ -11,7 +11,10 @@ test("live-tiles: the response is validated", () => {
     assert.equal(parseTilesResponse(null), null);
     assert.equal(parseTilesResponse({tiles: []}), null, "next is required");
     assert.deepEqual(parseTilesResponse({next: 5, tiles: [{id: 3, x: 1, z: -2}, {id: "4", x: 1, z: 1}, {id: 4, x: 0, z: 0, lowres: true}]}),
-        {next: 5, tiles: [{id: 3, x: 1, z: -2, lowres: false}, {id: 4, x: 0, z: 0, lowres: true}]});
+        {next: 5, tiles: [{id: 3, x: 1, z: -2, lowres: false, chunks: []}, {id: 4, x: 0, z: 0, lowres: true, chunks: []}]});
+    assert.deepEqual(parseTilesResponse({next: 2, tiles: [{id: 1, x: 0, z: 0, chunks: [0, 0, 1700000000, 1, 0, "x"]}]}).tiles[0].chunks, [],
+        "invalid chunk-times are ignored");
+    assert.deepEqual(parseTilesResponse({next: 2, tiles: [{id: 1, x: 0, z: 0, chunks: [0, 0, 1700000000]}]}).tiles[0].chunks, [0, 0, 1700000000]);
 });
 
 test("live-tiles: the lowres-tiles of a hires-tile (like Map.loadMapArea)", () => {
@@ -26,7 +29,7 @@ test("live-tiles: the lowres-tiles of a hires-tile (like Map.loadMapArea)", () =
 
 function fakeMap() {
     const calls = [];
-    const manager = name => ({reloadTile: (x, z, hash) => { calls.push([name, x, z, hash]); return true; }});
+    const manager = name => ({reloadTile: (x, z, hash) => { calls.push([name, x, z, hash]); return Promise.resolve(); }});
     return {
         calls,
         map: {isLoaded: true, data: {hires: HIRES, lowres: LOWRES}, hiresTileManager: manager("hires"),
@@ -49,6 +52,18 @@ test("live-tiles: the first response is current, later entries are loaded again 
     assert.deepEqual(calls, []);
     updater.updateFromData({next: 3, tiles: [{id: 1, x: 9, z: 9}, {id: 2, x: 8, z: 8}]});
     assert.deepEqual(calls, [["hires", 8, 8, "live2"]]);
+});
+
+test("live-tiles: a rendered hires-tile is reported after it was loaded again (block-previews are confirmed then)", async () => {
+    const {map} = fakeMap();
+    const updater = new LiveTileUpdater(map, "tiles.json");
+    const rendered = [];
+    updater.onTileRendered = tile => rendered.push([tile.x, tile.z, tile.chunks]);
+    updater.updateFromData({next: 1, tiles: []});
+    updater.updateFromData({next: 2, tiles: [{id: 1, x: 3, z: 4, chunks: [6, 8, 1700000000]}]});
+    assert.deepEqual(rendered, [], "not before the tile is loaded");
+    await new Promise(r => setTimeout(r, 0));
+    assert.deepEqual(rendered, [[3, 4, [6, 8, 1700000000]]]);
 });
 
 test("tile: reload keeps the current model until the new one is loaded, a reload while loading follows", async () => {

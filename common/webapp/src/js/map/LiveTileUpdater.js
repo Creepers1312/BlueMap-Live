@@ -42,7 +42,8 @@ export function parseTilesResponse(data) {
     const tiles = [];
     for (const raw of data.tiles.slice(0, 4096)) {
         if (!raw || !isInt(raw.id) || !isInt(raw.x) || !isInt(raw.z)) continue;
-        tiles.push({id: raw.id, x: raw.x, z: raw.z, lowres: raw.lowres === true});
+        const chunks = Array.isArray(raw.chunks) && raw.chunks.length <= 3 * 64 && raw.chunks.every(isInt) ? raw.chunks : [];
+        tiles.push({id: raw.id, x: raw.x, z: raw.z, lowres: raw.lowres === true, chunks});
     }
     return {next: data.next, tiles};
 }
@@ -90,6 +91,8 @@ export class LiveTileUpdater {
         /** the id of the last entry that was handled (null: nothing received yet) */
         this.lastId = null;
         this.reloaded = 0;
+        /** called with a hires-tile that was rendered again, after it was loaded again (confirms the block-previews) */
+        this.onTileRendered = tile => {};
     }
 
     /** @returns {Promise<boolean>} if live/tiles.json was available */
@@ -149,7 +152,13 @@ export class LiveTileUpdater {
         if (!map || !map.isLoaded || !map.hiresTileManager) return;
         const hash = "live" + cacheHash;
         for (const tile of hiresTiles) {
-            if (map.hiresTileManager.reloadTile(tile.x, tile.z, hash)) this.reloaded++;
+            const loading = map.hiresTileManager.reloadTile(tile.x, tile.z, hash);
+            if (loading) {
+                this.reloaded++;
+                loading.then(() => this.onTileRendered(tile));
+            } else {
+                this.onTileRendered(tile);
+            }
         }
         const done = new Set();
         for (const tile of lowresTiles) {

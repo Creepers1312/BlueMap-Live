@@ -269,6 +269,72 @@ await step("double chest (both halves) and an ender chest", async () => {
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.chestLids.lids.size === 0, null, {timeout: 8000});
 });
 
+// --- block-previews ---
+
+const previews = () => page.evaluate(() => {
+    const mgr = window.bluemap.entityMarkerManager;
+    return {count: mgr.blockPreviews.previews.size, meshes: mgr.blockView.meshes.length,
+        hidden: window.bluemap.mapViewer.data.uniforms.hiddenBlockCount.value};
+});
+
+/** pixels close to the orange of the test-stone around a world-position */
+async function orangeAt(name, x, y, z, radius = 20) {
+    const png = decodePng(await page.screenshot({path: `${OUT}/${name}.png`}));
+    const p = await screen(x, y, z);
+    let count = 0;
+    for (let py = p.y - radius; py < p.y + radius; py++) for (let px = p.x - radius; px < p.x + radius; px++) {
+        const [r, g, b] = png.pixel(px, py);
+        if (r > 120 && g > 30 && g < r * 0.75 && b < 60) count++;
+    }
+    return count;
+}
+
+await step("placed block: the preview is drawn at once (block-model from the resource-pack), before the tile is rendered", async () => {
+    const before = await orangeAt("b20-before", 6.5, 64.5, 8.5);
+    const start = Date.now();
+    await control({block: "6,64,8", state: "minecraft:stone", n: "minecraft:grass_block,-,-,-,-,-"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockView.meshes.length > 0, null, {timeout: 5000});
+    const took = Date.now() - start;
+    await sleep(200);
+    const after = await orangeAt("b21-placed", 6.5, 64.5, 8.5);
+    assert.ok(took < 1500, "shown after " + took + " ms");
+    assert.ok(after > before + 100, `stone pixels: ${before} -> ${after}`);
+    const state = await previews();
+    assert.deepEqual([state.count, state.hidden], [1, 1]);
+    assert.ok(state.meshes >= 1, "the stone (and the grass-face below it: the test-models have no cullfaces)");
+});
+
+await step("removed block: the block is hidden in the tile, the face of the neighbor below is drawn in the hole", async () => {
+    const before = await orangeAt("b22-before", 9.5, 64, 11.5, 45);
+    await control({block: "9,63,11", state: "minecraft:air", n: "minecraft:stone,-,-,-,-,-"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 2, null, {timeout: 5000});
+    await sleep(300);
+    const after = await orangeAt("b23-removed", 9.5, 64, 11.5, 45);
+    assert.equal((await previews()).hidden, 2);
+    assert.ok(after > before + 30, `the stone-face below in the hole: ${before} -> ${after}`);
+});
+
+await step("a rendered tile from older chunk-data does not confirm the previews", async () => {
+    await control({tileUpdate: "0,0", chunks: "0,0,1000000000"});
+    await sleep(3000);
+    assert.equal((await previews()).count, 2);
+});
+
+await step("the rendered tile with the changes confirms the previews: removed after the tile was loaded again", async () => {
+    await control({tileUpdate: "0,0", chunks: "0,0,now"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 6000});
+    await sleep(100);
+    assert.deepEqual(await previews(), {count: 0, meshes: 0, hidden: 0});
+});
+
+await step("a preview that is not confirmed is discarded after 90 s", async () => {
+    await control({block: "7,64,6", state: "minecraft:stone"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 1, null, {timeout: 5000});
+    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 91000));
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 3000});
+    assert.equal((await previews()).hidden, 0);
+});
+
 await step("no uncaught errors", async () => {
     assert.deepEqual(pageErrors, []);
 });

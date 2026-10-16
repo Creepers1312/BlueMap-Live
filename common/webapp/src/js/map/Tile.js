@@ -92,9 +92,12 @@ export class Tile {
         if (this.unloaded) return Promise.resolve();
         if (this.loading) {
             this.pendingReload = cacheHash;
-            return Promise.resolve();
+            // resolved when the reload after the current load is done
+            return new Promise(resolve => (this.pendingResolves || (this.pendingResolves = [])).push(resolve));
         }
         this.loading = true;
+        const resolves = this.pendingResolves || [];
+        this.pendingResolves = null;
         return tileLoader.load(this.x, this.z, () => this.unloaded, cacheHash)
             .then(model => {
                 if (this.unloaded) {
@@ -110,6 +113,7 @@ export class Tile {
             }, () => {}) // e.g. not available: the current model stays
             .finally(() => {
                 this.loading = false;
+                resolves.forEach(resolve => resolve());
                 if (this.pendingReload !== undefined) {
                     const pending = this.pendingReload;
                     this.pendingReload = undefined;

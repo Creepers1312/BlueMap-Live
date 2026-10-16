@@ -26,7 +26,6 @@ package de.bluecolored.bluemap.fabric;
 
 import de.bluecolored.bluemap.common.live.LiveBlockLog;
 import net.minecraft.block.BlockState;
-import net.minecraft.registry.Registries;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Property;
@@ -123,7 +122,9 @@ public final class FabricBlockChanges {
         if (cached != null) return cached;
         Map<String, String> properties = new HashMap<>();
         for (Property<?> property : state.getProperties()) properties.put(property.getName(), value(state, property));
-        String result = LiveBlockLog.normalize(Registries.BLOCK.getId(state.getBlock()).toString(), properties);
+        // like the entity-types (Registries.BLOCK.getId needs fabric-api interfaces that are not on the classpath)
+        String id = state.getRegistryEntry().getKey().map(key -> key.getValue().toString()).orElse("minecraft:air");
+        String result = LiveBlockLog.normalize(id, properties);
         if (STATE_STRINGS.size() < 65536) STATE_STRINGS.put(state, result);
         return result;
     }

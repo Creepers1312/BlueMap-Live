@@ -70,6 +70,9 @@ export class MapViewer {
 				hiddenBoxesMin: { value: Array.from({length: 16}, () => new Vector3()) },
 				hiddenBoxesMax: { value: Array.from({length: 16}, () => new Vector3()) },
 				hiddenBoxCount: { value: 0 },
+				// BlueMap Live: changed blocks that are not drawn (see BlockPreviewView)
+				hiddenBlocks: { value: null },
+				hiddenBlockCount: { value: 0 },
 				hiresTileMap: {
 					value: {
 						map: null,

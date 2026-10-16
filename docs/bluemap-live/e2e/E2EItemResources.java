@@ -229,6 +229,16 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         return models.get(key);
     }
 
+    /** the blockstates of the block-previews (BlueMap Live, phase 11) */
+    @Override
+    public @Nullable String blockStateJson(String key) {
+        return switch (key) {
+            case "minecraft:stone" -> "{\"variants\": {\"\": {\"model\": \"minecraft:block/stone\"}}}";
+            case "minecraft:grass_block" -> "{\"variants\": {\"\": {\"model\": \"minecraft:block/grass_block\"}}}";
+            default -> null;
+        };
+    }
+
     @Override
     public @Nullable BufferedImage texture(String key) {
         BufferedImage texture = textures.get(key);

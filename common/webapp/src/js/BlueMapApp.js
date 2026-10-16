@@ -490,8 +490,9 @@ export class BlueMapApp {
             this.mapViewer.redraw,
             map.data.mapDataRoot + "/assets/entities/"
         );
-        // BlueMap Live: the hidden lids of opened chests in the map-shader
+        // BlueMap Live: the hidden lids of opened chests and the changed blocks in the map-shader
         manager.mapUniforms = this.mapViewer.data.uniforms;
+        manager.initBlockPreviews(map.data.hires, map.data.mapDataRoot + "/assets/blocks/");
         manager.setAutoUpdateInterval(0);
         return manager.update()
             .then(success => {
@@ -509,6 +510,8 @@ export class BlueMapApp {
         const map = this.mapViewer.map;
         if (!map) return;
         const updater = this.liveTileUpdater = new LiveTileUpdater(map, map.data.liveDataRoot + "/live/tiles.json", this.events);
+        // the block-previews of a tile are confirmed when it was rendered again
+        updater.onTileRendered = tile => this.entityMarkerManager && this.entityMarkerManager.confirmTile(tile);
         return updater.update().then(() => updater.setAutoUpdateInterval(TILE_UPDATE_INTERVAL));
     }
 

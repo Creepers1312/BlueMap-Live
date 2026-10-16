@@ -32,6 +32,7 @@ import {BED_DIRECTIONS, bedTransform, parseEquipment, parseItem, resolveUpdateIn
 import {MOB_TYPES} from "./mob/MobTypes.js";
 import {parseEffects, parseParticles} from "./particles/ParticleData.js";
 import {parseContainers} from "./ChestLids.js";
+import {parseBlocks} from "./blocks/BlockPreviewData.js";
 
 const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
 
@@ -251,6 +252,7 @@ export function parseEntitiesResponse(data) {
         invalid,
         effects: supported ? parseEffects(data.effects) : [],
         containers: supported ? parseContainers(data.containers) : [],
+        blocks: supported ? parseBlocks(data.blocks) : [],
     };
 }
 

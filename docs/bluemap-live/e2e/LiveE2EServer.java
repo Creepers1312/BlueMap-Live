@@ -18,6 +18,8 @@ import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import de.bluecolored.bluemap.common.live.LiveEffectLog;
 import de.bluecolored.bluemap.common.live.LiveTileLog;
+import de.bluecolored.bluemap.common.live.LiveBlockLog;
+import de.bluecolored.bluemap.common.plugin.items.ItemAssetUpdater;
 import de.bluecolored.bluemap.common.live.OpenContainer;
 import de.bluecolored.bluemap.common.live.ParticleState;
 import de.bluecolored.bluemap.common.live.LivePlayerState;
@@ -99,6 +101,12 @@ public class LiveE2EServer {
     private final LiveEffectLog effects = new LiveEffectLog();
     /** opened chests: /control?container=X,Y,Z&texture=..&facing=..&part=..; /control?closeContainer=X,Y,Z */
     private final Map<String, OpenContainer> containers = new LinkedHashMap<>();
+    /**
+     * block-changes: /control?block=X,Y,Z&state=minecraft:stone[&n=down,up,north,south,west,east] ("-" for air);
+     * the block-assets are served for the states of the changes
+     */
+    private final LiveBlockLog blocks = new LiveBlockLog();
+    private final Map<String, String> blockAssetStates = new java.util.concurrent.ConcurrentHashMap<>();
 
     public LiveE2EServer(Path webroot) throws IOException {
         this.webroot = webroot;
@@ -158,6 +166,12 @@ public class LiveE2EServer {
                     default -> {
                         if (file.startsWith("assets/playerskins/") && file.endsWith(".png")) handleSkin(ex, file);
                         else if (file.startsWith("assets/items/") && file.endsWith(".json")) handleItem(ex, file);
+                        else if (file.startsWith("assets/blocks/") && file.endsWith(".json")) {
+                            String state = blockAssetStates.get(file.substring("assets/".length()));
+                            if (state == null) send(ex, 404, "text/plain", "no block".getBytes(StandardCharsets.UTF_8));
+                            else send(ex, 200, "application/json", new ItemModelBaker(new E2EItemResources()).bakeBlock(state)
+                                    .getBytes(StandardCharsets.UTF_8));
+                        }
                         else if (file.startsWith("assets/entities/") && file.endsWith(".json")) handleEntityAsset(ex, file);
                         else if (file.startsWith("assets/textures/") && file.endsWith(".png")) handleTexture(ex, file);
                         else send(ex, 404, "text/plain", "not found".getBytes(StandardCharsets.UTF_8));
@@ -281,6 +295,20 @@ public class LiveE2EServer {
         }
         // block-changes: /control?tileUpdate=X,Z[&lowres=1][&pillar=TOP] (the re-rendered tile, the test-tile gets a
         // pillar of this height)
+        if (q.containsKey("block")) {
+            String[] p = q.get("block").split(",");
+            String[] neighbors = new String[6];
+            if (q.containsKey("n")) {
+                String[] n = q.get("n").split(",");
+                for (int i = 0; i < 6 && i < n.length; i++) neighbors[i] = n[i].equals("-") ? null : n[i];
+            }
+            for (String state : neighbors) if (state != null) blockAssetStates.put(ItemAssetUpdater.blockAssetName(state), state);
+            blockAssetStates.put(ItemAssetUpdater.blockAssetName(q.get("state")), q.get("state"));
+            blocks.add(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]), q.get("state"), neighbors,
+                    System.currentTimeMillis());
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
         if (q.containsKey("container")) {
             String[] p = q.get("container").split(",");
             containers.put(q.get("container"), new OpenContainer(new com.flowpowered.math.vector.Vector3i(Integer.parseInt(p[0]),
@@ -303,7 +331,14 @@ public class LiveE2EServer {
             String[] xz = q.get("tileUpdate").split(",");
             if (q.containsKey("pillar")) tile = createTile(Float.parseFloat(q.get("pillar")));
             long now = System.currentTimeMillis();
-            LiveTileLog.of("world").hires(Integer.parseInt(xz[0]), Integer.parseInt(xz[1]), now);
+            int[] chunks = new int[0];
+            if (q.containsKey("chunks")) {
+                // "x,z,seconds,..."; "now" for the current time
+                String[] c = q.get("chunks").split(",");
+                chunks = new int[c.length];
+                for (int i = 0; i < c.length; i++) chunks[i] = c[i].equals("now") ? (int) (now / 1000) + 1 : Integer.parseInt(c[i]);
+            }
+            LiveTileLog.of("world").hires(Integer.parseInt(xz[0]), Integer.parseInt(xz[1]), now, chunks);
             if ("1".equals(q.get("lowres"))) LiveTileLog.of("world").lowres(Integer.parseInt(xz[0]), Integer.parseInt(xz[1]), now);
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
@@ -507,7 +542,8 @@ public class LiveE2EServer {
             LiveEntitiesJson.write(json, System.currentTimeMillis(), 250,
                     mapId.equals("world") ? List.copyOf(entities.values()) : List.of(),
                     mapId.equals("world") ? effects.recent(System.currentTimeMillis()) : List.of(),
-                    mapId.equals("world") ? List.copyOf(containers.values()) : List.of());
+                    mapId.equals("world") ? List.copyOf(containers.values()) : List.of(),
+                    mapId.equals("world") ? blocks.recent(System.currentTimeMillis()) : List.of());
         }
         send(ex, 200, "application/json", out.toString().getBytes(StandardCharsets.UTF_8));
     }
