@@ -1169,6 +1169,20 @@
   "shoulders":{"cuboids":[{"uv":[0,16],"box":[-10,3.9,-0.5,20,3,3]}]},
   "tail":{"pivot":[-2,16.692408,1.5270092],"rotation":[0.83252203,0,0],"cuboids":[{"uv":[12,22],"box":[0,0,0,3,6,3]}]}
  }},
+ "minecraft:wolf#main":{"texture":[64, 32],"parts":{
+  "body":{"pivot":[0,14,2],"rotation":[1.5707964,0,0],"cuboids":[{"uv":[18,14],"box":[-3,-2,-3,6,9,6]}]},
+  "head":{"pivot":[-1,13.5,-7],"children":{
+   "real_head":{"cuboids":[{"uv":[0,0],"box":[-2,-3,-2,6,6,4]},{"uv":[16,14],"box":[-2,-5,0,2,2,1]},{"uv":[16,14],"box":[2,-5,0,2,2,1]},{"uv":[0,10],"box":[-0.5,-0.001,-5,3,3,4]}]}
+  }},
+  "left_front_leg":{"pivot":[0.5,16,-4],"cuboids":[{"uv":[0,18],"box":[0,0,-1,2,8,2]}]},
+  "left_hind_leg":{"pivot":[0.5,16,7],"cuboids":[{"uv":[0,18],"box":[0,0,-1,2,8,2]}]},
+  "right_front_leg":{"pivot":[-2.5,16,-4],"cuboids":[{"uv":[0,18],"box":[0,0,-1,2,8,2]}]},
+  "right_hind_leg":{"pivot":[-2.5,16,7],"cuboids":[{"uv":[0,18],"box":[0,0,-1,2,8,2]}]},
+  "tail":{"pivot":[-1,12,8],"rotation":[0.62831855,0,0],"children":{
+   "real_tail":{"cuboids":[{"uv":[9,18],"box":[0,0,-1,2,8,2]}]}
+  }},
+  "upper_body":{"pivot":[-1,14,-3],"rotation":[1.5707964,0,0],"cuboids":[{"uv":[21,0],"box":[-3,-3,-3,8,6,7]}]}
+ }},
  "minecraft:zoglin#main":{"texture":[128, 64],"parts":{
   "body":{"pivot":[0,7,0],"cuboids":[{"uv":[1,1],"box":[-8,-7,-13,16,14,26]}],"children":{
    "mane":{"pivot":[0,-14,-5],"cuboids":[{"uv":[90,33],"box":[0,0,-9,0,10,19],"dilation":0.001}]}

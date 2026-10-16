@@ -161,7 +161,7 @@ public class ItemModelBaker {
         Map<String, String> dataUrls = new java.util.TreeMap<>();
         Textures textures = new Textures();
         for (String entry : MobTextures.TEXTURES.getOrDefault(entityType, List.of())) {
-            List<String> keys = entry.endsWith("/") ? resources.textureKeys(entry) : List.of(entry);
+            List<String> keys = entry.endsWith("/") || entry.endsWith("_") ? resources.textureKeys(entry) : List.of(entry);
             for (String key : keys) {
                 if (dataUrls.size() >= MAX_MOB_TEXTURES) break;
                 int index = textures.add(key, resources);

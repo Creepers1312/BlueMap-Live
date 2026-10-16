@@ -96,10 +96,10 @@ public class ItemAssetUpdaterTest {
         ItemAssetUpdater updater = new ItemAssetUpdater(() -> List.of(map), ItemModelBakerTest.TestResources::new, Runnable::run);
         updater.requestEntity("minecraft:arrow").join();
         updater.requestEntity("minecraft:zombie").join(); // mob: its textures
-        updater.requestEntity("minecraft:allay").join(); // no model in the webapp -> nothing written
+        updater.requestEntity("minecraft:ender_dragon").join(); // no model in the webapp -> nothing written
         assertTrue(Files.isRegularFile(temp.resolve("world/assets/entities/minecraft/arrow.json")));
         assertTrue(Files.isRegularFile(temp.resolve("world/assets/entities/minecraft/zombie.json")));
-        assertFalse(Files.exists(temp.resolve("world/assets/entities/minecraft/allay.json")));
+        assertFalse(Files.exists(temp.resolve("world/assets/entities/minecraft/ender_dragon.json")));
     }
 
 }

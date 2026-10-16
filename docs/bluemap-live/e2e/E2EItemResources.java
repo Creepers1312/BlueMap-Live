@@ -165,10 +165,6 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         return image;
     }
 
-    @Override
-    public java.util.List<String> textureKeys(String folder) {
-        return textures.keySet().stream().filter(key -> key.startsWith(folder)).sorted().toList();
-    }
 
     private static BufferedImage square(int size, int x, int y, int w, int h, int argb) {
         BufferedImage image = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
@@ -199,7 +195,20 @@ public class E2EItemResources implements ItemModelBaker.Resources {
 
     @Override
     public @Nullable BufferedImage texture(String key) {
-        return textures.get(key);
+        BufferedImage texture = textures.get(key);
+        // for manual checks of the mob-models: -De2e.allMobTextures=true gives every missing entity-texture a checker
+        if (texture == null && key.startsWith("minecraft:entity/") && Boolean.getBoolean("e2e.allMobTextures")) {
+            texture = new BufferedImage(128, 128, BufferedImage.TYPE_INT_ARGB);
+            int color = 0xFF000000 | (key.hashCode() & 0x7F7F7F) | 0x404040;
+            for (int x = 0; x < 128; x++) for (int y = 0; y < 128; y++) texture.setRGB(x, y, ((x / 4 + y / 4) % 2 == 0) ? color : 0xFFE0E0E0);
+        }
+        return texture;
+    }
+
+    @Override
+    public java.util.List<String> textureKeys(String folder) {
+        java.util.List<String> keys = new java.util.ArrayList<>(textures.keySet().stream().filter(key -> key.startsWith(folder)).sorted().toList());
+        return keys;
     }
 
 }

@@ -34,6 +34,15 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.VariantHolder;
 import net.minecraft.entity.mob.Angerable;
 import net.minecraft.entity.passive.HorseEntity;
+import net.minecraft.entity.passive.AbstractHorseEntity;
+import net.minecraft.entity.passive.AbstractDonkeyEntity;
+import net.minecraft.entity.passive.StriderEntity;
+import net.minecraft.entity.passive.BeeEntity;
+import net.minecraft.entity.passive.PandaEntity;
+import net.minecraft.entity.mob.IllagerEntity;
+import net.minecraft.entity.mob.GhastEntity;
+import net.minecraft.entity.mob.VexEntity;
+import net.minecraft.entity.mob.BoggedEntity;
 import net.minecraft.entity.passive.TameableEntity;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.StringIdentifiable;
@@ -159,10 +168,28 @@ final class FabricMobs {
                 case CROSSBOW_CHARGE -> flags.add("crossbow_charge");
                 default -> {}
             }
+        } else if (entity instanceof PandaEntity panda) {
+            variant[0] = name(panda.getProductGene());
         } else if (entity instanceof VariantHolder<?> holder) {
             // cat, wolf, frog, axolotl, fox, llama, parrot, rabbit, tropical fish, ...: the name of the variant
             variant[0] = name(holder.getVariant());
         }
+
+        // states of further mobs that change the model, the texture or the animation
+        if (entity instanceof AbstractHorseEntity horse && horse.isSaddled()) flags.add("saddled");
+        if (entity instanceof AbstractDonkeyEntity donkey && donkey.hasChest()) flags.add("chest");
+        if (entity instanceof StriderEntity strider) {
+            if (strider.isSaddled()) flags.add("saddled");
+            if (strider.isCold()) flags.add("cold");
+        }
+        if (entity instanceof IllagerEntity illager) flags.add("illager_" + illager.getState().name().toLowerCase(java.util.Locale.ROOT));
+        if (entity instanceof BeeEntity bee) {
+            if (bee.hasNectar()) flags.add("nectar");
+            if (bee.hasStung()) flags.add("stung");
+        }
+        if (entity instanceof GhastEntity ghast && ghast.isShooting()) flags.add("shooting");
+        if (entity instanceof VexEntity vex && vex.isCharging()) flags.add("charging");
+        if (entity instanceof BoggedEntity bogged && bogged.isSheared()) flags.add("sheared");
 
         // common states that change the model or the texture
         if (entity instanceof TameableEntity tameable) {

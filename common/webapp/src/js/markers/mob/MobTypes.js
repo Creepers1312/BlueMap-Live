@@ -187,6 +187,132 @@ export const MOB_TYPES = {
     },
 };
 
+// ---- further mobs of 1.21 ----
+
+const simple = (animation, model, texture, extra = {}) => ({animation, layers: [{model, texture}], ...extra});
+
+/** vanilla HorseEntityRenderer: the markings (HorseMarking -> texture-name) */
+const HORSE_MARKINGS = {white: "white", white_field: "whitefield", white_dots: "whitedots", black_dots: "blackdots"};
+
+const TROPICAL_SMALL = ["kob", "sunstreak", "snooper", "dasher", "brinely", "spotty"];
+const TROPICAL_LARGE = ["flopper", "stripey", "glitter", "blockfish", "betty", "clayfish"];
+
+/** vanilla WolfVariant: the wild/tame/angry textures, "pale" is the original wolf.png */
+function wolfTexture(mob) {
+    const variant = mob.variant || "pale";
+    const base = variant === "pale" ? "wolf" : "wolf_" + variant;
+    return E + "wolf/" + base + (mob.flags.has("angry") ? "_angry" : mob.flags.has("tame") ? "_tame" : "");
+}
+
+const ILLAGER = {scale: 0.9375, arms: true, hidden: []};
+
+Object.assign(MOB_TYPES, {
+    "minecraft:allay": simple("allay", "minecraft:allay#main", E + "allay/allay"),
+    "minecraft:armadillo": simple("generic", "minecraft:armadillo#main", E + "armadillo"),
+    "minecraft:axolotl": simple("generic", "minecraft:axolotl#main", mob => E + "axolotl/axolotl_" + (mob.variant || "lucy")),
+    "minecraft:bat": simple("bat", "minecraft:bat#main", E + "bat", {scale: 0.35}),
+    "minecraft:bee": simple("bee", "minecraft:bee#main",
+        mob => E + "bee/bee" + (mob.flags.has("angry") ? "_angry" : "") + (mob.flags.has("nectar") ? "_nectar" : "")),
+    "minecraft:blaze": simple("blaze", "minecraft:blaze#main", E + "blaze"),
+    "minecraft:bogged": {
+        ...biped("bogged", "minecraft:bogged#main", E + "skeleton/bogged", {slimArms: true}),
+        layers: [
+            {model: "minecraft:bogged#main", texture: E + "skeleton/bogged"},
+            {model: "minecraft:bogged#outer", texture: E + "skeleton/bogged_overlay"},
+        ],
+    },
+    "minecraft:breeze": simple("breeze", "minecraft:breeze#main", E + "breeze/breeze"),
+    "minecraft:camel": simple("camel", "minecraft:camel#main", E + "camel/camel"),
+    "minecraft:cat": simple("ocelot", "minecraft:cat#main", mob => E + "cat/" + (mob.variant || "tabby"), {scale: 0.8}),
+    "minecraft:ocelot": simple("ocelot", "minecraft:ocelot#main", E + "cat/ocelot"),
+    "minecraft:cod": simple("fish", "minecraft:cod#main", E + "fish/cod"),
+    "minecraft:dolphin": simple("dolphin", "minecraft:dolphin#main", E + "dolphin"),
+    "minecraft:donkey": simple("horse", "minecraft:donkey#main", E + "horse/donkey", {scale: 0.87}),
+    "minecraft:mule": simple("horse", "minecraft:mule#main", E + "horse/mule", {scale: 0.92}),
+    "minecraft:horse": {
+        animation: "horse", scale: 1.1,
+        layers: [
+            {model: "minecraft:horse#main", texture: mob => E + "horse/horse_" + ((mob.variant || "white").split("/")[0])},
+            {model: "minecraft:horse#main", texture: mob => E + "horse/horse_markings_" + (HORSE_MARKINGS[(mob.variant || "").split("/")[1]] || "none"),
+                markings: true},
+        ],
+    },
+    "minecraft:skeleton_horse": simple("horse", "minecraft:skeleton_horse#main", E + "horse/horse_skeleton"),
+    "minecraft:zombie_horse": simple("horse", "minecraft:zombie_horse#main", E + "horse/horse_zombie"),
+    "minecraft:elder_guardian": simple("guardian", "minecraft:elder_guardian#main", E + "guardian_elder", {scale: 2.35}),
+    "minecraft:guardian": simple("guardian", "minecraft:guardian#main", E + "guardian"),
+    "minecraft:endermite": simple("endermite", "minecraft:endermite#main", E + "endermite"),
+    "minecraft:evoker": simple("illager", "minecraft:evoker#main", E + "illager/evoker", ILLAGER),
+    "minecraft:illusioner": simple("illager", "minecraft:illusioner#main", E + "illager/illusioner", ILLAGER),
+    "minecraft:pillager": simple("illager", "minecraft:pillager#main", E + "illager/pillager", ILLAGER),
+    "minecraft:vindicator": simple("illager", "minecraft:vindicator#main", E + "illager/vindicator", ILLAGER),
+    "minecraft:fox": simple("generic", "minecraft:fox#main", mob => E + "fox/" + (mob.variant === "snow" ? "snow_fox" : "fox")),
+    "minecraft:frog": simple("frog", "minecraft:frog#main", mob => E + "frog/" + (mob.variant || "temperate") + "_frog"),
+    "minecraft:ghast": simple("ghast", "minecraft:ghast#main", mob => E + "ghast/ghast" + (mob.flags.has("shooting") ? "_shooting" : ""), {scale: 4.5}),
+    "minecraft:giant": biped("zombie", "minecraft:giant#main", E + "zombie/zombie", {scale: 6}),
+    "minecraft:glow_squid": simple("squid", "minecraft:glow_squid#main", E + "squid/glow_squid"),
+    "minecraft:squid": simple("squid", "minecraft:squid#main", E + "squid/squid"),
+    "minecraft:goat": simple("generic", "minecraft:goat#main", E + "goat/goat"),
+    "minecraft:hoglin": simple("hoglin", "minecraft:hoglin#main", E + "hoglin/hoglin"),
+    "minecraft:zoglin": simple("hoglin", "minecraft:zoglin#main", E + "hoglin/zoglin"),
+    "minecraft:iron_golem": simple("ironGolem", "minecraft:iron_golem#main", E + "iron_golem/iron_golem"),
+    "minecraft:llama": simple("llama", "minecraft:llama#main", mob => E + "llama/" + (mob.variant || "creamy")),
+    "minecraft:trader_llama": simple("llama", "minecraft:trader_llama#main", mob => E + "llama/" + (mob.variant || "creamy")),
+    "minecraft:magma_cube": simple("slime", "minecraft:magma_cube#main", E + "slime/magmacube", {slime: true}),
+    "minecraft:panda": simple("generic", "minecraft:panda#main", mob => E + "panda/" + (mob.variant && mob.variant !== "normal" ? mob.variant + "_panda" : "panda")),
+    "minecraft:parrot": simple("parrot", "minecraft:parrot#main", mob => E + "parrot/parrot_" + (mob.variant === "gray" ? "grey" : mob.variant || "red_blue")),
+    "minecraft:phantom": {
+        animation: "phantom",
+        layers: [
+            {model: "minecraft:phantom#main", texture: E + "phantom"},
+            {model: "minecraft:phantom#main", texture: E + "phantom_eyes", type: "eyes"},
+        ],
+    },
+    "minecraft:polar_bear": simple("generic", "minecraft:polar_bear#main", E + "bear/polarbear", {scale: 1.2}),
+    "minecraft:pufferfish": simple("fish", "minecraft:pufferfish_small#main", E + "fish/pufferfish"),
+    "minecraft:rabbit": simple("generic", "minecraft:rabbit#main", mob => E + "rabbit/" + (mob.variant === "evil" ? "caerbannog" : mob.variant || "brown")),
+    "minecraft:ravager": simple("ravager", "minecraft:ravager#main", E + "illager/ravager"),
+    "minecraft:salmon": simple("salmon", "minecraft:salmon#main", E + "fish/salmon"),
+    "minecraft:shulker": simple("shulker", "minecraft:shulker#main", E + "shulker/shulker"),
+    "minecraft:silverfish": simple("silverfish", "minecraft:silverfish#main", E + "silverfish"),
+    "minecraft:sniffer": simple("generic", "minecraft:sniffer#main", E + "sniffer/sniffer"),
+    "minecraft:snow_golem": simple("snowGolem", "minecraft:snow_golem#main", E + "snow_golem"),
+    "minecraft:strider": {
+        animation: "strider",
+        layers: [
+            {model: "minecraft:strider#main", texture: mob => E + "strider/strider" + (mob.flags.has("cold") ? "_cold" : "")},
+            {model: "minecraft:strider#main", texture: E + "strider/strider_saddle", flag: "saddled"},
+        ],
+    },
+    "minecraft:tadpole": simple("fish", "minecraft:tadpole#main", E + "tadpole/tadpole"),
+    "minecraft:tropical_fish": {
+        animation: "fish",
+        select: mob => TROPICAL_LARGE.includes(mob.variant) ? "minecraft:tropical_fish_large" : "minecraft:tropical_fish_small",
+        layers: [{model: "minecraft:tropical_fish_small#main", texture: E + "fish/tropical_a"}],
+    },
+    "minecraft:tropical_fish_small": {
+        animation: "fish",
+        layers: [
+            {model: "minecraft:tropical_fish_small#main", texture: E + "fish/tropical_a"},
+            {model: "minecraft:tropical_fish_small#main", texture: mob => E + "fish/tropical_a_pattern_" + (TROPICAL_SMALL.indexOf(mob.variant) + 1 || 1)},
+        ],
+    },
+    "minecraft:tropical_fish_large": {
+        animation: "fish",
+        layers: [
+            {model: "minecraft:tropical_fish_large#main", texture: E + "fish/tropical_b"},
+            {model: "minecraft:tropical_fish_large#main", texture: mob => E + "fish/tropical_b_pattern_" + (TROPICAL_LARGE.indexOf(mob.variant) + 1 || 1)},
+        ],
+    },
+    "minecraft:turtle": simple("generic", "minecraft:turtle#main", E + "turtle/big_sea_turtle"),
+    "minecraft:vex": simple("allay", "minecraft:vex#main", mob => E + "illager/vex" + (mob.flags.has("charging") ? "_charging" : "")),
+    "minecraft:wandering_trader": simple("villager", "minecraft:wandering_trader#main", E + "wandering_trader", {scale: 0.9375}),
+    "minecraft:warden": simple("generic", "minecraft:warden#main", E + "warden/warden"),
+    "minecraft:witch": simple("villager", "minecraft:witch#main", E + "witch", {scale: 0.9375}),
+    "minecraft:wither": simple("wither", "minecraft:wither#main", E + "wither/wither", {scale: 2}),
+    "minecraft:wolf": simple("wolf", "minecraft:wolf#main", wolfTexture),
+});
+
 /**
  * vanilla SheepEntity.getRgbColor (1.21): the wool-color of a dye (verified against Minecraft like the models).
  * @param dye {string | null} - e.g. "light_blue"

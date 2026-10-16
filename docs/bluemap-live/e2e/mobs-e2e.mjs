@@ -248,7 +248,7 @@ await step("villager: base, type and profession drawn onto each other (vanilla c
 });
 
 await step("unknown living entity: a placeholder with its hitbox and name", async () => {
-    await mob(14, "minecraft:allay", 8.5, 9.5, {bodyYaw: 0, w: 0.35, h: 0.6});
+    await mob(14, "minecraft:ender_dragon", 8.5, 9.5, {bodyYaw: 0, w: 0.35, h: 0.6});
     await waitForEntity(14, "m.view?.isPlaceholderModel");
     const state = await entityExpr(14, "[m.kind, m.view.fill.scale.y, !!m.view.label]");
     assert.deepEqual(state, ["placeholder", 0.6, true]);

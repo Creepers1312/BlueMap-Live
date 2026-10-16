@@ -137,6 +137,7 @@ export class EntityMarker extends Marker {
      */
     updateFromData(entity, updateInterval) {
         if (this.kind === null) {
+            this.lastSample = entity;
             this.kind = entityKind(entity);
             this.entityType = entity.type;
             this.physics = projectilePhysics(entity.type);
@@ -231,7 +232,10 @@ export class EntityMarker extends Marker {
     createView() {
         if (!this.kind) return;
         if (this.kind === "mob") {
-            this.view = new MobModel(this.entityType, MOB_TYPES[this.entityType], this.mobCache, this.itemCache);
+            // some types have several models (tropical fish: small / large), selected by the first sample
+            let mobType = MOB_TYPES[this.entityType];
+            if (mobType.select && this.lastSample && this.lastSample.mob) mobType = MOB_TYPES[mobType.select(this.lastSample.mob)] || mobType;
+            this.view = new MobModel(this.entityType, mobType, this.mobCache, this.itemCache);
             this.body.add(this.view);
             return;
         }
@@ -369,6 +373,7 @@ export class EntityMarker extends Marker {
         input.headYaw = angleDelta(r.body, r.head);
         input.headPitch = r.pitch;
         input.flags = mob.flags;
+        input.baby = mob.baby;
         input.mainHand = mob.equipment ? mob.equipment.mainHand : null;
         input.leftHanded = !!(mob.equipment && mob.equipment.leftHanded);
         input.wingAngle = (Math.sin(this.flapProgress) + 1) * this.wingDeviation;

@@ -261,7 +261,7 @@ public class ItemModelBakerTest {
 
         // spectral-arrow texture missing in this pack, unknown entities: no model
         assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:spectral_arrow")).getAsJsonObject().getAsJsonArray("models").size());
-        assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:allay")).getAsJsonObject().getAsJsonArray("models").size());
+        assertEquals(0, JsonParser.parseString(baker.bakeEntity("minecraft:ender_dragon")).getAsJsonObject().getAsJsonArray("models").size());
         assertEquals("entities/minecraft/arrow.json", ItemAssetUpdater.entityAssetName("minecraft:arrow"));
         assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "entity/projectiles/arrow"));
     }
@@ -285,7 +285,7 @@ public class ItemModelBakerTest {
                 "minecraft:entity/villager/profession/farmer"), villager.getAsJsonObject("textures").keySet());
 
         assertTrue(ItemModelBaker.isSupportedEntity("minecraft:sheep"));
-        assertFalse(ItemModelBaker.isSupportedEntity("minecraft:allay"));
+        assertFalse(ItemModelBaker.isSupportedEntity("minecraft:ender_dragon"));
     }
 
 }

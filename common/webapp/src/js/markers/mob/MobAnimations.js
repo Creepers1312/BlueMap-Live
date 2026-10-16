@@ -371,7 +371,415 @@ export function villager(p, input) {
 /** vanilla SlimeEntityModel: no animation */
 export function slime() {}
 
+// ---- further mobs (1.21) ----
+
+const head = p => p.head || Object.entries(p).find(([path]) => path.endsWith("/head"))?.[1];
+
+/** the head follows the look-direction (most vanilla models) */
+function look(p, input) {
+    const h = head(p);
+    if (!h) return;
+    h.yaw += input.headYaw * DEG;
+    h.pitch += input.headPitch * DEG;
+}
+
+/** the leg-swing of vanilla QuadrupedEntityModel on the legs a model has (any path) */
+function quadrupedLegs(p, input, amount = 1.4) {
+    const f = input.limbAngle, g = input.limbDistance;
+    for (const [path, t] of Object.entries(p)) {
+        const name = path.substring(path.lastIndexOf("/") + 1);
+        if (!name.endsWith("_leg") || name.includes("baby")) continue;
+        const right = name.startsWith("right"), hind = name.includes("hind") || name.includes("back") || name.includes("mid");
+        // right-hind and left-front together, like vanilla
+        t.pitch += cos(f * 0.6662 + (right === hind ? 0 : PI)) * amount * g;
+    }
+}
+
+/** vanilla IllagerEntityModel: crossed arms when neutral, spell-casting, bow, crossbow, attacking, celebrating */
+export function illager(p, input) {
+    const f = input.limbAngle, g = input.limbDistance, flags = input.flags;
+    look(p, input);
+    const {right_arm: rightArm, left_arm: leftArm, right_leg: rightLeg, left_leg: leftLeg} = p;
+    rightArm.pitch = cos(f * 0.6662 + PI) * 2 * g * 0.5;
+    leftArm.pitch = cos(f * 0.6662) * 2 * g * 0.5;
+    rightLeg.pitch = cos(f * 0.6662) * 1.4 * g * 0.5;
+    leftLeg.pitch = cos(f * 0.6662 + PI) * 1.4 * g * 0.5;
+    const h = p.head;
+    if (flags.has("illager_attacking")) {
+        if (!input.mainHand) {
+            meleeAttack(leftArm, rightArm, true, input.swingProgress, input.age);
+        } else { // vanilla CrossbowPosing.method_29352 (main arm right): the weapon raised
+            const sw = input.swingProgress;
+            const sf = sin(sw * PI), sg = sin((1 - (1 - sw) * (1 - sw)) * PI);
+            rightArm.roll = 0;
+            leftArm.roll = 0;
+            rightArm.yaw = 0.15707964;
+            leftArm.yaw = -0.15707964;
+            rightArm.pitch = -1.8849558 + cos(input.age * 0.09) * 0.15 + sf * 2.2 - sg * 0.4;
+            leftArm.pitch = cos(input.age * 0.19) * 0.5 + sf * 1.2 - sg * 0.4;
+            swingArm(rightArm, input.age, 1);
+            swingArm(leftArm, input.age, -1);
+        }
+    } else if (flags.has("illager_spellcasting")) {
+        rightArm.pivotZ = 0; rightArm.pivotX = -5;
+        leftArm.pivotZ = 0; leftArm.pivotX = 5;
+        rightArm.pitch = cos(input.age * 0.6662) * 0.25;
+        leftArm.pitch = cos(input.age * 0.6662) * 0.25;
+        rightArm.roll = PI * 3 / 4;
+        leftArm.roll = -PI * 3 / 4;
+        rightArm.yaw = 0;
+        leftArm.yaw = 0;
+    } else if (flags.has("illager_bow_and_arrow")) {
+        rightArm.yaw = -0.1 + h.yaw;
+        rightArm.pitch = -PI / 2 + h.pitch;
+        leftArm.pitch = -0.9424779 + h.pitch;
+        leftArm.yaw = h.yaw - 0.4;
+        leftArm.roll = PI / 2;
+    } else if (flags.has("illager_crossbow_hold") || flags.has("illager_crossbow_charge")) {
+        const arms = {right: {pitch: rightArm.pitch, yaw: 0}, left: {pitch: leftArm.pitch, yaw: 0}};
+        applyArmPoses(arms, {right: flags.has("illager_crossbow_hold") ? "crossbow_hold" : "crossbow_charge", left: "empty"},
+            {leftHanded: false, use: null, useTicks: 0}, {pitch: h.pitch, yaw: h.yaw}, false);
+        rightArm.pitch = arms.right.pitch; rightArm.yaw = arms.right.yaw;
+        leftArm.pitch = arms.left.pitch; leftArm.yaw = arms.left.yaw;
+    } else if (flags.has("illager_celebrating")) {
+        rightArm.pivotZ = 0; rightArm.pivotX = -5;
+        rightArm.pitch = cos(input.age * 0.6662) * 0.05;
+        rightArm.roll = 2.670354;
+        rightArm.yaw = 0;
+        leftArm.pivotZ = 0; leftArm.pivotX = 5;
+        leftArm.pitch = cos(input.age * 0.6662) * 0.05;
+        leftArm.roll = -2.3561945;
+        leftArm.yaw = 0;
+    }
+    const crossed = !["attacking", "spellcasting", "bow_and_arrow", "crossbow_hold", "crossbow_charge", "celebrating"]
+        .some(state => flags.has("illager_" + state));
+    p.arms.visible = crossed;
+    leftArm.visible = !crossed;
+    rightArm.visible = !crossed;
+}
+
+/** vanilla IronGolemEntityModel: legs and arms swing with a triangle-wave */
+export function ironGolem(p, input) {
+    const f = input.limbAngle, g = input.limbDistance;
+    const wave = x => (Math.abs(x % 13 - 6.5) - 3.25) / 3.25;
+    look(p, input);
+    p.right_leg.pitch = -1.5 * wave(f) * g;
+    p.left_leg.pitch = 1.5 * wave(f) * g;
+    p.right_arm.pitch = (-0.2 + 1.5 * wave(f)) * g;
+    p.left_arm.pitch = (-0.2 - 1.5 * wave(f)) * g;
+}
+
+/** vanilla SnowGolemEntityModel */
+export function snowGolem(p, input) {
+    look(p, input);
+    p.upper_body.yaw = input.headYaw * DEG * 0.25;
+    const k = sin(p.upper_body.yaw), l = cos(p.upper_body.yaw);
+    p.left_arm.roll = 1;
+    p.right_arm.roll = -1;
+    p.left_arm.yaw = p.upper_body.yaw;
+    p.right_arm.yaw = PI + p.upper_body.yaw;
+    p.left_arm.pivotX = l * 5;
+    p.left_arm.pivotZ = -k * 5;
+    p.right_arm.pivotX = -l * 5;
+    p.right_arm.pivotZ = k * 5;
+}
+
+/** vanilla BlazeEntityModel: three rings of rods around the body */
+export function blaze(p, input) {
+    const h = input.age;
+    let f = h * PI * -0.1;
+    for (let i = 0; i < 4; i++, f++) {
+        const rod = p["part" + i];
+        rod.pivotY = -2 + cos((i * 2 + h) * 0.25);
+        rod.pivotX = cos(f) * 9;
+        rod.pivotZ = sin(f) * 9;
+    }
+    f = PI / 4 + h * PI * 0.03;
+    for (let i = 4; i < 8; i++, f++) {
+        const rod = p["part" + i];
+        rod.pivotY = 2 + cos((i * 2 + h) * 0.25);
+        rod.pivotX = cos(f) * 7;
+        rod.pivotZ = sin(f) * 7;
+    }
+    f = 0.47123894 + h * PI * -0.05;
+    for (let i = 8; i < 12; i++, f++) {
+        const rod = p["part" + i];
+        rod.pivotY = 11 + cos((i * 1.5 + h) * 0.5);
+        rod.pivotX = cos(f) * 5;
+        rod.pivotZ = sin(f) * 5;
+    }
+    look(p, input);
+}
+
+/** vanilla GhastEntityModel: the tentacles swing */
+export function ghast(p, input) {
+    for (let i = 0; i < 9; i++) {
+        const t = p["tentacle" + i];
+        if (t) t.pitch = 0.2 * sin(input.age * 0.3 + i) + 0.4;
+    }
+}
+
+/** vanilla SquidEntityModel: the tentacles open and close (approximation of the tentacle-angle) */
+export function squid(p, input) {
+    const angle = (sin(input.age * 0.1) + 1) * 0.3;
+    for (let i = 0; i < 8; i++) {
+        const t = p["tentacle" + i];
+        if (t) t.pitch = angle;
+    }
+}
+
+/** vanilla SilverfishEntityModel / EndermiteEntityModel: the segments wave */
+export function silverfish(p, input) {
+    const h = input.age;
+    for (let i = 0; i < 7; i++) {
+        const segment = p["segment" + i];
+        if (!segment) continue;
+        segment.yaw = cos(h * 0.9 + i * 0.15 * PI) * PI * 0.05 * (1 + Math.abs(i - 2));
+        segment.pivotX = sin(h * 0.9 + i * 0.15 * PI) * PI * 0.2 * Math.abs(i - 2);
+    }
+    const layers = [["layer0", "segment2"], ["layer1", "segment4"], ["layer2", "segment1"]];
+    for (const [layer, segment] of layers) {
+        if (!p[layer] || !p[segment]) continue;
+        p[layer].yaw = p[segment].yaw;
+        p[layer].pivotX = p[segment].pivotX;
+    }
+}
+
+export function endermite(p, input) {
+    const h = input.age;
+    for (let i = 0; i < 4; i++) {
+        const segment = p["segment" + i];
+        segment.yaw = cos(h * 0.9 + i * 0.15 * PI) * PI * 0.01 * (1 + Math.abs(i - 2));
+        segment.pivotX = sin(h * 0.9 + i * 0.15 * PI) * PI * 0.1 * Math.abs(i - 2);
+    }
+}
+
+/** vanilla PhantomEntityModel: the wings flap */
+export function phantom(p, input) {
+    const f = input.age * 7.448451 * DEG;
+    p["body/left_wing_base"].roll = cos(f) * 16 * DEG;
+    p["body/left_wing_base/left_wing_tip"].roll = cos(f) * 16 * DEG;
+    p["body/right_wing_base"].roll = -p["body/left_wing_base"].roll;
+    p["body/right_wing_base/right_wing_tip"].roll = -p["body/left_wing_base/left_wing_tip"].roll;
+    p["body/tail_base"].pitch = -(5 + cos(f * 2) * 5) * DEG;
+    p["body/tail_base/tail_tip"].pitch = -(5 + cos(f * 2) * 5) * DEG;
+}
+
+/** vanilla fish-models (cod, tropical fish, pufferfish): the tail swings */
+export function fish(p, input) {
+    const k = 1.5 * sin(0.6 * input.age);
+    const tail = p.tail_fin || p.tail || p.back_fin;
+    if (tail) tail.yaw = -k * 0.45 / 1.5;
+}
+
+/** vanilla SalmonEntityModel */
+export function salmon(p, input) {
+    p.body_back.yaw = -0.25 * sin(0.6 * input.age);
+}
+
+/** vanilla DolphinEntityModel (swimming, approximation) */
+export function dolphin(p, input) {
+    p.body.pitch = input.headPitch * DEG;
+    p.body.yaw = input.headYaw * DEG;
+    if (input.limbDistance > 0.01) {
+        p["body/tail"].pitch = -0.1 * cos(input.age * 0.3);
+        p["body/tail/tail_fin"].pitch = -0.2 * cos(input.age * 0.3);
+    }
+}
+
+/** vanilla GuardianEntityModel: the tail swings (the spikes are not animated) */
+export function guardian(p, input) {
+    look(p, input);
+    const a = sin(input.age * 0.09) * 0.2;
+    p["head/tail0"].yaw = a;
+    p["head/tail0/tail1"].yaw = a * 1.5;
+    p["head/tail0/tail1/tail2"].yaw = a * 2;
+}
+
+/** vanilla HoglinEntityModel: ears and legs */
+export function hoglin(p, input) {
+    const f = input.limbAngle, g = input.limbDistance;
+    p["head/right_ear"].roll = -0.6981317 - g * sin(f);
+    p["head/left_ear"].roll = 0.6981317 + g * sin(f);
+    p.head.yaw = input.headYaw * DEG;
+    const front = cos(f) * 1.2 * g;
+    p.right_front_leg.pitch = front;
+    p.left_front_leg.pitch = -front;
+    p.right_hind_leg.pitch = -front;
+    p.left_hind_leg.pitch = front;
+}
+
+/** vanilla RavagerEntityModel (walking) */
+export function ravager(p, input) {
+    const f = input.limbAngle, g = input.limbDistance;
+    p["neck/head"].yaw = input.headYaw * DEG;
+    p["neck/head"].pitch = input.headPitch * DEG;
+    const leg = cos(f * 0.6662) * 0.4 * g;
+    p.right_hind_leg.pitch = leg;
+    p.left_hind_leg.pitch = -leg;
+    p.right_front_leg.pitch = -leg;
+    p.left_front_leg.pitch = leg;
+}
+
+/** vanilla OcelotEntityModel (cat, ocelot): walking with the tail; sitting is not shown */
+export function ocelot(p, input) {
+    const f = input.limbAngle, g = input.limbDistance;
+    look(p, input);
+    p.left_hind_leg.pitch = cos(f * 0.6662) * g;
+    p.right_hind_leg.pitch = cos(f * 0.6662 + PI) * g;
+    p.left_front_leg.pitch = cos(f * 0.6662 + PI) * g;
+    p.right_front_leg.pitch = cos(f * 0.6662) * g;
+    p.tail1.pitch = 1.7278761 + 0.47123894 * cos(f) * g;
+    p.tail2.pitch = 1.7278761 + 0.47123894 * cos(f) * g;
+}
+
+/** vanilla WolfEntityModel: legs and the tail (angry: raised, tame: high, wild: low) */
+export function wolf(p, input) {
+    look(p, input);
+    quadrupedLegs(p, input);
+    const tail = p.tail;
+    if (tail) {
+        tail.pitch = input.flags.has("angry") ? 1.5393804 : input.flags.has("tame") ? 0.55 * PI : PI / 5;
+        tail.yaw = input.flags.has("angry") ? 0 : cos(input.limbAngle * 0.6662) * 1.4 * input.limbDistance;
+    }
+}
+
+/** mobs with a head and legs (generic: the head looks, the legs swing like a quadruped / biped) */
+export function generic(p, input) {
+    look(p, input);
+    quadrupedLegs(p, input);
+    const f = input.limbAngle, g = input.limbDistance;
+    if (p.right_leg && p.left_leg) {
+        p.right_leg.pitch += cos(f * 0.6662) * 1.4 * g;
+        p.left_leg.pitch += cos(f * 0.6662 + PI) * 1.4 * g;
+    }
+}
+
+/** vanilla StriderEntityModel: big steps and waving bristles */
+export function strider(p, input) {
+    const f = input.limbAngle, g = Math.min(input.limbDistance, 0.25);
+    look(p, input);
+    p.right_leg.pitch = sin(f * 1.5 * 0.5) * 2 * g;
+    p.left_leg.pitch = sin(f * 1.5 * 0.5 + PI) * 2 * g;
+    for (const [path, t] of Object.entries(p)) {
+        if (!path.includes("bristle")) continue;
+        t.roll += (path.includes("right") ? -1 : 1) * 0.1 * sin(input.age * 0.4);
+    }
+}
+
+/** horses (approximation of AbstractHorseEntityModel: walking legs, head; saddle and chests by flags, baby-legs) */
+export function horse(p, input) {
+    const f = input.limbAngle, g = input.limbDistance;
+    p.head_parts.pitch += input.headPitch * DEG;
+    p.head_parts.yaw += input.headYaw * DEG;
+    const swing = cos(f * 0.6662) * 0.8 * g;
+    for (const prefix of ["", "baby_"]) {
+        const leg = name => p[name.replace("_leg", "_" + prefix + "leg")];
+        if (leg("right_hind_leg")) leg("right_hind_leg").pitch = swing;
+        if (leg("left_hind_leg")) leg("left_hind_leg").pitch = -swing;
+        if (leg("right_front_leg")) leg("right_front_leg").pitch = -swing;
+        if (leg("left_front_leg")) leg("left_front_leg").pitch = swing;
+    }
+    p["body/tail"] && (p["body/tail"].pitch += g * 0.5);
+    const baby = !!input.baby, saddled = input.flags.has("saddled"), chest = input.flags.has("chest");
+    for (const [path, t] of Object.entries(p)) {
+        const name = path.substring(path.lastIndexOf("/") + 1);
+        if (name.endsWith("_leg")) t.visible = name.includes("baby") === baby;
+        if (name.includes("saddle") || name === "mouth_saddle_wrap") t.visible = saddled;
+        if (name.endsWith("_chest")) t.visible = chest;
+    }
+}
+
+/** vanilla LlamaEntityModel: legs, head, chests by flag */
+export function llama(p, input) {
+    look(p, input);
+    quadrupedLegs(p, input);
+    p.left_chest.visible = p.right_chest.visible = input.flags.has("chest");
+}
+
+/** camel (keyframe-animations in vanilla, approximation): head, legs, saddle by flag */
+export function camel(p, input) {
+    generic(p, input);
+    const saddled = input.flags.has("saddled");
+    for (const name of ["body/saddle", "body/head/bridle", "body/head/reins"]) if (p[name]) p[name].visible = saddled;
+}
+
+/** bogged: like a skeleton, the mushrooms are gone when sheared */
+export function bogged(p, input) {
+    skeleton(p, input);
+    if (p["head/mushrooms"]) p["head/mushrooms"].visible = !input.flags.has("sheared");
+}
+
+/** frog (keyframe-animations in vanilla, approximation): the croaking-body and the tongue are hidden */
+export function frog(p, input) {
+    generic(p, input);
+    p["root/body/croaking_body"].visible = false;
+    p["root/body/tongue"].visible = false;
+}
+
+/** bat (keyframe-animations in vanilla, approximation): the wings flap */
+export function bat(p, input) {
+    const flap = cos(input.age * 1.3) * PI * 0.25;
+    p["body/right_wing"].yaw = flap;
+    p["body/left_wing"].yaw = -flap;
+    p["body/right_wing/right_wing_tip"].yaw = flap * 0.5;
+    p["body/left_wing/left_wing_tip"].yaw = -flap * 0.5;
+}
+
+/** bee (approximation of BeeEntityModel): flapping wings, no stinger after stinging */
+export function bee(p, input) {
+    p.bone.pivotY = 19 - cos(input.age * 0.18) * 0.9;
+    p["bone/right_wing"].yaw = 0;
+    p["bone/right_wing"].roll = cos(input.age * 2.1) * PI * 0.15;
+    p["bone/left_wing"].pitch = p["bone/right_wing"].pitch;
+    p["bone/left_wing"].yaw = p["bone/right_wing"].yaw;
+    p["bone/left_wing"].roll = -p["bone/right_wing"].roll;
+    if (p["bone/body/stinger"]) p["bone/body/stinger"].visible = !input.flags.has("stung");
+}
+
+/** allay, vex (keyframe-like in vanilla, approximation): hovering with flapping wings */
+export function allay(p, input) {
+    const flap = cos(input.age * 0.8) * 0.4;
+    for (const [path, t] of Object.entries(p)) {
+        if (path.endsWith("right_wing")) t.yaw += 0.4 + flap;
+        if (path.endsWith("left_wing")) t.yaw -= 0.4 + flap;
+    }
+    look(p, input);
+}
+
+/** parrot (approximation of ParrotEntityModel standing): head and legs */
+export function parrot(p, input) {
+    look(p, input);
+    p.right_leg.pitch += cos(input.limbAngle * 0.6662) * 1.4 * input.limbDistance;
+    p.left_leg.pitch += cos(input.limbAngle * 0.6662 + PI) * 1.4 * input.limbDistance;
+}
+
+/** breeze (keyframe-animations in vanilla, approximation): the rods turn around the body */
+export function breeze(p, input) {
+    if (p["body/rods"]) p["body/rods"].yaw = input.age * 0.1;
+    look(p, input);
+    if (p.wind_body) p.wind_body.visible = false; // the translucent wind is not shown
+}
+
+/** shulker: closed shell, the head looks */
+export function shulker(p, input) {
+    p.head.yaw = input.headYaw * DEG;
+    p.head.pitch = input.headPitch * DEG;
+}
+
+/** wither: the three heads look in the same direction (the side heads follow their own targets in vanilla) */
+export function wither(p, input) {
+    for (const name of ["center_head", "left_head", "right_head"]) {
+        p[name].yaw = input.headYaw * DEG;
+        p[name].pitch = input.headPitch * DEG;
+    }
+    p.tail.pitch = (0.065 + 0.05 * cos(input.age * 0.1)) * PI;
+}
+
 export const ANIMATIONS = {
     zombie, drowned, skeleton, piglin, zombified_piglin: (p, input) => piglin(p, input, true),
     quadruped, creeper, spider, chicken, enderman, villager, slime,
+    illager, ironGolem, snowGolem, blaze, ghast, squid, silverfish, endermite, phantom, fish, salmon, dolphin, guardian,
+    hoglin, ravager, ocelot, wolf, generic, strider, horse, llama, camel, bogged, frog, bat, bee, allay, parrot, breeze,
+    shulker, wither,
 };

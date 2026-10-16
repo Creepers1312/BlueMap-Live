@@ -208,7 +208,7 @@ test("mob-data is parsed and validated, living entities are mobs or placeholders
 
     const zombie = parseEntity({id: 1, type: "minecraft:zombie", position: {x: 0, y: 64, z: 0}, mob: {bodyYaw: 0}});
     assert.equal(entityKind(zombie), "mob");
-    const allay = parseEntity({id: 2, type: "minecraft:allay", position: {x: 0, y: 64, z: 0}, mob: {bodyYaw: 0}});
+    const allay = parseEntity({id: 2, type: "minecraft:ender_dragon", position: {x: 0, y: 64, z: 0}, mob: {bodyYaw: 0}});
     assert.equal(entityKind(allay), "placeholder");
     const item = parseEntity({id: 3, type: "minecraft:item", position: {x: 0, y: 64, z: 0}, item: {id: "minecraft:stone"}});
     assert.equal(entityKind(item), "item", "no mob-data: as before");
@@ -337,7 +337,7 @@ test("an entity-marker shows a mob: interpolated, walking, hurt and dying", asyn
 
 test("an entity-marker shows a placeholder for living entities without a model", () => {
     const marker = new EntityMarker("bm-entity-2", null, null, fakeMobCache({}));
-    marker.updateFromData(parseEntity({id: 2, type: "minecraft:allay", position: {x: 0, y: 64, z: 0},
+    marker.updateFromData(parseEntity({id: 2, type: "minecraft:ender_dragon", position: {x: 0, y: 64, z: 0},
         mob: {bodyYaw: 90, width: 0.35, height: 0.6, hurtTime: 5}}), 250);
     marker.step(0.05, null);
     assert.ok(marker.view.isPlaceholderModel);
