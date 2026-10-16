@@ -458,7 +458,8 @@ export class EntityMarker extends Marker {
             this.fuseTicks > 0 || this.swingTicks >= 0 || this.attackTicks > 0 ||
             (catPose.sleep > 0 && catPose.sleep < 1) || (catPose.headDown > 0 && catPose.headDown < 1) ||
             (pandaPose.sit > 0 && pandaPose.sit < 1) || (pandaPose.lie > 0 && pandaPose.lie < 1) ||
-            (this.warning > 0 && this.warning < 1) || Math.abs(this.slime.stretch) > 1e-3;
+            (this.warning > 0 && this.warning < 1) || Math.abs(this.slime.stretch) > 1e-3 ||
+            !!(this.view && this.view.armor && this.view.armor.hasGlint); // the moving enchantment-glint
     }
 
     /** @private */

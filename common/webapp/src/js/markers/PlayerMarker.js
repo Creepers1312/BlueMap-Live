@@ -264,7 +264,8 @@ export class PlayerMarker extends Marker {
             MathUtils.degToRad(angleDelta(this.displayed.bodyYaw, this.displayed.headYaw))
         );
         this.model.applyPose(this.animator.pose);
-        return active;
+        // the enchantment-glint moves all the time (vanilla texture-matrix by the time): keep rendering
+        return active || !!(this.model.armor && this.model.armor.hasGlint);
     }
 
     dispose() {

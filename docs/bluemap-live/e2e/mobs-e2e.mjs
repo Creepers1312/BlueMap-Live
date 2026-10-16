@@ -372,6 +372,24 @@ await step("head-item: a skeleton-skull on the head of a zombie (skull-model, va
     await control({removeEntity: 24});
 });
 
+await step("armor-glint: enchanted armor shimmers and keeps the map rendering (vanilla ARMOR_ENTITY_GLINT)", async () => {
+    await mob(25, "minecraft:zombie", 8.5, 9.5, {bodyYaw: 0, armor: "chest:iron:glint"});
+    await waitForEntity(25, "m.view.visible && m.view.armor.hasGlint", 10000);
+    await sleep(1500);
+    const shot = async () => decodePng(await page.screenshot());
+    const center = await project(25, 1.2);
+    const a = await shot();
+    await sleep(700);
+    const b = await shot();
+    let changed = 0;
+    for (let y = center.y - 40; y < center.y + 40; y++) for (let x = center.x - 40; x < center.x + 40; x++) {
+        const p = a.pixel(x, y), q = b.pixel(x, y);
+        if (Math.abs(p[0] - q[0]) + Math.abs(p[1] - q[1]) + Math.abs(p[2] - q[2]) > 30) changed++;
+    }
+    assert.ok(changed > 20, `the glint moves without any other movement (${changed} pixels changed)`);
+    await control({removeEntity: 25});
+});
+
 await step("no uncaught errors", async () => {
     assert.deepEqual(pageErrors, []);
 });

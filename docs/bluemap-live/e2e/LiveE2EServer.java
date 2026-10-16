@@ -446,10 +446,13 @@ public class LiveE2EServer {
         for (String piece : value.split(",")) {
             String[] v = piece.split(":");
             String base = "minecraft:models/armor/" + v[1] + "_layer_" + (v[0].equals("legs") ? 2 : 1);
-            Integer color = v.length > 2 ? Integer.parseInt(v[2], 16) : null;
-            slots.put(v[0], v[1].equals("leather") ?
+            boolean glint = v[v.length - 1].equals("glint");
+            Integer color = v.length > 2 && !v[2].equals("glint") ? Integer.parseInt(v[2], 16) : null;
+            List<Armor.Layer> layers = new ArrayList<>(v[1].equals("leather") ?
                     List.of(new Armor.Layer(base, color != null ? color : 0xA06540), new Armor.Layer(base + "_overlay", null)) :
                     List.of(new Armor.Layer(base, null)));
+            if (glint) layers.add(new Armor.Layer(Armor.GLINT_TEXTURE, null));
+            slots.put(v[0], layers);
         }
         return new Armor(slots.get("head"), slots.get("chest"), slots.get("legs"), slots.get("feet"));
     }

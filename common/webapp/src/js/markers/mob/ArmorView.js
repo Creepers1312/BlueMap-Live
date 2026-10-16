@@ -108,6 +108,11 @@ export class ArmorView {
         this.updateMaterials();
     }
 
+    /** true if a shown piece has the enchantment-glint (it moves, the map has to be rendered continuously) */
+    get hasGlint() {
+        return this.pieces.some(piece => piece.glint && piece.meshes.some(mesh => mesh.visible));
+    }
+
     /** @private */
     updateMaterials() {
         for (const piece of this.pieces) {

@@ -158,6 +158,10 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         // poses: tame wolf and cat with a checker-pattern (the parts are distinguishable)
         textures.put("minecraft:entity/wolf/wolf_tame", checker(64, 32, 0xFF808080, 0xFFE0E0E0));
         textures.put("minecraft:entity/cat/tabby", checker(64, 32, 0xFFA06030, 0xFFE0C080));
+        // the glint: diagonal stripes (the movement of the texture-matrix is visible)
+        BufferedImage glint = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
+        for (int i = 0; i < 64; i++) for (int j = 0; j < 64; j++) glint.setRGB(i, j, ((i + j) / 8) % 2 == 0 ? 0xFFFF00FF : 0xFF000000);
+        textures.put("minecraft:misc/enchanted_glint_entity", glint);
         textures.put("minecraft:entity/panda/panda", checker(64, 64, 0xFF202020, 0xFFF0F0F0));
         // tropical fish: white like the vanilla textures (tinted by the webapp); only pattern 1 (kob), fully covering
         textures.put("minecraft:entity/fish/tropical_a", square(32, 0, 0, 32, 32, 0xFFFFFFFF));
