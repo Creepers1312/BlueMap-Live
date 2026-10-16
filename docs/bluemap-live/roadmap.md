@@ -1,6 +1,6 @@
 # BlueMap Live – Release-Plan
 
-Stand: 2026-10-15 · Versionsschema: eigene Nummern (`0.x.y-alpha`), damit keine Verwechslung mit BlueMap-Versionen entsteht. `0.x.0` steht für ein größeres Feature, `0.x.y` für Fehlerbehebungen.
+Stand: 2026-10-16 · Versionsschema: eigene Nummern (`0.x.y-alpha`), damit keine Verwechslung mit BlueMap-Versionen entsteht. `0.x.0` steht für ein größeres Feature, `0.x.y` für Fehlerbehebungen.
 
 Für jedes Release gilt:
 - Die originale Karte (Renderer, Navigation, Marker, „Spieler folgen“) bleibt unverändert.
@@ -94,7 +94,10 @@ Release-Notes: `releases/v0.1.0-alpha.md`.
 - Unbekannte Lebewesen erscheinen als Platzhalter.
 - Die Modelldaten prüft das CI gegen Minecraft 1.21.
 - In Minecraft vom Nutzer geprüft („alles passt“, Zombies/Skelette und Treffer einzeln bestätigt).
-- **Bereit zur Veröffentlichung als v0.3.0-alpha** (Tag durch den Nutzer).
+- **Veröffentlicht als Pre-release:** <https://github.com/Creepers1312/BlueMap-Live/releases/tag/v0.3.0-alpha>
+  - Tag `v0.3.0-alpha` auf `e86559df`, enthält 0.2.0, Phase 7 und Phase 8 (`phase-8.md`).
+  - Die JAR `bluemap-0.3.0-alpha-fabric.jar` hat das CI angehängt. Der Tag-Build musste von Hand gestartet werden, weil der Commit `[skip ci]` enthielt.
+  - **Für künftige Releases:** den Tag nicht auf einen `[skip ci]`-Commit setzen, sonst startet kein Build.
 
 **Ziel:** Die häufigsten Mobs mit Vanilla-Modell, Textur aus dem Resource-Pack und Laufanimation.
 
@@ -119,7 +122,7 @@ Weitere Mobs folgen in späteren `0.3.x`-Versionen. Unbekannte Mobs erscheinen a
 **Stand:**
 - Umgesetzt und automatisiert getestet (`phase-7.md`): Rüstung an Spielern und Mobs, Mooshroom-Pilze, Enderman-Block, Creeper-Aufblitzen und 60 weitere Mob-Arten von 1.21 (alle außer dem Enderdrachen).
 - Die Modelldaten aller 97 Ebenen prüft das CI gegen Minecraft.
-- Offen: Prüfung in Minecraft (P1–P10).
+- In Minecraft vom Nutzer geprüft und mit 0.3.0 veröffentlicht. Phase 8 (Tag-Nacht-Zyklus, Posen, Reiten, Boote, Loren, Pferde, Leinen, schlafende Spieler, dynamische Lichter) ebenfalls bestätigt, nur die Liegepose schlafender Spieler (Q24) ist nicht einzeln zurückgemeldet.
 
 ---
 
