@@ -71,7 +71,7 @@ public class VanillaAnimationDumpTest {
         METHODS.put("net/minecraft/entity/vehicle/BoatEntity", Set.of("tick", "interpolatePaddlePhase", "isPaddleMoving",
                 "updatePassengerPosition", "getPassengerAttachmentPos", "getVariant", "clampPassengerYaw", "getMaxPassengers"));
         // horses: grazing, rearing, eating, tail, gallop (model and the animation-progress of the entity)
-        METHODS.put(MODEL + "AbstractHorseEntityModel", Set.of());
+        METHODS.put(MODEL + "HorseEntityModel", Set.of());
         METHODS.put(MODEL + "DonkeyEntityModel", Set.of());
         METHODS.put(RENDER + "AbstractHorseEntityRenderer", Set.of());
         METHODS.put("net/minecraft/entity/passive/AbstractHorseEntity", Set.of("updatePassengerPosition", "getPassengerAttachmentPos",
