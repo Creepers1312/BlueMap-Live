@@ -220,7 +220,7 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | N1 | Items fallen lassen (Q), in der Nähe auf die Karte schauen | Items liegen schwebend und drehend am Boden; beim Aufheben verschwinden sie **Vom Nutzer bestätigt** (nach dem Fix der Asset-Versionierung: Größe und Drehung stimmen) |
 | N2 | Block mit vielen Drops abbauen, Truhe mit Items zerstören | Viele Items gleichzeitig, kein Ruckeln der Karte |
 | N3 | Schneebälle, Eier, Enderperle, Wurftrank werfen | Fliegende Gegenstände sind sichtbar und zeigen zur Kamera |
-| N4 | Mit dem Bogen schießen, Pfeil im Block stecken lassen | Pfeil sieht aus wie in Minecraft (dünnes Kreuz mit Federn), fliegt flüssig im Bogen und neigt sich im Fallen; steckender Pfeil bleibt mit seiner Neigung · Bestätigt bis auf die Kollision (flog kurz durch Blöcke) → behoben mit dem Aufprallpunkt vom Server, erneute Prüfung offen |
+| N4 | Mit dem Bogen schießen, Pfeil im Block stecken lassen | Pfeil sieht aus wie in Minecraft (dünnes Kreuz mit Federn), fliegt flüssig im Bogen und neigt sich im Fallen; steckender Pfeil bleibt mit seiner Neigung · **Vom Nutzer bestätigt** (nach dem Fix der Kollision mit dem Aufprallpunkt vom Server) |
 | N9 | Schaden nehmen (Fallschaden, Mob) | Körper 0,5 s rot eingefärbt, das Item in der Hand nicht; Rückstoß sichtbar · **Vom Nutzer bestätigt** |
 | N5 | Marker-Menü → „Entities“ ausschalten | Entities verschwinden, Spieler bleiben |
 | N6 | Zuschauermodus mit Items in der Nähe | Keine Entities um den versteckten Spieler |
