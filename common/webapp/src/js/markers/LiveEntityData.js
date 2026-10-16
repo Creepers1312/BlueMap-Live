@@ -100,7 +100,8 @@ export const THROWN_ITEM_SCALES = {"minecraft:fireball": 3, "minecraft:small_fir
  *     time: number | null,
  *     onGround: boolean,
  *     item: object | null,
- *     mob: LiveMob | null
+ *     mob: LiveMob | null,
+ *     impact: {x: number, y: number, z: number, ticks: number} | null
  * }}
  * @typedef LiveMob {{
  *     bodyYaw: number, headYaw: number, hurtTime: number, deathTime: number, baby: boolean,
@@ -112,6 +113,17 @@ export const THROWN_ITEM_SCALES = {"minecraft:fireball": 3, "minecraft:small_fir
 const VARIANT_PATTERN = /^[a-z0-9_-]+(\/[a-z0-9_-]+)*$/;
 const FLAG_PATTERN = /^[a-z0-9_]{1,32}$/;
 const clampNumber = (value, min, max, fallback) => isFiniteNumber(value) ? Math.min(max, Math.max(min, value)) : fallback;
+
+/**
+ * @param value {any}
+ * @returns {{x: number, y: number, z: number, ticks: number} | null} - where a flying projectile hits a block
+ *  (computed by the server), the ticks from the sample until then
+ */
+export function parseImpact(value) {
+    const position = parseVector(value);
+    if (!position || !isFiniteNumber(value.ticks) || value.ticks < 0) return null;
+    return {...position, ticks: value.ticks};
+}
 
 /**
  * @param value {any}
@@ -162,6 +174,7 @@ export function parseEntity(raw) {
         onGround: raw.onGround === true,
         item: parseItem(raw.item),
         mob: parseMob(raw.mob),
+        impact: parseImpact(raw.impact),
     };
 }
 

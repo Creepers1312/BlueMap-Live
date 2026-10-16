@@ -160,6 +160,17 @@ const mob = (id, type, x, z, extra = {}) => control({entity: id, type, x, y: 64,
 await page.goto(`${BASE}/#world:8.5:64.5:9.5:9:0:1.2:0:0:perspective`);
 await page.waitForFunction(() => window.bluemap?.mapViewer?.map?.isLoaded, null, {timeout: 60000});
 await page.evaluate(() => window.__bmLiveNoReload = true);
+// the camera may still be adjusted to the terrain after loading: wait until it stands still (stable pixel-tests)
+await page.evaluate(() => new Promise(resolve => {
+    let last = "", stable = 0;
+    const check = () => {
+        const p = window.bluemap.mapViewer.camera.position.toArray().map(v => v.toFixed(3)).join();
+        stable = p === last ? stable + 1 : 0;
+        last = p;
+        if (stable >= 5) resolve(); else setTimeout(check, 200);
+    };
+    check();
+}));
 await page.waitForFunction(() => window.bluemap.entityMarkerManager?.getEntityMarkerSet(false), null, {timeout: 10000});
 
 await step("zombie: vanilla model with the pack-texture, arms forward, holds its sword", async () => {

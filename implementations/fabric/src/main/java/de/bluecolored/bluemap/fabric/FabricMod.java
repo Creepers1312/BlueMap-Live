@@ -418,6 +418,13 @@ public class FabricMod implements ModInitializer, Server {
             }
         }
 
+        // flying projectiles: where they will hit a block, so the webapp-prediction does not fly through it
+        LiveEntityState.Impact impact = null;
+        if (!onGround && (entity instanceof PersistentProjectileEntity || entity instanceof FlyingItemEntity) &&
+                velocity.lengthSquared() > 1e-6) {
+            impact = FabricProjectiles.predictImpact(entity, type, pos, velocity);
+        }
+
         return new LiveEntityState(
                 entity.getId(),
                 type,
@@ -428,7 +435,8 @@ public class FabricMod implements ModInitializer, Server {
                 now,
                 item,
                 onGround,
-                entity instanceof LivingEntity living ? FabricMobs.sample(living) : null
+                entity instanceof LivingEntity living ? FabricMobs.sample(living) : null,
+                impact
         );
     }
 

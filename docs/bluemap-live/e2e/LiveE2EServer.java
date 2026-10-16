@@ -226,7 +226,9 @@ public class LiveE2EServer {
             entities.put(id, new LiveEntityState(id, q.getOrDefault("type", "minecraft:item"),
                     new Vector3d(d(q, "x"), d(q, "y"), d(q, "z")), d(q, "yaw"), d(q, "pitch"),
                     new Vector3d(d(q, "vx"), d(q, "vy"), d(q, "vz")), System.currentTimeMillis(),
-                    q.containsKey("item") ? new HeldItem(q.get("item")) : null, "1".equals(q.get("ground")) || mob != null, mob));
+                    q.containsKey("item") ? new HeldItem(q.get("item")) : null, "1".equals(q.get("ground")) || mob != null, mob,
+                    // projectiles: &impact=x,y,z,ticks (where the server predicted the hit on a block)
+                    q.containsKey("impact") ? impact(q.get("impact")) : null));
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }
@@ -415,6 +417,12 @@ public class LiveE2EServer {
     }
 
     /** baked by the real ItemModelBaker from a small, color-coded resource-pack (see E2EItemResources) */
+    private static LiveEntityState.Impact impact(String value) {
+        String[] v = value.split(",");
+        return new LiveEntityState.Impact(new Vector3d(Double.parseDouble(v[0]), Double.parseDouble(v[1]), Double.parseDouble(v[2])),
+                Double.parseDouble(v[3]));
+    }
+
     private void handleItem(HttpExchange ex, String file) throws IOException {
         if (itemsDown) {
             send(ex, 404, "text/plain", "not yet".getBytes(StandardCharsets.UTF_8));

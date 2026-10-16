@@ -40,6 +40,7 @@ import org.jetbrains.annotations.Nullable;
  * @param item the item of the entity (dropped items, thrown items, arrows), or null
  * @param onGround if the entity is on the ground
  * @param mob the state of a living entity (mob), null for other entities
+ * @param impact where a flying projectile will hit a block (computed by the server), null if unknown or none
  */
 public record LiveEntityState(
         int id,
@@ -51,12 +52,26 @@ public record LiveEntityState(
         long time,
         @Nullable HeldItem item,
         boolean onGround,
-        @Nullable LiveMobState mob
+        @Nullable LiveMobState mob,
+        @Nullable Impact impact
 ) {
+
+    /**
+     * The predicted impact of a flying projectile on a block.
+     *
+     * @param position the position where the projectile hits the block
+     * @param ticks the ticks (with fraction) from the sample until the impact
+     */
+    public record Impact(Vector3d position, double ticks) {}
 
     public LiveEntityState(int id, String type, Vector3d position, double yaw, double pitch, Vector3d velocity,
                            long time, @Nullable HeldItem item, boolean onGround) {
-        this(id, type, position, yaw, pitch, velocity, time, item, onGround, null);
+        this(id, type, position, yaw, pitch, velocity, time, item, onGround, null, null);
+    }
+
+    public LiveEntityState(int id, String type, Vector3d position, double yaw, double pitch, Vector3d velocity,
+                           long time, @Nullable HeldItem item, boolean onGround, @Nullable LiveMobState mob) {
+        this(id, type, position, yaw, pitch, velocity, time, item, onGround, mob, null);
     }
 
 }

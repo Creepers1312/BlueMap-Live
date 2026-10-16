@@ -297,8 +297,9 @@ test("the mob-model hides the parts vanilla does not render, scales slimes and h
 test("an entity-marker shows a mob: interpolated, walking, hurt and dying", async () => {
     const cache = fakeMobCache({"minecraft:entity/cow/cow": 1});
     const marker = new EntityMarker("bm-entity-1", null, null, cache);
+    let time = 1000;
     const sample = (x, extra = {}, mob = {}) => parseEntity({
-        id: 1, type: "minecraft:cow", position: {x, y: 64, z: 0}, time: 1000 + x * 1000, onGround: true, ...extra,
+        id: 1, type: "minecraft:cow", position: {x, y: 64, z: 0}, time: time += 250, onGround: true, ...extra,
         mob: {bodyYaw: 0, headYaw: 0, ...mob},
     });
     marker.updateFromData(sample(0), 250);

@@ -144,6 +144,17 @@ const itemCacheIds = () => page.evaluate(() => [...window.bluemap.entityMarkerMa
 await page.goto(`${BASE}/#world:8.5:64.5:9.5:6:0:1.2:0:0:perspective`);
 await page.waitForFunction(() => window.bluemap?.mapViewer?.map?.isLoaded, null, {timeout: 60000});
 await page.evaluate(() => window.__bmLiveNoReload = true);
+// the camera may still be adjusted to the terrain after loading: wait until it stands still (stable pixel-tests)
+await page.evaluate(() => new Promise(resolve => {
+    let last = "", stable = 0;
+    const check = () => {
+        const p = window.bluemap.mapViewer.camera.position.toArray().map(v => v.toFixed(3)).join();
+        stable = p === last ? stable + 1 : 0;
+        last = p;
+        if (stable >= 5) resolve(); else setTimeout(check, 200);
+    };
+    check();
+}));
 
 await step("no entities: an empty entity-set, nothing loaded", async () => {
     await page.waitForFunction(() => window.bluemap.entityMarkerManager?.getEntityMarkerSet(false), null, {timeout: 10000});
@@ -187,7 +198,8 @@ await step("moving entity is interpolated, a far jump is not", async () => {
 });
 
 await step("thrown item (snowball) faces the camera, fireballs are bigger", async () => {
-    await control({entity: 2, type: "minecraft:snowball", x: 7.5, y: 65, z: 11, item: "minecraft:snowball"});
+    // one sample at rest (a single sample of a flying snowball would fall below the ground within the prediction-time)
+    await control({entity: 2, type: "minecraft:snowball", x: 7.5, y: 65, z: 11, item: "minecraft:snowball", ground: 1});
     await waitForEntity(2, meshes + " > 0");
     await sleep(500);
     const angle = await page.evaluate(() => {
@@ -241,6 +253,15 @@ await step("flying arrow is predicted smoothly between the samples (no still fra
     const rest = await entityExpr(5, "m.position.toArray()");
     assert.ok(Math.abs(rest[0] - 12) < 1e-3 && Math.abs(rest[1] - 66) < 1e-3, `rests at ${rest}`);
     await control({removeEntity: 5});
+});
+
+await step("a flying arrow stops at the impact predicted by the server (no flight through the block)", async () => {
+    await control({entity: 6, type: "minecraft:arrow", x: 2, y: 66, z: 10, vx: 40, vy: 0, vz: 0, impact: "6,65.9,10,2"});
+    await waitForEntity(6, "m.predicting");
+    const xs = await sample(6, 600, "m.position.x");
+    assert.ok(Math.max(...xs) <= 6 + 1e-6, `never behind the block: max x ${Math.max(...xs)}`);
+    await waitForEntity(6, "m.impacted && Math.abs(m.position.x - 6) < 1e-3");
+    await control({removeEntity: 6});
 });
 
 await step("removed entities disappear and release their items, shared items stay", async () => {

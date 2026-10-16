@@ -111,3 +111,16 @@ Bestehende `plugin.conf`-Dateien werden nicht geändert. Fehlende Optionen haben
 | Browser-E2E `entities-e2e.mjs` | **10/10**: Pfeil mit Vanilla-Modell und Pack-Textur; fliegender Pfeil bewegt sich in jedem Frame zwischen den Abtastungen; ruhender Pfeil bleibt |
 | Browser-E2E `animation-e2e.mjs` | **19/19**: Treffer-Blitz 0,5 s, anderer Spieler ungefärbt |
 | `items-e2e.mjs`, `player-e2e.mjs`, Regression | 16/16, 22/22, 0 abweichende Pixel |
+
+## 8. Aufprallpunkt (Nachtrag nach dem Test in Minecraft)
+
+- **Problem:** Der Webclient kennt die Blöcke nicht. Ein Pfeil flog deshalb bis zur nächsten Abtastung durch Wände und sprang dann an die Stelle, an der er steckt.
+- **Lösung:**
+  - Der Server (`FabricProjectiles.predictImpact`) rechnet für fliegende Projektile die Flugbahn mit derselben Physik wie der Webclient voraus, höchstens 16 Ticks. Jeden Tick-Abschnitt prüft er wie Vanilla per Raycast gegen die Kollisionsformen der Blöcke (`RaycastContext.ShapeType.COLLIDER`).
+  - Ein Treffer wird als `"impact": {"x", "y", "z", "ticks"}` mitgeschickt. Der Webclient hält das Projektil nach dieser Zeit am Aufprallpunkt an.
+  - Treffer auf Lebewesen werden nicht vorausberechnet. Der Pfeil verschwindet dort mit der nächsten Abtastung.
+- **Dazu:** Kommt dieselbe Abtastung doppelt an (zwischengespeichertes `entities.json`), startet die Bewegung nicht mehr neu.
+- **Tests:**
+  - Node: Der Pfeil bleibt vor der Wand, eine doppelte Abtastung startet die Bewegung nicht neu.
+  - Java: `impact` im JSON.
+  - Browser: Der Pfeil kommt nie hinter den Block.

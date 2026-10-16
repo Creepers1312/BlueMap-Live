@@ -197,6 +197,39 @@ test("arrows: vanilla rotation from the flight-direction, the flight is predicte
     arrow.dispose();
 });
 
+test("arrows stop where the server predicted the impact on a block (no flight through walls)", async () => {
+    const arrow = new EntityMarker("bm-entity-10", cache(), arrowCache());
+    // along +z with 2 blocks per tick, the wall is hit after 2.5 ticks at z = 5
+    arrow.updateFromData(parseEntity(raw({type: "minecraft:arrow", item: null, position: {x: 0, y: 64, z: 0},
+        velocity: {x: 0, y: 0, z: 40}, onGround: false, impact: {x: 0, y: 63.9, z: 5, ticks: 2.5}})), 250);
+    await flush();
+    const zs = [];
+    for (let i = 0; i < 40; i++) {
+        arrow.step(0.01, null);
+        zs.push(arrow.position.z);
+    }
+    assert.ok(Math.max(...zs) <= 5 + 1e-9, `never behind the wall: max z ${Math.max(...zs)}`);
+    assert.ok(Math.abs(arrow.position.z - 5) < 1e-9 && Math.abs(arrow.position.y - 63.9) < 1e-9, "rests at the impact");
+    assert.ok(zs.some(z => z > 1 && z < 4.9), "flies until then");
+    assert.equal(arrow.step(0.01, null), false, "not moving anymore");
+
+    assert.equal(parseEntity(raw({impact: {x: 1, y: 2, z: 3, ticks: -1}})).impact, null, "invalid impact");
+    arrow.dispose();
+});
+
+test("the same sample again (cached live/entities.json) does not restart the motion", async () => {
+    const arrow = new EntityMarker("bm-entity-11", cache(), arrowCache());
+    const sample = () => parseEntity(raw({type: "minecraft:arrow", item: null, position: {x: 0, y: 64, z: 0},
+        velocity: {x: 0, y: 0, z: 40}, onGround: false, time: 5000}));
+    arrow.updateFromData(sample(), 250);
+    for (let i = 0; i < 10; i++) arrow.step(0.01, null);
+    const z = arrow.position.z;
+    arrow.updateFromData(sample(), 250);
+    arrow.step(0.01, null);
+    assert.ok(arrow.position.z > z, `flies on (${z} -> ${arrow.position.z})`);
+    arrow.dispose();
+});
+
 test("projectile-physics like vanilla", () => {
     assert.deepEqual(projectilePhysics("minecraft:arrow"), {gravity: 0.05, drag: 0.99});
     assert.deepEqual(projectilePhysics("minecraft:snowball"), {gravity: 0.03, drag: 0.99});

@@ -267,6 +267,24 @@ public class LivePlayersDataSupplierTest {
     }
 
     @Test
+    public void testProjectileImpact() {
+        TestPlayer player = new TestPlayer(overworld, Vector3d.ZERO);
+        player.snapshot = new Player.LiveSnapshot(overworld, state(Vector3d.ZERO, 0));
+        TestServer server = new TestServer(player);
+        server.entities = List.of(
+                new LiveEntityState(1, "minecraft:arrow", new Vector3d(1, 0, 0), 0, 0, new Vector3d(40, 0, 0), 1000,
+                        null, false, null, new LiveEntityState.Impact(new Vector3d(4, 0.5, 0), 1.5)),
+                entity(2, "minecraft:arrow", new Vector3d(2, 0, 0), null)
+        );
+        JsonArray list = entities(supplyEntities(new PluginConfig(), server, new ArrayList<>()));
+        JsonObject impact = list.get(0).getAsJsonObject().getAsJsonObject("impact");
+        assertEquals(4, impact.get("x").getAsDouble());
+        assertEquals(0.5, impact.get("y").getAsDouble());
+        assertEquals(1.5, impact.get("ticks").getAsDouble());
+        assertFalse(list.get(1).getAsJsonObject().has("impact"), "no impact predicted");
+    }
+
+    @Test
     public void testEntitiesDoNotRevealHiddenPlayers() {
         TestPlayer hidden = new TestPlayer(overworld, Vector3d.ZERO);
         hidden.invisible = true; // invisible players are hidden by default

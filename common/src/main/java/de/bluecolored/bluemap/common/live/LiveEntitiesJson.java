@@ -68,6 +68,15 @@ public final class LiveEntitiesJson {
                 json.endObject();
             }
             if (entity.mob() != null) writeMob(json, entity.mob());
+            if (entity.impact() != null) {
+                json.name("impact");
+                json.beginObject();
+                json.name("x").value(finite(entity.impact().position().getX()));
+                json.name("y").value(finite(entity.impact().position().getY()));
+                json.name("z").value(finite(entity.impact().position().getZ()));
+                json.name("ticks").value(finite(entity.impact().ticks()));
+                json.endObject();
+            }
             json.endObject();
         }
         json.endArray();

@@ -213,28 +213,28 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | I17 | Nah an den Spieler heranzoomen, dann weit herauszoomen | nah: Kopfbild ausgeblendet, nur der Name; fern: Kopfbild und Name wie bisher |
 | I18 | Mod-Liste (Mod Menu) | Name „BlueMap Live“, Beschreibung mit Hinweis auf den inoffiziellen Fork |
 
-**Entities (Release 0.2.0, `phase-5.md`, offen außer N1)**
+**Entities (Release 0.2.0, `phase-5.md`)**
 
 | # | Prüfung | Erwartung |
 |---|---|---|
 | N1 | Items fallen lassen (Q), in der Nähe auf die Karte schauen | Items liegen schwebend und drehend am Boden; beim Aufheben verschwinden sie **Vom Nutzer bestätigt** (nach dem Fix der Asset-Versionierung: Größe und Drehung stimmen) |
 | N2 | Block mit vielen Drops abbauen, Truhe mit Items zerstören | Viele Items gleichzeitig, kein Ruckeln der Karte |
 | N3 | Schneebälle, Eier, Enderperle, Wurftrank werfen | Fliegende Gegenstände sind sichtbar und zeigen zur Kamera |
-| N4 | Mit dem Bogen schießen, Pfeil im Block stecken lassen | Pfeil sieht aus wie in Minecraft (dünnes Kreuz mit Federn), fliegt flüssig im Bogen und neigt sich im Fallen; steckender Pfeil bleibt mit seiner Neigung |
-| N9 | Schaden nehmen (Fallschaden, Mob) | Körper 0,5 s rot eingefärbt, das Item in der Hand nicht; Rückstoß sichtbar |
+| N4 | Mit dem Bogen schießen, Pfeil im Block stecken lassen | Pfeil sieht aus wie in Minecraft (dünnes Kreuz mit Federn), fliegt flüssig im Bogen und neigt sich im Fallen; steckender Pfeil bleibt mit seiner Neigung · Bestätigt bis auf die Kollision (flog kurz durch Blöcke) → behoben mit dem Aufprallpunkt vom Server, erneute Prüfung offen |
+| N9 | Schaden nehmen (Fallschaden, Mob) | Körper 0,5 s rot eingefärbt, das Item in der Hand nicht; Rückstoß sichtbar · **Vom Nutzer bestätigt** |
 | N5 | Marker-Menü → „Entities“ ausschalten | Entities verschwinden, Spieler bleiben |
 | N6 | Zuschauermodus mit Items in der Nähe | Keine Entities um den versteckten Spieler |
 | N7 | `live-entities: false`, `/bluemap reload` | Keine Entities; mit `live-entities-hidden-types: ["minecraft:item"]` nur keine Bodenitems |
 | N8 | Dimensionswechsel mit Items in der Nähe (ohne Neuladen) | Auf der neuen Karte die Entities der neuen Dimension |
-| N10 | Item am Boden / steckenden Pfeil länger als 30 s beobachten | Kein Flackern oder Neuladen alle 10 s (Fehler aus 0.2.0 behoben) |
+| N10 | Item am Boden / steckenden Pfeil länger als 30 s beobachten | Kein Flackern oder Neuladen alle 10 s (Fehler aus 0.2.0 behoben) · **Vom Nutzer bestätigt** |
 
-**Mobs (Release 0.3.0, `phase-6.md`, alle offen)**
+**Mobs (Release 0.3.0, `phase-6.md`)** – der Nutzer meldete nach dem Test „alles passt“; einzeln bestätigt sind O1 und O3
 
 | # | Prüfung | Erwartung |
 |---|---|---|
-| O1 | Zombie, Skelett, Creeper, Spinne in der Nähe (Nacht oder Spawn-Ei) | Modelle wie im Spiel (Form, Textur, Blickrichtung), laufen mit Bein-Animation, Kopf folgt dem Blick |
+| O1 | Zombie, Skelett, Creeper, Spinne in der Nähe (Nacht oder Spawn-Ei) | Modelle wie im Spiel (Form, Textur, Blickrichtung), laufen mit Bein-Animation, Kopf folgt dem Blick · **Vom Nutzer bestätigt** (Zombies, Skelette) |
 | O2 | Zombie/Skelett greift dich an | Zombie hebt die Arme höher; Skelett zielt mit dem Bogen in deine Richtung |
-| O3 | Mob schlagen, Mob töten | Mob 0,5 s rot; beim Tod kippt er rot zur Seite (Spinne auf den Rücken) und verschwindet |
+| O3 | Mob schlagen, Mob töten | Mob 0,5 s rot; beim Tod kippt er rot zur Seite (Spinne auf den Rücken) und verschwindet · **Vom Nutzer bestätigt** (rot bei Schaden) |
 | O4 | Kuh, Schwein (mit Sattel), Schaf (gefärbt, geschoren), Huhn | Richtige Texturen, Wollfarbe wie im Spiel, geschoren ohne Wolle, Huhn schlägt beim Fallen mit den Flügeln |
 | O5 | Babys (Kälber, Babyzombie) | Kleiner, mit größerem Kopf wie im Spiel |
 | O6 | Dorfbewohner verschiedener Biome und Berufe | Kleidung von Biom und Beruf, Stufen-Abzeichen |

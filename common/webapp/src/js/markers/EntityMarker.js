@@ -105,6 +105,9 @@ export class EntityMarker extends Marker {
         this.sinceSample = 0;
         this.correction = new Vector3();
         this.physics = projectilePhysics("");
+        /** where the projectile hits a block (from the server), null if unknown */
+        this.impact = null;
+        this.impacted = false;
 
         this.direction = new Vector3(0, 0, 1);
 
@@ -142,6 +145,11 @@ export class EntityMarker extends Marker {
         }
 
         const previous = this.lastData;
+        // the same sample again (e.g. a cached live/entities.json): the running motion is not restarted
+        if (previous && previous.time !== null && entity.time === previous.time && previous.type === entity.type) {
+            this.lastData = entity;
+            return;
+        }
         const first = !previous;
         tempVector.set(entity.position.x, entity.position.y, entity.position.z);
         const jump = first || tempVector.distanceTo(this.position) > MAX_INTERPOLATION_DISTANCE;
@@ -160,6 +168,8 @@ export class EntityMarker extends Marker {
             this.tickProgress = 0;
             this.sinceSample = 0;
             this.predicting = true;
+            this.impact = entity.impact;
+            this.impacted = false;
             this.progress = 1;
             if (jump) this.position.copy(tempVector);
         } else {
@@ -374,6 +384,16 @@ export class EntityMarker extends Marker {
     /** @private */
     stepPrediction(dt) {
         this.sinceSample += dt;
+
+        // the server predicted where the projectile hits a block: it stops there (instead of flying through it)
+        const impact = this.impact;
+        if (impact && this.sinceSample * 20 >= impact.ticks) {
+            this.impacted = true;
+            this.correction.multiplyScalar(Math.exp(-dt / CORRECTION_TIME));
+            this.position.set(impact.x, impact.y, impact.z).add(this.correction);
+            return this.correction.lengthSq() > 1e-6;
+        }
+
         if (this.sinceSample <= MAX_PREDICTION_TIME) {
             this.tickProgress += dt * 20;
             for (let i = 0; this.tickProgress >= 1 - 1e-9 && i < 20; i++) {
