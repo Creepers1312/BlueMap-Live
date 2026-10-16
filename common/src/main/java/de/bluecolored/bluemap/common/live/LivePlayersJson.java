@@ -81,10 +81,26 @@ public final class LivePlayersJson {
      * @param includeExtendedData if false, only the original fields are written for each player
      */
     public static void write(JsonWriter json, long serverTime, int updateInterval, boolean includeExtendedData, Collection<Entry> players) throws IOException {
+        write(json, serverTime, updateInterval, includeExtendedData, players, null);
+    }
+
+    /**
+     * @param worldTime the time and weather of the world of the map (for the day-night-cycle), null if unknown
+     */
+    public static void write(JsonWriter json, long serverTime, int updateInterval, boolean includeExtendedData, Collection<Entry> players,
+                             @org.jetbrains.annotations.Nullable LiveWorldTime worldTime) throws IOException {
         json.beginObject();
         json.name("protocol").value(PROTOCOL_VERSION);
         json.name("serverTime").value(serverTime);
         json.name("updateInterval").value(updateInterval);
+        if (worldTime != null && includeExtendedData) {
+            json.name("world").beginObject();
+            json.name("dayTime").value(worldTime.dayTime());
+            json.name("rain").value(Double.isFinite(worldTime.rain()) ? worldTime.rain() : 0);
+            json.name("thunder").value(Double.isFinite(worldTime.thunder()) ? worldTime.thunder() : 0);
+            json.name("cycle").value(worldTime.cycle());
+            json.endObject();
+        }
 
         json.name("players").beginArray();
         for (Entry player : players) {

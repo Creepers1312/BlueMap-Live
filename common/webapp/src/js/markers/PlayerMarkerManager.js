@@ -27,6 +27,7 @@ import { MarkerManager } from "./MarkerManager";
 import { DEFAULT_UPDATE_INTERVAL } from "./LivePlayerData";
 import { PlayerSkinCache } from "./player/PlayerSkinCache";
 import { ItemAssetCache } from "./player/ItemAssetCache";
+import { WORLD_TIME_EVENT } from "./WorldTimeLighting";
 
 export const PLAYER_MARKER_SET_ID = "bm-players";
 
@@ -92,7 +93,15 @@ export class PlayerMarkerManager extends MarkerManager {
     updateFromData(markerFileData) {
         let playerMarkerSet = this.getPlayerMarkerSet(Array.isArray(markerFileData.players));
         if (!playerMarkerSet) return false;
-        return playerMarkerSet.updateFromPlayerData(markerFileData);
+        const result = playerMarkerSet.updateFromPlayerData(markerFileData);
+        // BlueMap Live: every response is a new sample of the world-time (see WorldTimeLighting)
+        this.dispatchWorldTime(playerMarkerSet.worldTime ?? null);
+        return result;
+    }
+
+    /** @param world {object | null} */
+    dispatchWorldTime(world) {
+        if (this.events) this.events.dispatchEvent(new CustomEvent(WORLD_TIME_EVENT, {detail: {world}}));
     }
 
     /**
@@ -139,6 +148,7 @@ export class PlayerMarkerManager extends MarkerManager {
 
     dispose() {
         if (this.events) this.events.removeEventListener("bluemapRenderFrame", this.onRenderFrame);
+        this.dispatchWorldTime(null);
         super.dispose();
         this.skinCache.dispose();
         this.itemCache.dispose();

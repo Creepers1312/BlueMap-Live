@@ -24,6 +24,7 @@
  */
 
 import {DoubleSide, FrontSide, MeshBasicMaterial, NearestFilter, Texture} from "three";
+import {applyEntityShader} from "../EntityLighting.js";
 
 /** resource-paths of the default skins in a maps textures.json (from the resource-pack, used by the player-head blocks) */
 export const DEFAULT_SKIN_RESOURCES = [
@@ -59,14 +60,7 @@ export const HURT_TINT = 0.3;
  */
 export function createHurtMaterial(material) {
     const hurt = material.clone();
-    hurt.onBeforeCompile = shader => {
-        shader.fragmentShader = shader.fragmentShader.replace(
-            "#include <output_fragment>",
-            `#include <output_fragment>\n\tgl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.0, 0.0), ${HURT_TINT.toFixed(2)});`
-        );
-    };
-    hurt.customProgramCacheKey = () => "bluemap-live-hurt";
-    return hurt;
+    return applyEntityShader(hurt, `gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 0.0, 0.0), ${HURT_TINT.toFixed(2)});`, "hurt");
 }
 
 /**
@@ -79,13 +73,7 @@ export function createHurtMaterial(material) {
 export function createWhiteOverlayMaterial(material, level) {
     const amount = Math.min(Math.max(level, 0), 15) / 15 * 0.75;
     const white = material.clone();
-    white.onBeforeCompile = shader => {
-        shader.fragmentShader = shader.fragmentShader.replace(
-            "#include <output_fragment>",
-            `#include <output_fragment>\n\tgl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), ${amount.toFixed(4)});`
-        );
-    };
-    white.customProgramCacheKey = () => "bluemap-live-white-" + level;
+    applyEntityShader(white, `gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), ${amount.toFixed(4)});`, "white-" + level);
     white.userData.whiteOverlay = amount;
     return white;
 }
@@ -219,9 +207,9 @@ export class PlayerSkinCache {
             url,
             texture,
             // base layer: opaque like in Minecraft (alpha of the first layer is ignored)
-            baseMaterial: new MeshBasicMaterial({map: texture, side: FrontSide}),
+            baseMaterial: applyEntityShader(new MeshBasicMaterial({map: texture, side: FrontSide})),
             // second layer: cut-out transparency, rendered from both sides (visible through holes)
-            overlayMaterial: new MeshBasicMaterial({map: texture, alphaTest: 0.5, side: DoubleSide}),
+            overlayMaterial: applyEntityShader(new MeshBasicMaterial({map: texture, alphaTest: 0.5, side: DoubleSide})),
             state: "loading",
             refs: 0,
             isDefault,

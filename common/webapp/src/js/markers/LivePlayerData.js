@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+import {parseWorldTime} from "./WorldTime.js";
+
 /*
  * Parsing and validation of the live/players.json data (no three.js dependencies, so it can be unit-tested with node).
  * See docs/bluemap-live/phase-2.md for the format.
@@ -266,6 +268,7 @@ export function parsePlayersResponse(data) {
         updateInterval: isFiniteNumber(data.updateInterval) ? data.updateInterval : null,
         players,
         invalid,
+        world: supported ? parseWorldTime(data.world) : null,
     };
 }
 

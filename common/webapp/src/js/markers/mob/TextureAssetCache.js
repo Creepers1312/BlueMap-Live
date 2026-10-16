@@ -24,6 +24,7 @@
  */
 import {Color, DoubleSide, MeshBasicMaterial, NearestFilter, Texture} from "three";
 import {ASSET_VERSION, MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
+import {applyEntityShader} from "../EntityLighting.js";
 
 /*
  * Loads single textures of the resource-pack that the server provides as png (assets/textures/<ns>/<path>.png, e.g.
@@ -99,7 +100,7 @@ export class TextureAssetCache {
         let material = entry.materials.get(key);
         if (!material) {
             // vanilla armor-cutout-no-cull
-            material = new MeshBasicMaterial({map: entry.texture, alphaTest: 0.1, side: DoubleSide});
+            material = applyEntityShader(new MeshBasicMaterial({map: entry.texture, alphaTest: 0.1, side: DoubleSide}));
             if (color !== null) material.color = new Color(color);
             entry.materials.set(key, material);
         }

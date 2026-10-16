@@ -58,9 +58,14 @@ PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/blu
 
 # 8. Mobs (Vanilla-Modelle, Animationen, Platzhalter) – Server vorher neu starten
 PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/bluemap-live/e2e/mobs-e2e.mjs
+
+# 9. Tag-Nacht-Zyklus der Welt (Phase 8) – Server vorher neu starten
+PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/bluemap-live/e2e/worldtime-e2e.mjs
 ```
 
-Für Schritt 2 werden außerdem `MobTextures.java`, `LiveEntityState.java`, `LiveMobState.java`, `LivePlayerState.java` und `LivePlayersJson.java` aus `common/src/main/java/.../live` bzw. `.../plugin/items` mitkompiliert. Sie werden explizit angegeben, weil Lombok für implizit kompilierte Quellen nicht läuft.
+Weltzeit der Testkarte: `/control?dayTime=TICKS&rain=0..1&thunder=0..1&cycle=0|1`, `dayTime=none` entfernt sie.
+
+Für Schritt 2 werden außerdem `MobTextures.java`, `LiveEntityState.java`, `LiveMobState.java`, `LivePlayerState.java`, `LivePlayersJson.java` und `LiveWorldTime.java` aus `common/src/main/java/.../live` bzw. `.../plugin/items` mitkompiliert. Sie werden explizit angegeben, weil Lombok für implizit kompilierte Quellen nicht läuft.
 
 Für `entities-e2e.mjs` liefert der Server `maps/world/live/entities.json`; die Nether-Karte ist leer. Steuerung:
 - `/control?entity=ID&type=minecraft:item&x=..&y=..&z=..&item=minecraft:diamond&vx=..&vy=..&vz=..&yaw=..&pitch=..&ground=1`

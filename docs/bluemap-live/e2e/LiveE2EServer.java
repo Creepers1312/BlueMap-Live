@@ -25,6 +25,7 @@ import de.bluecolored.bluemap.common.live.ItemUse;
 import de.bluecolored.bluemap.common.live.LiveEntitiesJson;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.common.live.LiveMobState;
+import de.bluecolored.bluemap.common.live.LiveWorldTime;
 import de.bluecolored.bluemap.common.live.MovementState;
 import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.items.ItemModelBaker;
@@ -183,7 +184,7 @@ public class LiveE2EServer {
         }
         StringWriter out = new StringWriter();
         try (JsonWriter json = new JsonWriter(out)) {
-            LivePlayersJson.write(json, System.currentTimeMillis(), 250, true, entries);
+            LivePlayersJson.write(json, System.currentTimeMillis(), 250, true, entries, worldTime);
         }
         return out.toString();
     }
@@ -196,9 +197,12 @@ public class LiveE2EServer {
      * Held items (kept until changed, "none" clears): &main=minecraft:diamond_sword&off=minecraft:shield&leftHanded=1&charged=1
      * Item use (only for this sample): &use=main|off&useAction=bow&useTicks=12
      * Hurt-counter (kept): &hurt=3
+     * World-time of the map: /control?dayTime=TICKS&rain=..&thunder=..&cycle=0|1 (dayTime=none: no world-time)
      * Item-assets unavailable (404, like before the server created them): /control?itemsDown=1|0
      * Other commands: /control?leave=uuid, /control?stale=1, /control?down=1|0, /control?status=1
      */
+    private volatile LiveWorldTime worldTime = null;
+
     private void handleControl(HttpExchange ex) throws IOException {
         Map<String, String> q = query(ex);
 
@@ -239,6 +243,13 @@ public class LiveE2EServer {
         }
         if (q.containsKey("removeEntity")) {
             entities.remove(Integer.parseInt(q.get("removeEntity")));
+            send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
+            return;
+        }
+        // the time of the map-world: /control?dayTime=TICKS&rain=0..1&thunder=0..1&cycle=0|1, /control?dayTime=none
+        if (q.containsKey("dayTime")) {
+            worldTime = q.get("dayTime").equals("none") ? null : new LiveWorldTime((long) d(q, "dayTime"), d(q, "rain"), d(q, "thunder"),
+                    !"0".equals(q.get("cycle")));
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }

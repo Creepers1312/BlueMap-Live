@@ -148,7 +148,8 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                     System.currentTimeMillis(),
                     updateIntervalMillis,
                     config.isLivePlayerExtendedData(),
-                    entries
+                    entries,
+                    serverWorld != null ? server.getLiveWorldTime(serverWorld) : null
             );
 
             json.flush();

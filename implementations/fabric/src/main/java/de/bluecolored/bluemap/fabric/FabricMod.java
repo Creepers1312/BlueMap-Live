@@ -33,6 +33,7 @@ import de.bluecolored.bluemap.common.commands.Commands;
 import de.bluecolored.bluemap.common.config.PluginConfig;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
+import de.bluecolored.bluemap.common.live.LiveWorldTime;
 import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.Plugin;
 import de.bluecolored.bluemap.common.serverinterface.Player;
@@ -71,6 +72,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.TypedActionResult;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.Nullable;
@@ -94,6 +96,7 @@ public class FabricMod implements ModInitializer, Server {
 
     // BlueMap Live: the entities around the players per world, sampled on the server-thread, read by the webserver
     private volatile Map<Key, List<LiveEntityState>> liveEntities = Map.of();
+    private volatile Map<Key, LiveWorldTime> liveWorldTimes = Map.of();
     private int liveEntitySampleTicks = 0;
     private final List<FabricPlayer> onlinePlayerList;
 
@@ -366,6 +369,19 @@ public class FabricMod implements ModInitializer, Server {
         if (++liveEntitySampleTicks < getPlayerUpdateIntervalTicks()) return;
         liveEntitySampleTicks = 0;
 
+        // the time and weather of the worlds with a day-night-cycle (cheap: a few field-reads per world)
+        Map<Key, LiveWorldTime> times = new HashMap<>();
+        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
+            if (!world.getDimension().hasSkyLight() || world.getDimension().hasFixedTime()) continue;
+            times.put(getServerWorld(world).getDimension(), new LiveWorldTime(
+                    Math.floorMod(world.getTimeOfDay(), 24000L),
+                    world.getRainGradient(1f),
+                    world.getThunderGradient(1f),
+                    world.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE)
+            ));
+        }
+        liveWorldTimes = times;
+
         BlueMapService blueMap = pluginInstance.getBlueMap();
         PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
         if (config == null || !config.isLiveEntities() || !config.isLivePlayerMarkers() || config.getLiveEntitiesRadius() <= 0) {
@@ -443,6 +459,11 @@ public class FabricMod implements ModInitializer, Server {
     @Override
     public List<LiveEntityState> getLiveEntities(ServerWorld world) {
         return liveEntities.getOrDefault(world.getDimension(), List.of());
+    }
+
+    @Override
+    public @Nullable LiveWorldTime getLiveWorldTime(ServerWorld world) {
+        return liveWorldTimes.get(world.getDimension());
     }
 
     /**

@@ -136,4 +136,12 @@ public interface Server {
         return List.of();
     }
 
+    /**
+     * The latest sampled time and weather of a world (BlueMap Live), null if unknown or the world has no day-night-cycle
+     * (no sky-light or a fixed time).
+     */
+    default @org.jetbrains.annotations.Nullable de.bluecolored.bluemap.common.live.LiveWorldTime getLiveWorldTime(ServerWorld world) {
+        return null;
+    }
+
 }

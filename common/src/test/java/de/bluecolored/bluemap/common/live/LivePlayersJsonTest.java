@@ -63,6 +63,25 @@ public class LivePlayersJsonTest {
     }
 
     @Test
+    public void testWorldTime() throws IOException {
+        java.io.StringWriter out = new java.io.StringWriter();
+        try (com.google.gson.stream.JsonWriter json = new com.google.gson.stream.JsonWriter(out)) {
+            LivePlayersJson.write(json, 1000, 250, true, List.of(), new LiveWorldTime(13000, 0.5, 0, true));
+        }
+        JsonObject world = com.google.gson.JsonParser.parseString(out.toString()).getAsJsonObject().getAsJsonObject("world");
+        assertEquals(13000, world.get("dayTime").getAsLong());
+        assertEquals(0.5, world.get("rain").getAsDouble());
+        assertTrue(world.get("cycle").getAsBoolean());
+
+        // without extended data (or without a day-night-cycle) no world-time
+        java.io.StringWriter original = new java.io.StringWriter();
+        try (com.google.gson.stream.JsonWriter json = new com.google.gson.stream.JsonWriter(original)) {
+            LivePlayersJson.write(json, 1000, 250, false, List.of(), new LiveWorldTime(13000, 0, 0, true));
+        }
+        assertFalse(com.google.gson.JsonParser.parseString(original.toString()).getAsJsonObject().has("world"));
+    }
+
+    @Test
     public void testRoundTripExtended() throws IOException {
         MovementState movement = new MovementState(true, false, true, false, false, true);
         JsonObject root = writeAndParse(true, List.of(

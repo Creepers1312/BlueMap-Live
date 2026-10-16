@@ -26,6 +26,7 @@
 import {BufferGeometry, Float32BufferAttribute, FrontSide, MeshBasicMaterial, NearestFilter, Texture} from "three";
 import {createSkinBoxGeometry} from "./PlayerModelGeometry.js";
 import {TextureAssetCache} from "../mob/TextureAssetCache.js";
+import {applyEntityShader} from "../EntityLighting.js";
 
 /*
  * Loads the item-assets (baked item-models, see the java ItemModelBaker and docs/bluemap-live/phase-4.md) and shares
@@ -318,7 +319,7 @@ export class ItemAssetCache {
         const material = (list, index, vertexColors) => {
             if (!textures[index]) return null;
             if (!list[index]) {
-                list[index] = new MeshBasicMaterial({map: textures[index], vertexColors, alphaTest: 0.1, side: FrontSide});
+                list[index] = applyEntityShader(new MeshBasicMaterial({map: textures[index], vertexColors, alphaTest: 0.1, side: FrontSide}));
                 entry.materials.push(list[index]);
             }
             return list[index];

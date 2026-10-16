@@ -53,6 +53,7 @@ export class PlayerMarkerSet extends MarkerSet {
 
         this.lastServerTime = null;
         this.updateInterval = DEFAULT_UPDATE_INTERVAL;
+        this.worldTime = null;
     }
 
     /**
@@ -70,11 +71,13 @@ export class PlayerMarkerSet extends MarkerSet {
         this.playerskinsUrl = playerskinsUrl;
         this.itemCache = itemCache;
         this.lastServerTime = null;
+        this.worldTime = null;
     }
 
     updateFromPlayerData(data) {
         let response = parsePlayersResponse(data);
         if (!response) {
+            this.worldTime = null;
             this.clear();
             return false;
         }
@@ -84,6 +87,9 @@ export class PlayerMarkerSet extends MarkerSet {
         if (response.serverTime !== null) this.lastServerTime = response.serverTime;
 
         this.updateInterval = resolveUpdateInterval(response.updateInterval);
+
+        /** BlueMap Live: the sampled time of the world (null: no day-night-cycle or not sent) */
+        this.worldTime = response.world;
 
         if (response.invalid > 0) {
             alert(this.events, `${response.invalid} invalid player-entries in live player data have been ignored.`, "fine");

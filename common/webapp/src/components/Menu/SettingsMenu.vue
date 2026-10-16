@@ -8,9 +8,10 @@
 
     <Group :title="$t('lighting.title')">
       <Slider :value="mapViewer.uniforms.sunlightStrength.value" :min="0" :max="1" :step="0.01"
-              @update="mapViewer.uniforms.sunlightStrength.value = $event; $bluemap.mapViewer.redraw()">{{$t('lighting.sunlight')}}</Slider>
+              @update="appState.worldTime.enabled && $bluemap.setWorldTimeLighting(false); mapViewer.uniforms.sunlightStrength.value = $event; $bluemap.mapViewer.redraw()">{{$t('lighting.sunlight')}}</Slider>
       <Slider :value="mapViewer.uniforms.ambientLight.value" :min="0" :max="1" :step="0.01"
               @update="mapViewer.uniforms.ambientLight.value = $event; $bluemap.mapViewer.redraw()">{{$t('lighting.ambientLight')}}</Slider>
+      <SwitchButton v-if="appState.worldTime.available" :on="appState.worldTime.enabled" @action="$bluemap.setWorldTimeLighting(!appState.worldTime.enabled)">{{ $t("lighting.worldTime.button") }}</SwitchButton>
     </Group>
 
     <Group :title="$t('resolution.title')">

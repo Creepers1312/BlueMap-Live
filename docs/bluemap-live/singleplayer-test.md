@@ -260,6 +260,17 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | P9 | Gesattelte Pferde/Strider, Esel/Lama mit Truhe | Sattel bzw. Truhen sichtbar |
 | P10 | Enderdrache | Platzhalter mit Namen |
 
+**Tag-Nacht-Zyklus der Welt (`phase-8.md`, alle offen)**
+
+| # | Prüfung | Erwartung |
+|---|---|---|
+| Q1 | Oberwelt-Karte öffnen | Uhr-Knopf neben dem Tag/Nacht-Schalter; aus, Karte wie bisher |
+| Q2 | Uhr-Knopf an, `/time set midnight`, dann `/time set noon` | Karte nach spätestens etwa 1 s dunkel bzw. hell |
+| Q3 | `/time set 12000`, Sonnenuntergang abwarten | Karte wird fließend dunkler |
+| Q4 | `/weather rain`, `/weather thunder` | Karte etwas bzw. deutlich dunkler |
+| Q5 | Eigener Tag/Nacht-Schalter, danach Sonnenlicht-Regler | Modus aus, beide wirken wie im Original |
+| Q6 | Nether-Karte; danach Oberwelt mit BlueMaps Nacht-Schalter | Nether: kein Uhr-Knopf. Nacht: Spieler, Mobs und Items so dunkel wie die Karte, Augen von Spinne/Enderman hell |
+
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 
 ---

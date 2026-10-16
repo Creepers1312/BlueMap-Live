@@ -357,7 +357,7 @@ await step("hurt: red overlay for 0.5 s like vanilla, the held item and other pl
         const m = window.bluemap.playerMarkerManager.getPlayerMarker(uuid);
         return m.model.parts.body.children[0].material.customProgramCacheKey?.() ?? null;
     }, D);
-    assert.equal(hurtMaterial, "bluemap-live-hurt");
+    assert.equal(hurtMaterial, "bluemap-live-entity-hurt");
     await waitForMarker(D, "!m.model.hurt", 3000);
 });
 

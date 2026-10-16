@@ -25,6 +25,7 @@
 import {AdditiveBlending, Color, DoubleSide, MeshBasicMaterial, NearestFilter, RepeatWrapping, Texture} from "three";
 import {assetUrl, MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
 import {createHurtMaterial, createWhiteOverlayMaterial} from "../player/PlayerSkinCache.js";
+import {applyEntityShader} from "../EntityLighting.js";
 
 /*
  * Loads the mob-assets (the textures of a mob from the resource-pack, see the java ItemModelBaker.bakeMob and
@@ -161,8 +162,10 @@ export class MobAssetCache {
                 material = new MeshBasicMaterial({map: texture, side: DoubleSide});
                 if (kind === "cutout") {
                     material.alphaTest = 0.1; // vanilla entity-cutout
+                    applyEntityShader(material);
                 } else if (kind === "translucent") {
                     material.transparent = true;
+                    applyEntityShader(material);
                 } else { // eyes, energy: vanilla additive render-layers
                     material.transparent = true;
                     material.blending = AdditiveBlending;

@@ -37,6 +37,7 @@ import {i18n, setLanguage} from "../i18n";
 import {PlayerMarkerManager} from "./markers/PlayerMarkerManager";
 import {EntityMarkerManager} from "./markers/EntityMarkerManager";
 import {NormalMarkerManager} from "./markers/NormalMarkerManager";
+import {WorldTimeLighting} from "./markers/WorldTimeLighting";
 import {reactive} from "vue";
 
 export class BlueMapApp {
@@ -106,7 +107,12 @@ export class BlueMapApp {
             screenshot: {
                 clipboard: true
             },
-            debug: false
+            debug: false,
+            // BlueMap Live: the map-lighting follows the day-night-cycle of the world
+            worldTime: {
+                enabled: false,
+                available: false
+            }
         });
 
         // init
@@ -119,6 +125,8 @@ export class BlueMapApp {
         this.popupMarker = new PopupMarker("bm-popup", this.appState, this.events);
         this.popupMarkerSet.add(this.popupMarker);
         this.mapViewer.markers.add(this.popupMarkerSet);
+
+        this.worldTimeLighting = new WorldTimeLighting(this.mapViewer.data.uniforms, this.appState.worldTime, this.events, this.mapViewer.redraw);
 
         this.updateLoop = null;
 
@@ -398,6 +406,15 @@ export class BlueMapApp {
                 () => reject(`Failed to load '${this.fileUrl}'!`)
             )
         });
+    }
+
+    /**
+     * BlueMap Live: the map-lighting follows the day-night-cycle of the world (or BlueMaps own day/night-switch)
+     * @param enabled {boolean}
+     */
+    setWorldTimeLighting(enabled) {
+        this.worldTimeLighting.setEnabled(enabled);
+        this.saveUserSettings();
     }
 
     initPlayerMarkerManager() {
@@ -694,6 +711,7 @@ export class BlueMapApp {
         await setLanguage(this.loadUserSetting("lang", i18n.locale.value));
         this.setChunkBorders(this.loadUserSetting("chunkBorders", this.mapViewer.data.uniforms.chunkBorders.value))
         this.setDebug(this.loadUserSetting("debug", this.appState.debug));
+        this.worldTimeLighting.setEnabled(this.loadUserSetting("worldTime", this.appState.worldTime.enabled));
 
         alert(this.events, "Settings loaded!", "info");
     }
@@ -716,6 +734,7 @@ export class BlueMapApp {
         this.saveUserSetting("lang", i18n.locale.value);
         this.saveUserSetting("chunkBorders", this.mapViewer.data.uniforms.chunkBorders.value);
         this.saveUserSetting("debug", this.appState.debug);
+        this.saveUserSetting("worldTime", this.appState.worldTime.enabled);
 
         alert(this.events, "Settings saved!", "info");
     }
