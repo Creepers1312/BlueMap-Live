@@ -132,3 +132,28 @@ test("mob-armor: zombies wear armor on the armor-model bones, piglins use their 
     assert.ok(piglin.layerViews.some(v => v.armor && v.layer.model === "minecraft:piglin#outer_armor"));
     piglin.dispose();
 });
+
+test("armor-glint: the glint-layer gets the vanilla glint-material, moved by the texture-matrix", async () => {
+    const {glintMatrix, GLINT_TEXTURE} = await import("../src/js/markers/mob/TextureAssetCache.js");
+    const {Matrix3, Vector3, CustomBlending, EqualDepth, SrcColorFactor, OneFactor} = await import("three");
+    // t = 0: only rotation (10 degrees) and scale 0.16
+    const m = glintMatrix(new Matrix3(), 0);
+    const p = new Vector3(1, 0, 1).applyMatrix3(m);
+    assert.ok(Math.abs(p.x - Math.cos(0.17453292) * 0.16) < 1e-9 && Math.abs(p.y - Math.sin(0.17453292) * 0.16) < 1e-9);
+    // 5 seconds: t = 5000 * 0.5 * 8 = 20000 -> u = 20000/110000, v = 20000/30000
+    const q = new Vector3(0, 0, 1).applyMatrix3(glintMatrix(new Matrix3(), 5000));
+    assert.ok(Math.abs(q.x + 20000 / 110000) < 1e-9 && Math.abs(q.y - 20000 / 30000) < 1e-9);
+
+    const cache = new TextureAssetCache("t/", () => Promise.resolve({width: 64, height: 32}));
+    const entry = cache.acquire(GLINT_TEXTURE);
+    await new Promise(r => setTimeout(r, 0));
+    const glint = cache.glintMaterial(entry);
+    assert.equal(glint.blending, CustomBlending);
+    assert.equal(glint.blendSrc, SrcColorFactor);
+    assert.equal(glint.blendDst, OneFactor);
+    assert.equal(glint.depthFunc, EqualDepth);
+    assert.equal(glint.depthWrite, false);
+    assert.ok(Math.abs(glint.color.r - 0.75) < 1e-9, "glint-strength");
+    assert.equal(cache.glintMaterial(entry), glint, "shared");
+    cache.release(entry);
+});

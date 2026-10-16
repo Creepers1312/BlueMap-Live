@@ -555,6 +555,11 @@
   "right_hind_baby_leg":{"pivot":[-4,14,7],"cuboids":[{"uv":[48,21],"box":[-1,-1.01,-1,4,11,4],"dilation":[0,5.5,0]}]},
   "right_hind_leg":{"pivot":[-4,14,7],"cuboids":[{"uv":[48,21],"box":[-1,-1.01,-1,4,11,4]}]}
  }},
+ "minecraft:dragon_head#main":{"texture":[256, 256],"parts":{
+  "head":{"cuboids":[{"uv":[176,44],"box":[-6,-1,-24,12,5,16],"name":"upper_lip"},{"uv":[112,30],"box":[-8,-8,-10,16,16,16],"name":"upper_head"},{"uv":[0,0],"box":[-5,-12,-4,2,4,6],"mirror":true,"name":"scale"},{"uv":[112,0],"box":[-5,-3,-22,2,2,4],"mirror":true,"name":"nostril"},{"uv":[0,0],"box":[3,-12,-4,2,4,6],"name":"scale"},{"uv":[112,0],"box":[3,-3,-22,2,2,4],"name":"nostril"}],"children":{
+   "jaw":{"pivot":[0,4,-8],"cuboids":[{"uv":[176,65],"box":[-6,0,-16,12,4,16],"name":"jaw"}]}
+  }}
+ }},
  "minecraft:elder_guardian#main":{"texture":[64, 64],"parts":{
   "head":{"cuboids":[{"uv":[0,0],"box":[-6,10,-8,12,12,16]},{"uv":[0,28],"box":[-8,10,-6,2,12,12]},{"uv":[0,28],"box":[6,10,-6,2,12,12],"mirror":true},{"uv":[16,40],"box":[-6,8,-6,12,2,12]},{"uv":[16,40],"box":[-6,22,-6,12,2,12]}],"children":{
    "eye":{"pivot":[0,0,-8.25],"cuboids":[{"uv":[8,0],"box":[-1,15,0,2,2,1]}]},
@@ -903,6 +908,12 @@
    }}
   }}
  }},
+ "minecraft:piglin_head#main":{"texture":[64, 64],"parts":{
+  "head":{"cuboids":[{"uv":[0,0],"box":[-5,-8,-4,10,8,8]},{"uv":[31,1],"box":[-2,-4,-5,4,4,1]},{"uv":[2,4],"box":[2,-2,-5,1,2,1]},{"uv":[2,0],"box":[-3,-2,-5,1,2,1]}],"children":{
+   "left_ear":{"pivot":[4.5,-6,0],"rotation":[0,0,-0.5235988],"cuboids":[{"uv":[51,6],"box":[0,0,-2,1,5,4]}]},
+   "right_ear":{"pivot":[-4.5,-6,0],"rotation":[0,0,0.5235988],"cuboids":[{"uv":[39,6],"box":[-1,0,-2,1,5,4]}]}
+  }}
+ }},
  "minecraft:pillager#main":{"texture":[64, 64],"parts":{
   "arms":{"pivot":[0,3,-1],"rotation":[-0.75,0,0],"cuboids":[{"uv":[44,22],"box":[-8,-2,-2,4,8,4]},{"uv":[40,38],"box":[-4,2,-2,8,4,4]}],"children":{
    "left_shoulder":{"cuboids":[{"uv":[44,22],"box":[4,-2,-2,4,8,4],"mirror":true}]}
@@ -1045,6 +1056,14 @@
   "right_front_leg":{"pivot":[-4,14,-12],"cuboids":[{"uv":[48,21],"box":[-1,-1.01,-1.9,4,11,4]}]},
   "right_hind_baby_leg":{"pivot":[-4,14,7],"cuboids":[{"uv":[48,21],"box":[-1,-1.01,-1,4,11,4],"dilation":[0,5.5,0]}]},
   "right_hind_leg":{"pivot":[-4,14,7],"cuboids":[{"uv":[48,21],"box":[-1,-1.01,-1,4,11,4]}]}
+ }},
+ "minecraft:skull#head":{"texture":[64, 64],"parts":{
+  "head":{"cuboids":[{"uv":[0,0],"box":[-4,-8,-4,8,8,8]}],"children":{
+   "hat":{"cuboids":[{"uv":[32,0],"box":[-4,-8,-4,8,8,8],"dilation":0.25}]}
+  }}
+ }},
+ "minecraft:skull#skull":{"texture":[64, 32],"parts":{
+  "head":{"cuboids":[{"uv":[0,0],"box":[-4,-8,-4,8,8,8]}]}
  }},
  "minecraft:sniffer#main":{"texture":[192, 192],"parts":{
   "root":{"pivot":[0,5,0],"children":{

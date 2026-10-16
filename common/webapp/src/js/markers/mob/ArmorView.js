@@ -25,6 +25,7 @@
 import {Mesh} from "three";
 import {getLayerGeometries} from "./MobModelGeometry.js";
 import {VANILLA_MODELS} from "./MobTypes.js";
+import {GLINT_TEXTURE, glintMatrix} from "./TextureAssetCache.js";
 
 /**
  * vanilla ArmorFeatureRenderer.setVisible: the parts of the armor-model that are rendered per slot;
@@ -96,7 +97,12 @@ export class ArmorView {
                     bone.add(mesh);
                     meshes.push(mesh);
                 }
-                this.pieces.push({entry, meshes, color: layer.color});
+                const glint = layer.texture === GLINT_TEXTURE;
+                // the glint moves (texture-matrix): updated before the meshes are rendered
+                if (glint) for (const mesh of meshes) mesh.onBeforeRender = () => {
+                    if (mesh.material && mesh.material.userData.glint) glintMatrix(mesh.material.map.matrix, Date.now());
+                };
+                this.pieces.push({entry, meshes, color: layer.color, glint});
             }
         }
         this.updateMaterials();
@@ -105,7 +111,7 @@ export class ArmorView {
     /** @private */
     updateMaterials() {
         for (const piece of this.pieces) {
-            const material = this.textureCache.material(piece.entry, piece.color);
+            const material = piece.glint ? this.textureCache.glintMaterial(piece.entry) : this.textureCache.material(piece.entry, piece.color);
             for (const mesh of piece.meshes) {
                 mesh.material = material;
                 mesh.visible = !!material;

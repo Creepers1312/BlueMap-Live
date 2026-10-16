@@ -15,7 +15,7 @@ const OUT = process.env.E2E_OUT || "e2e-out";
 mkdirSync(OUT, {recursive: true});
 
 // the colors of E2EItemResources (rgb)
-const COLORS = {stone: [255, 128, 0], mushroom: [255, 32, 128], grass: [64, 255, 64], iron: [160, 255, 0], leather: [51, 85, 255], zombie: [48, 144, 96], cow: [128, 64, 32], wool: [132, 34, 28], villager: [192, 128, 64], farmer: [255, 0, 192], sword: [0, 255, 255]};
+const COLORS = {skull: [255, 64, 255], stone: [255, 128, 0], mushroom: [255, 32, 128], grass: [64, 255, 64], iron: [160, 255, 0], leather: [51, 85, 255], zombie: [48, 144, 96], cow: [128, 64, 32], wool: [132, 34, 28], villager: [192, 128, 64], farmer: [255, 0, 192], sword: [0, 255, 255]};
 
 const results = [];
 async function step(name, fn) {
@@ -360,6 +360,16 @@ await step("head-item: a block on the head of a zombie follows the head (vanilla
     const below = await countColor("62-head-stone", await project(23, 0.6), COLORS.stone, 25);
     assert.ok(below < 5, `not at the legs: ${below}`);
     await control({removeEntity: 23});
+});
+
+await step("head-item: a skeleton-skull on the head of a zombie (skull-model, vanilla HeadFeatureRenderer skull-branch)", async () => {
+    await mob(24, "minecraft:zombie", 8.5, 9.5, {bodyYaw: 0, head: "minecraft:skeleton_skull"});
+    await waitForEntity(24, "m.view.visible && m.view.headSlot.skull.itemId === 'minecraft:skeleton_skull' && m.view.headSlot.skull.meshes.some(x => x.visible)", 10000);
+    await sleep(800);
+    const skull = await countColor("63-head-skull", await project(24, 1.9), COLORS.skull, 70);
+    assert.ok(skull > 30, `skull pixels on the head: ${skull}`);
+    assert.equal(await entityExpr(24, "m.view.headSlot.content.children.length"), 0, "no item-model for the skull");
+    await control({removeEntity: 24});
 });
 
 await step("no uncaught errors", async () => {

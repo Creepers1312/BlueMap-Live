@@ -149,7 +149,7 @@ public class ItemModelBaker {
     static boolean isProvidedTexture(String textureKey) {
         int colon = textureKey.indexOf(':');
         return textureKey.startsWith("models/armor/", colon + 1) || textureKey.startsWith(TRIM_SPRITES, colon + 1) ||
-                SKULL_TEXTURES.containsValue(textureKey);
+                SKULL_TEXTURES.containsValue(textureKey) || textureKey.equals(de.bluecolored.bluemap.common.live.Armor.GLINT_TEXTURE);
     }
 
     /** vanilla SkullBlockEntityRenderer.TEXTURES by the skull-items (player-heads: the default skin) */

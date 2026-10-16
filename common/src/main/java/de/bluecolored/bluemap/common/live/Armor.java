@@ -44,6 +44,10 @@ public record Armor(
         @Nullable List<Layer> feet
 ) {
 
+    /** a layer with this texture is the enchantment-glint (vanilla RenderLayer.ARMOR_ENTITY_GLINT, ItemRenderer.ENTITY_ENCHANTMENT_GLINT) */
+    public static final String GLINT_TEXTURE = "minecraft:misc/enchanted_glint_entity";
+
+
     public static final Armor EMPTY = new Armor(null, null, null, null);
 
     /**

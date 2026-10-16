@@ -43,7 +43,7 @@ public class E2EItemResources implements ItemModelBaker.Resources {
             ZOMBIE = 0xFF309060, COW = 0xFF804020, SHEEP = 0xFF606060, WOOL = 0xFFFFFFFF,
             VILLAGER = 0xFFC08040, FARMER = 0xFFFF00C0, IRON_ARMOR = 0xFFA0FF00, LEATHER = 0xFFFFFFFF,
             MOOSHROOM = 0xFF602020, MUSHROOM = 0xFFFF2080, ENDERMAN = 0xFF202020, GRASS = 0xFF40FF40, CREEPER = 0xFF00C0C0,
-            GOLEM = 0xFFE0A000;
+            GOLEM = 0xFFE0A000, SKULL = 0xFFFF40FF;
 
     private final Map<String, String> models = new HashMap<>();
     private final Map<String, BufferedImage> textures = new HashMap<>();
@@ -154,6 +154,7 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/enderman/enderman", rect(64, 32, 0, 0, 64, 32, ENDERMAN));
         textures.put("minecraft:entity/creeper/creeper", rect(64, 32, 0, 0, 64, 32, CREEPER));
         textures.put("minecraft:entity/iron_golem/iron_golem", square(128, 0, 0, 128, 128, GOLEM));
+        textures.put("minecraft:entity/skeleton/skeleton", rect(64, 32, 0, 0, 64, 32, SKULL));
         // tropical fish: white like the vanilla textures (tinted by the webapp); only pattern 1 (kob), fully covering
         textures.put("minecraft:entity/fish/tropical_a", square(32, 0, 0, 32, 32, 0xFFFFFFFF));
         textures.put("minecraft:entity/fish/tropical_a_pattern_1", square(32, 0, 0, 32, 32, 0xFFFFFFFF));

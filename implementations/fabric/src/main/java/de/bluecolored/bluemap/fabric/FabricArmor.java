@@ -120,6 +120,8 @@ final class FabricArmor {
                 // no trim
             }
         }
+        // vanilla ArmorFeatureRenderer.renderGlint: the enchantment-glint over the armor (the webapp knows the texture)
+        if (stack.hasGlint() && !layers.isEmpty()) layers.add(new Armor.Layer(Armor.GLINT_TEXTURE, null));
         return layers.isEmpty() ? null : List.copyOf(layers);
     }
 

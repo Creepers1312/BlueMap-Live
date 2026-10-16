@@ -22,7 +22,8 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {Color, DoubleSide, MeshBasicMaterial, NearestFilter, Texture} from "three";
+import {Color, CustomBlending, DoubleSide, EqualDepth, LinearFilter, MeshBasicMaterial, NearestFilter, OneFactor, RepeatWrapping,
+    SrcColorFactor, Texture, ZeroFactor} from "three";
 import {ASSET_VERSION, MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
 import {applyEntityShader} from "../EntityLighting.js";
 
@@ -32,6 +33,31 @@ import {applyEntityShader} from "../EntityLighting.js";
  */
 
 const KEY_PATTERN = /^[a-z0-9_.-]+:[a-z0-9_./-]+$/;
+
+/** the enchantment-glint as armor-layer (see the java Armor.GLINT_TEXTURE) */
+export const GLINT_TEXTURE = "minecraft:misc/enchanted_glint_entity";
+/** the defaults of the client-options glint-speed and glint-strength (not part of the CI-dump) */
+export const GLINT_SPEED = 0.5;
+export const GLINT_STRENGTH = 0.75;
+
+/**
+ * vanilla RenderPhase.setupGlintTexturing(0.16) (ENTITY_GLINT_TEXTURING): t = ms * glint-speed * 8,
+ * translation(-(t % 110000) / 110000, (t % 30000) / 30000) * rotateZ(0.17453292) * scale(0.16), as uv-matrix
+ * @param matrix {import("three").Matrix3}
+ * @param timeMs {number}
+ * @returns {import("three").Matrix3}
+ */
+export function glintMatrix(matrix, timeMs) {
+    const t = Math.floor(timeMs * GLINT_SPEED * 8);
+    const u = (t % 110000) / 110000, v = (t % 30000) / 30000;
+    const c = Math.cos(0.17453292) * 0.16, s = Math.sin(0.17453292) * 0.16;
+    // [T * R * S] for 2d-points (u, v, 1)
+    return matrix.set(
+        c, -s, -u,
+        s, c, v,
+        0, 0, 1
+    );
+}
 
 export class TextureAssetCache {
 
@@ -107,6 +133,34 @@ export class TextureAssetCache {
         return material;
     }
 
+    /**
+     * The (shared) material of the enchantment-glint like vanilla RenderLayer.ARMOR_ENTITY_GLINT: the glint-texture
+     * (blur: linear), repeated, moved by the texture-matrix (see glintMatrix), blended SRC_COLOR/ONE (alpha ZERO/ONE),
+     * only where the armor is (depth EQUAL, no depth-write), no culling; the fragment-shader multiplies the color with
+     * GlintAlpha (the glint-strength, default 0.75) and discards alpha < 0.1.
+     * @param entry - the entry of the glint-texture
+     * @returns {MeshBasicMaterial | null}
+     */
+    glintMaterial(entry) {
+        if (entry.state !== "loaded") return null;
+        let material = entry.materials.get("glint");
+        if (!material) {
+            const texture = entry.texture.clone();
+            texture.wrapS = texture.wrapT = RepeatWrapping;
+            texture.magFilter = texture.minFilter = LinearFilter;
+            texture.matrixAutoUpdate = false;
+            texture.needsUpdate = true;
+            material = new MeshBasicMaterial({map: texture, alphaTest: 0.1, side: DoubleSide, transparent: true,
+                depthWrite: false, depthFunc: EqualDepth, blending: CustomBlending,
+                blendSrc: SrcColorFactor, blendDst: OneFactor, blendSrcAlpha: ZeroFactor, blendDstAlpha: OneFactor});
+            material.color = new Color(GLINT_STRENGTH, GLINT_STRENGTH, GLINT_STRENGTH);
+            material.userData.glint = true;
+            entry.materials.set("glint", material);
+        }
+        glintMatrix(material.map.matrix, this.now());
+        return material;
+    }
+
     dispose() {
         this.disposed = true;
         this.entries.forEach(entry => this.disposeEntry(entry));
@@ -144,7 +198,10 @@ export class TextureAssetCache {
 
     /** @private */
     disposeEntry(entry) {
-        entry.materials.forEach(material => material.dispose());
+        entry.materials.forEach(material => {
+            if (material.map && material.map !== entry.texture) material.map.dispose(); // the own (repeating) glint-texture
+            material.dispose();
+        });
         entry.materials.clear();
         if (entry.texture) entry.texture.dispose();
         entry.texture = null;
