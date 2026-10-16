@@ -8,10 +8,11 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 >   - Der sichtbare Schlag der Mobs.
 >   - Sitz-, Liege- und Schlafposen.
 >   - Farben der Tropenfische, Größen der Kugelfische.
->   - Halsbänder, Lama-Teppiche, Pferderüstung, voll beleuchteter Leuchttintenfisch.
->   - Gegenstände auf dem Kopf (geschnitzter Kürbis, Blöcke).
+>   - Halsbänder, Lama-Teppiche, Pferderüstung, Leuchtschichten des Wardens, voll beleuchteter Leuchttintenfisch.
+>   - Gegenstände auf dem Kopf (geschnitzter Kürbis, Blöcke) und Köpfe (Schädel).
+>   - Rüstungsverzierungen und Verzauberungsglanz der Rüstung.
 > - **Woher die Werte stammen:** Die neuen Animationen und Feature-Renderer sind aus dem Bytecode von Minecraft 1.21.1 nachgebaut. Ein CI-Test gibt dazu die Instruktionen der Vanilla-Methoden aus (`VanillaAnimationDumpTest`), siehe Abschnitt 3.
-> - **Nicht geprüft:** Minecraft (manuelle Prüfungen Q1–Q16 offen).
+> - **Nicht geprüft:** Minecraft (manuelle Prüfungen Q1–Q19 offen).
 
 ## 1. Tag-Nacht-Zyklus der Welt
 
@@ -138,9 +139,19 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 | Pferderüstung | `HorseArmorFeatureRenderer`: Rüstungsmodell (0,1), Lederrüstung in ihrer Farbe | Rüstung vom Typ „equestrian“ |
 | Leuchttintenfisch | `GlowSquidEntityRenderer.getBlockLight`: Blocklicht 15 | immer voll beleuchtet, auch nachts |
 
-- **Noch offen:** die Leuchtschichten des Wardens.
-  - Fünf durchscheinend-emissive Ebenen mit eigener Helligkeit und eigenen Teilen.
-  - Welche Teile und welche Helligkeit zu welcher Ebene gehören, liefert der nächste CI-Dump.
+**Warden** (`WardenEntityRenderer`, `WardenFeatureRenderer`, `WardenEntityModel`):
+- Die Ebenen sind durchscheinend-emissiv: nicht abgedunkelt, mit eigener Deckkraft.
+- Jede Ebene zeichnet nur die eigenen Quader ihrer Teile, wie das vanilla `hidden`.
+
+| Ebene | Deckkraft | Teile | Gezeigt |
+|---|---|---|---|
+| `warden_bioluminescent_layer` | 1 | Kopf, Arme, Beine | ja |
+| `warden_pulsating_spots_1` | max(0, cos(Alter · 0,045) · 0,25) | Körper, Kopf, Arme, Beine | ja |
+| `warden_pulsating_spots_2` | dasselbe um π versetzt | Körper, Kopf, Arme, Beine | ja |
+| `warden` (Ranken) | Rankenausschlag | Ranken | nein |
+| `warden_heart` | Herzschlag | Körper | nein |
+
+- Herzschlag und Ranken laufen nur im Client von Minecraft (Wut und Vibrationen) und werden nicht abgetastet.
 
 ## 7. Gegenstände auf dem Kopf
 
@@ -152,7 +163,37 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 - **Wer ihn trägt:**
   - Spieler, Zombies, Skelette, Piglins, Illager, Dorfbewohner, Zombiedorfbewohner und der fahrende Händler.
   - Nicht der Riese: Sein Renderer hat keinen `HeadFeatureRenderer`.
-- **Noch offen:** Köpfe (Schädel-Blöcke) auf dem Kopf haben ein eigenes Schädelmodell und werden noch nicht gezeigt.
+**Köpfe** (`HeadFeatureRenderer`, Schädel-Zweig, und `SkullBlockEntityRenderer`):
+- **Kette:** Skalierung (1,1875, −1,1875, −1,1875), bei Dorfbewohnern 1/16 höher, dann (−0,5, 0, −0,5) und `renderSkull`: (0,5, 0, 0,5), Skalierung (−1, −1, 1), Kopf um 180° gedreht.
+- **Modelle** wie `getModels`, im Modelltest geprüft:
+  - Schädel (Skelett, Witherskelett, Creeper)
+  - Kopf mit Hut-Ebene (Spieler, Zombie)
+  - Drachenkopf mit Kiefer, Piglinkopf mit Ohren
+- **Bewegung:** Kiefer und Ohren bewegen sich wie `setHeadRotation` mit der Laufbewegung des Mobs. Beim Spieler stehen sie still.
+- **Texturen:** wie `SkullBlockEntityRenderer.TEXTURES`. Spielerköpfe zeigen den Standard-Skin; der Skin des Kopf-Besitzers ist nicht bekannt.
+
+## 7a. Rüstungsverzierungen und Verzauberungsglanz
+
+**Verzierungen:**
+- Der Server ermittelt den Sprite-Namen mit Vanillas `ArmorTrim.getGenericModelId` bzw. `getLeggingsModelId`, z. B. `trims/models/armor/coast_leggings_iron_darker`. Die `_darker`-Varianten für gleiche Materialien entstehen dabei wie im Spiel.
+- Der Baker erzeugt das Bild wie `PalettedPermutationsAtlasSource`:
+  - Die Farben des Schlüssels `trim_palette` werden auf die Palette des Materials abgebildet.
+  - Die Deckkraft eines Pixels wird mit der Deckkraft der Palettenfarbe multipliziert.
+  - Unbekannte Farben bleiben.
+- Die Permutationen heißen wie ihre Paletten; das bestätigt die Vanilla-Datei `atlases/armor_trims.json` im CI-Dump.
+- Die Verzierung liegt als weitere Ebene über der Rüstung, wie `renderTrim` nach den Material-Ebenen.
+
+**Glanz** (`ArmorFeatureRenderer.renderGlint` mit `RenderLayer.ARMOR_ENTITY_GLINT`):
+- **Textur und Bewegung:** `enchanted_glint_entity` (weich gefiltert, wiederholt), bewegt mit der Texturmatrix von `setupGlintTexturing(0.16)`.
+  - t = ms · Geschwindigkeit · 8
+  - Verschiebung (−(t mod 110000)/110000, (t mod 30000)/30000), Drehung 10°, Skalierung 0,16
+- **Darstellung:**
+  - Mischung SRC_COLOR/ONE (Alpha ZERO/ONE).
+  - Nur wo die Rüstung ist (Tiefentest EQUAL, ohne Tiefenschreiben), ohne Culling.
+  - Farbe · Glanzstärke, Pixel mit Alpha unter 0,1 werden verworfen (Shader `rendertype_armor_entity_glint`).
+- **Nicht aus dem Dump:** Geschwindigkeit und Stärke sind Client-Einstellungen. Verwendet werden ihre Standardwerte 0,5 und 0,75.
+- **Bekannte Abweichung:** Die v-Richtung der Texturkoordinaten ist in der Webapp gespiegelt; der Glanz läuft daher in v in die andere Richtung.
+- **Nicht gezeigt:** der Glanz verzauberter Gegenstände in der Hand.
 
 ## 8. Tests
 
@@ -160,15 +201,21 @@ Stand: 2026-10-16 · Branch `bluemap-live` · Wunsch des Nutzers nach Phase 7
 
 | Test | Ergebnis |
 |---|---|
-| Java (lokal) | 63/63, u. a. `world` in `players.json` nur mit erweiterten Daten, `swingTicks` und `attackTicks` nur wenn gesetzt |
-| Node | 107/107, zuletzt neu: Posen (Wolf, Katze, Fuchs, Panda, Eisbär, Bett), Kugelfisch-Modellwechsel, Tropenfischfarben, Halsbänder, Teppiche, Pferderüstung, Kopf-Slot; davor 100/100, u. a. Sonnenwinkel, Himmelslicht (Tag, Nacht, Regen, Gewitter), Weiterlaufen der Zeit, Beleuchtung der Lebewesen, Ein- und Ausschalten; Eisengolem-, Hoglin- und Verwüster-Angriff, Körperdrehung beim Schwung (Haupt- und Nebenhand), lokaler Ablauf ohne Neustart |
+| Java (lokal) | 65/65, neu: Verzierungs-Sprite (Palette, Namensaufteilung), Texturindex für Verzierungen und Glanz; u. a. `world` in `players.json` nur mit erweiterten Daten, `swingTicks` und `attackTicks` nur wenn gesetzt |
+| Node | 110/110, zuletzt neu: Warden-Ebenen, Schädel, Glanz; davor 107/107, neu: Posen (Wolf, Katze, Fuchs, Panda, Eisbär, Bett), Kugelfisch-Modellwechsel, Tropenfischfarben, Halsbänder, Teppiche, Pferderüstung, Kopf-Slot; davor 100/100, u. a. Sonnenwinkel, Himmelslicht (Tag, Nacht, Regen, Gewitter), Weiterlaufen der Zeit, Beleuchtung der Lebewesen, Ein- und Ausschalten; Eisengolem-, Hoglin- und Verwüster-Angriff, Körperdrehung beim Schwung (Haupt- und Nebenhand), lokaler Ablauf ohne Neustart |
 | Browser `worldtime-e2e.mjs` | 9/9: Knopf nur mit Weltzeit, Mitternacht dunkelt die Karte ab (Pixel), Mittag, Regen, Speichern/Laden, eigener Schalter beendet den Modus, Einstellungsmenü |
-| Browser `mobs-e2e.mjs` | 13/13, neu: Zombie schwingt (Körper dreht sich und kehrt zurück), Eisengolem schlägt mit beiden Armen, Tropenfisch in Grund- und Musterfarbe (Pixel), Block auf dem Kopf eines Zombies (Pixel) |
+| Browser `mobs-e2e.mjs` | 14/14, neu: Skelettschädel auf einem Zombie (Pixel); davor 13/13, neu: Zombie schwingt (Körper dreht sich und kehrt zurück), Eisengolem schlägt mit beiden Armen, Tropenfisch in Grund- und Musterfarbe (Pixel), Block auf dem Kopf eines Zombies (Pixel) |
 | Browser `entities`, `items`, `animation` | 12/12, 16/16, 19/19 |
 | Browser `player-e2e.mjs` | 22/22 nach der Tag-Nacht-Änderung; in späteren Läufen 21/22 (s. u.) |
+| Browser `worldtime-e2e.mjs` (letzter Lauf) | 9/9 |
+| Regression gegen das Original (Karte ohne Spieler) | zwei Läufe: 0 Pixel Unterschied bzw. 141 Pixel Rauschen (höchstens 42 von 255 Stufen) |
 
 - Ein Lauf von `animation-e2e.mjs` schlug einmal bei der Gehamplitude nach Skinwechsel fehl, zwei Wiederholungen liefen fehlerfrei durch (Zeitabhängigkeit des Tests).
-- `player-e2e.mjs`, Schritt „skin (slim)“: Ein Farbpixel am linken Arm weicht ab. Derselbe Fehler tritt mit dem Webclient-Stand vor Phase 8 (`e41baa29`) auf. Er stammt also nicht aus diesen Änderungen; die Ursache ist noch nicht geklärt.
+- `player-e2e.mjs`, Schritt „skin (slim)“: Ein Farbpixel am linken Arm weicht ab.
+  - Derselbe Fehler tritt mit dem Webclient-Stand vor Phase 8 (`e41baa29`) auf.
+  - Die abweichende Farbe ist immer die des benachbarten Texturfelds, und das Feld wechselt zwischen den Läufen (q0, q2). Vermutete Ursache: Der Test projiziert den Messpunkt vor dem Screenshot, und die Leerlaufbewegung des Arms läuft dazwischen weiter.
+  - Nicht aus diesen Änderungen; noch nicht behoben.
+- Ein Lauf schlug einmal bei „skin (classic)“ mit einem Randpixel fehl; zwei Wiederholungen liefen fehlerfrei.
 - Der Fabric-Teil kompiliert nur in der CI.
 
 **Manuell in Minecraft:** Q1–Q6 in `singleplayer-test.md`, alle offen.

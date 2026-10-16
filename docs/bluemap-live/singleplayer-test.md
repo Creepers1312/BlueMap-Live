@@ -280,6 +280,9 @@ Vorbereitung: Welt mit dem neuen JAR öffnen, die Seite mit Strg+F5 laden. In `p
 | Q14 | Verschiedene Tropenfische (Eimer), Kugelfisch anstupsen | Farben wie im Spiel; Kugelfisch bläht sich in zwei Stufen auf |
 | Q15 | Lama mit Teppich, Händlerlama, Pferd mit Eisen- und gefärbter Lederrüstung | Teppich-, Dekor- und Rüstungsebenen |
 | Q16 | Geschnitzter Kürbis auf dem eigenen Kopf und auf einem Zombie (`/item replace entity`) | Kürbis sitzt um den Kopf und dreht sich mit; Leuchttintenfisch nachts hell |
+| Q17 | Warden nachts | Leuchtende Flecken pulsieren, Leuchtschicht hell |
+| Q18 | Rüstung mit Verzierungen (z. B. Küste/Eisen auf Eisenrüstung, Ranke/Gold) | Muster in der Materialfarbe wie im Spiel, `_darker` bei gleichem Material |
+| Q19 | Verzauberte Rüstung; Skelett- und Creeperkopf auf dem Kopf | Glanz läuft über die Rüstung; Kopf sitzt etwas größer als der eigene Kopf |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

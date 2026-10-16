@@ -70,7 +70,7 @@ Für Schritt 2 werden außerdem `MobTextures.java`, `LiveEntityState.java`, `Liv
 Für `entities-e2e.mjs` liefert der Server `maps/world/live/entities.json`; die Nether-Karte ist leer. Steuerung:
 - `/control?entity=ID&type=minecraft:item&x=..&y=..&z=..&item=minecraft:diamond&vx=..&vy=..&vz=..&yaw=..&pitch=..&ground=1`
 - `/control?removeEntity=ID`
-- Mobs (`mobs-e2e.mjs`): zusätzlich `mob=1&bodyYaw=..&headYaw=..&hurt=TICKS&death=TICKS&baby=1&variant=..&size=..&flags=a,b&main=ITEM&left=1&w=..&h=..`. Die Mob-Texturen des Test-Packs sind einfarbig (Zombie, Kuh, Schaf, weiße Wolle, Dorfbewohner, Beruf nur auf der oberen Hälfte).
+- Mobs (`mobs-e2e.mjs`): zusätzlich `mob=1&bodyYaw=..&headYaw=..&hurt=TICKS&death=TICKS&baby=1&variant=..&size=..&flags=a,b&main=ITEM&left=1&w=..&h=..&swing=TICKS&attack=TICKS&head=ITEM`. Die Mob-Texturen des Test-Packs sind einfarbig (Zombie, Kuh, Schaf, weiße Wolle, Dorfbewohner, Beruf nur auf der oberen Hälfte).
 
 Für `items-e2e.mjs` liefert der Server `maps/<id>/assets/items/<ns>/<pfad>.json`. Die Dateien erzeugt der echte `ItemModelBaker` aus einem kleinen, farbcodierten Resource-Pack (`E2EItemResources.java`, Modell-JSONs in der Struktur der Vanilla-Modelle). Weitere Steuerparameter:
 - `main=`/`off=` mit einer Item-ID oder `none` (bleibt gesetzt)
