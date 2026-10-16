@@ -311,6 +311,29 @@ await step("mooshroom with its mushrooms, enderman with the carried block (block
     await control({removeEntity: 18});
 });
 
+await step("attacks: the zombie swings its arm (body turns), the iron golem strikes with both arms", async () => {
+    await mob(19, "minecraft:zombie", 8.5, 9.5, {bodyYaw: 0, main: "minecraft:diamond_sword"});
+    await waitForEntity(19, "m.view.visible");
+    await sleep(300);
+    await mob(19, "minecraft:zombie", 8.5, 9.5, {bodyYaw: 0, main: "minecraft:diamond_sword", swing: 0});
+    const body = await sample(19, 600, "m.view.layerViews[0].bones.get('body').rotation.y");
+    assert.ok(Math.max(...body.map(Math.abs)) > 0.1, `body turns with the swing (${Math.min(...body)}..${Math.max(...body)})`);
+    assert.ok(Math.abs(body.at(-1)) < 1e-6, "back after the swing");
+    await control({removeEntity: 19});
+
+    await mob(20, "minecraft:iron_golem", 8.5, 9.5, {bodyYaw: 0, w: 1.4, h: 2.7});
+    await waitForEntity(20, "m.view.visible");
+    await sleep(300);
+    const rest = await entityExpr(20, "m.view.layerViews[0].bones.get('right_arm').rotation.x");
+    await mob(20, "minecraft:iron_golem", 8.5, 9.5, {bodyYaw: 0, w: 1.4, h: 2.7, attack: 10});
+    const arms = await sample(20, 700, "[m.view.layerViews[0].bones.get('right_arm').rotation.x, m.view.layerViews[0].bones.get('left_arm').rotation.x]");
+    const right = arms.map(a => a[0]);
+    assert.ok(Math.max(...right.map(r => Math.abs(r - rest))) > 2.5, `arms raised (rest ${rest}, ${Math.min(...right)}..${Math.max(...right)})`);
+    assert.ok(arms.every(a => Math.abs(a[0] - a[1]) < 1e-6), "both arms together");
+    assert.ok(Math.abs(right.at(-1) - rest) < 1e-6, "back at rest after 10 ticks");
+    await control({removeEntity: 20});
+});
+
 await step("no uncaught errors", async () => {
     assert.deepEqual(pageErrors, []);
 });

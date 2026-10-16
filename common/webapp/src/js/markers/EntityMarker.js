@@ -26,7 +26,7 @@ import {Group, MathUtils, Vector3} from "three";
 import {Marker} from "./Marker.js";
 import {ItemView} from "./player/ItemView.js";
 import {
-    droppedItemMotion, entityKind, projectileAngles, projectileDirection, projectilePhysics, THROWN_ITEM_SCALES,
+    droppedItemMotion, entityKind, MOB_SWING_TICKS, projectileAngles, projectileDirection, projectilePhysics, THROWN_ITEM_SCALES,
 } from "./LiveEntityData.js";
 import {angleDelta, interpolationDuration} from "./LivePlayerData.js";
 import {MobModel} from "./mob/MobModel.js";
@@ -125,8 +125,12 @@ export class EntityMarker extends Marker {
         this.wingDeviation = 0;
         this.tickRemainder = 0;
         this.fuseTicks = 0;
+        /** the running hand-swing: ticks since its start, -1 if none */
+        this.swingTicks = -1;
+        /** the running attack-animation: remaining ticks */
+        this.attackTicks = 0;
         this.animationInput = {
-            limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0,
+            limbAngle: 0, limbDistance: 0, age: 0, headYaw: 0, headPitch: 0, swingProgress: 0, swingOffHand: false, attackTicks: 0,
             flags: new Set(), mainHand: null, leftHanded: false, wingAngle: 0,
         };
     }
@@ -214,6 +218,10 @@ export class EntityMarker extends Marker {
         // death: the local clock runs on from the sampled deathTime
         if (mob.deathTime > 0) this.deathTicks = Math.max(this.deathTicks, mob.deathTime);
         else this.deathTicks = 0;
+        // swing and attack: the samples of a running animation are not restarted, only a new one (earlier than
+        // the local progress) is started from the sampled progress
+        if (mob.swingTicks >= 0 && (this.swingTicks < 0 || mob.swingTicks < this.swingTicks - 1)) this.swingTicks = mob.swingTicks;
+        if (mob.attackTicks > 0 && mob.attackTicks > this.attackTicks + 1) this.attackTicks = mob.attackTicks;
 
         if (this.view && this.view.isMobModel) {
             const equipment = mob.equipment;
@@ -352,6 +360,11 @@ export class EntityMarker extends Marker {
         if (!dying) this.limbPos += this.limbSpeed * ticks;
 
         this.hurtTime = Math.max(0, this.hurtTime - dt);
+        if (this.swingTicks >= 0) {
+            this.swingTicks += ticks;
+            if (this.swingTicks >= MOB_SWING_TICKS) this.swingTicks = -1;
+        }
+        this.attackTicks = Math.max(0, this.attackTicks - ticks);
         if (dying) this.deathTicks = Math.min(DEATH_TICKS, this.deathTicks + ticks);
 
         // vanilla ChickenEntity.tickMovement: the wings flap in the air (per tick)
@@ -377,6 +390,9 @@ export class EntityMarker extends Marker {
         input.mainHand = mob.equipment ? mob.equipment.mainHand : null;
         input.leftHanded = !!(mob.equipment && mob.equipment.leftHanded);
         input.wingAngle = (Math.sin(this.flapProgress) + 1) * this.wingDeviation;
+        input.swingProgress = this.swingTicks >= 0 && !dying ? this.swingTicks / MOB_SWING_TICKS : 0;
+        input.swingOffHand = mob.flags.has("swing_off_hand");
+        input.attackTicks = dying ? 0 : this.attackTicks;
 
         const hurt = this.hurtTime > 0 || dying;
         const fuse = this.fuseTicks / (CREEPER_FUSE_TICKS - 2);
@@ -384,7 +400,7 @@ export class EntityMarker extends Marker {
         else if (this.view && this.view.isPlaceholderModel) this.view.animate(r.body, hurt);
 
         return this.limbSpeed > 0 || this.progress < 1 || hurt || dying || this.wingDeviation > 0 || mob.flags.has("charged") ||
-            this.fuseTicks > 0;
+            this.fuseTicks > 0 || this.swingTicks >= 0 || this.attackTicks > 0;
     }
 
     /** @private */

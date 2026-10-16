@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 
 import {buildPartGeometry, cuboidQuads} from "../src/js/markers/mob/MobModelGeometry.js";
 import {createSkinBoxGeometry} from "../src/js/markers/player/PlayerModelGeometry.js";
-import {ANIMATIONS, createTransform, meleeAttack} from "../src/js/markers/mob/MobAnimations.js";
+import {ANIMATIONS, biped, createTransform, meleeAttack} from "../src/js/markers/mob/MobAnimations.js";
 import {
     creeperSwelling, creeperWhiteOverlay, deathAngle, isLayerShown, layerTextures, limbTarget, MOB_TYPES, sheepWoolColor, slimeScale, VANILLA_MODELS,
     villagerTextures,
@@ -396,4 +396,95 @@ test("mooshroom-mushrooms and the carried block of the enderman are block-models
     creeper.animate(input, 0, 0, false, 0.25);
     assert.equal(creeper.layerViews[0].meshes[0].material.userData.whiteOverlay, undefined, "flashing");
     creeper.dispose();
+});
+
+const mainParts = type => {
+    const parts = {};
+    const collect = (p, prefix) => { for (const n in p) { parts[prefix + n] = createTransform(p[n]); if (p[n].children) collect(p[n].children, prefix + n + "/"); } };
+    collect(VANILLA_MODELS.models[MOB_TYPES[type].layers[0].model].parts, "");
+    return parts;
+};
+const near = (a, b, msg) => assert.ok(Math.abs(a - b) < 1e-6, `${msg}: ${a} != ${b}`);
+
+test("mob-attacks: swing- and attack-ticks are parsed", () => {
+    assert.deepEqual([parseMob({}).swingTicks, parseMob({}).attackTicks], [-1, 0]);
+    assert.deepEqual([parseMob({swingTicks: 3, attackTicks: 10}).swingTicks, parseMob({swingTicks: 3, attackTicks: 10}).attackTicks], [3, 10]);
+    assert.equal(parseMob({swingTicks: 99}).swingTicks, 6);
+    assert.equal(parseMob({swingTicks: -5}).swingTicks, -1);
+    assert.equal(parseMob({attackTicks: 99}).attackTicks, 20);
+});
+
+test("mob-attacks: iron golem, hoglin and ravager like their vanilla models", () => {
+    const golem = mainParts("minecraft:iron_golem");
+    ANIMATIONS.ironGolem(golem, input({attackTicks: 10}));
+    near(golem.right_arm.pitch, -0.5, "golem arms at the start"); // -2 + 1.5 * wrap(10, 10)
+    ANIMATIONS.ironGolem(golem, input({attackTicks: 5}));
+    near(golem.right_arm.pitch, -3.5, "golem arms raised highest at the half");
+    near(golem.left_arm.pitch, -3.5, "both arms");
+
+    const hoglin = mainParts("minecraft:hoglin");
+    ANIMATIONS.hoglin(hoglin, input());
+    near(hoglin.head.pitch, 0.87266463, "hoglin head at rest");
+    ANIMATIONS.hoglin(hoglin, input({attackTicks: 5}));
+    near(hoglin.head.pitch, -PI / 9, "hoglin head thrown up");
+
+    const ravager = mainParts("minecraft:ravager");
+    ANIMATIONS.ravager(ravager, input({attackTicks: 10}));
+    near(ravager.neck.pivotZ, 5.5, "ravager neck at the start like the model");
+    ANIMATIONS.ravager(ravager, input({attackTicks: 5}));
+    near(ravager.neck.pivotZ, -6.5, "ravager neck lunged forward by 12 px");
+    near(ravager["neck/head/mouth"].pitch, PI / 20 * Math.sin(PI / 2), "mouth");
+    ANIMATIONS.ravager(ravager, input());
+    near(ravager.neck.pivotZ, 5.5, "ravager neck back");
+});
+
+test("mob-attacks: the hand-swing turns the body to the swinging arm (main or off hand)", () => {
+    const zombie = mainParts("minecraft:zombie");
+    biped(zombie, input({swingProgress: 0.3}));
+    const mainYaw = zombie.body.yaw;
+    assert.ok(Math.abs(mainYaw) > 0.05, "body turns");
+    biped(zombie, input({swingProgress: 0.3, swingOffHand: true}));
+    near(zombie.body.yaw, -mainYaw, "off-hand: the other direction");
+    biped(zombie, input());
+    near(zombie.body.yaw, 0, "no swing");
+});
+
+test("mob-attacks: the entity-marker runs swing and attack between the samples, without restarting them", async () => {
+    const cache = fakeMobCache({"minecraft:entity/zombie/zombie": 1, "minecraft:entity/iron_golem/iron_golem": 1});
+    const zombie = new EntityMarker("bm-entity-30", null, null, cache);
+    let time = 1000;
+    const sample = (type, mob = {}) => parseEntity({
+        id: 30, type, position: {x: 0, y: 64, z: 0}, time: time += 250, onGround: true, mob: {bodyYaw: 0, headYaw: 0, ...mob},
+    });
+    zombie.updateFromData(sample("minecraft:zombie"), 250);
+    await flush(); await flush();
+    zombie.step(0.05, null);
+    assert.equal(zombie.animationInput.swingProgress, 0);
+
+    zombie.updateFromData(sample("minecraft:zombie", {swingTicks: 1}), 250);
+    zombie.step(0.05, null);
+    near(zombie.animationInput.swingProgress, 2 / 6, "swing from the sampled progress");
+    zombie.step(0.1, null);
+    // the next sample of the same swing does not restart it
+    zombie.updateFromData(sample("minecraft:zombie", {swingTicks: 4}), 250);
+    zombie.step(0.05, null);
+    near(zombie.animationInput.swingProgress, 5 / 6, "same swing continues");
+    zombie.step(0.1, null);
+    assert.equal(zombie.animationInput.swingProgress, 0, "ends after 6 ticks");
+    zombie.updateFromData(sample("minecraft:zombie", {swingTicks: 0}), 250);
+    zombie.step(0.05, null);
+    near(zombie.animationInput.swingProgress, 1 / 6, "a new swing starts");
+    zombie.dispose();
+
+    const golem = new EntityMarker("bm-entity-31", null, null, cache);
+    golem.updateFromData(sample("minecraft:iron_golem", {attackTicks: 10}), 250);
+    await flush(); await flush();
+    golem.step(0.25, null);
+    near(golem.animationInput.attackTicks, 5, "counts down locally");
+    golem.updateFromData(sample("minecraft:iron_golem", {attackTicks: 5}), 250);
+    golem.step(0.05, null);
+    near(golem.animationInput.attackTicks, 4, "not restarted by the next sample");
+    golem.step(1, null);
+    assert.equal(golem.animationInput.attackTicks, 0);
+    golem.dispose();
 });

@@ -219,7 +219,7 @@ public class LiveE2EServer {
         //           /control?removeEntity=ID
         if (q.containsKey("entity")) {
             int id = Integer.parseInt(q.get("entity"));
-            // mobs: &mob=1&bodyYaw=..&headYaw=..&hurt=TICKS&death=TICKS&baby=1&variant=..&size=..&flags=a,b&main=ITEM&left=1&w=..&h=..
+            // mobs: &mob=1&bodyYaw=..&headYaw=..&hurt=TICKS&death=TICKS&baby=1&variant=..&size=..&flags=a,b&main=ITEM&left=1&w=..&h=..&swing=TICKS&attack=TICKS
             LiveMobState mob = null;
             if ("1".equals(q.get("mob"))) {
                 HeldItem main = q.containsKey("main") ? new HeldItem(q.get("main")) : null;
@@ -230,7 +230,8 @@ public class LiveE2EServer {
                         q.get("variant"), (int) d(q, "size"),
                         q.containsKey("w") ? d(q, "w") : 0.6, q.containsKey("h") ? d(q, "h") : 1.95,
                         q.containsKey("models") ? List.of(q.get("models").split(";")) : List.of(),
-                        q.containsKey("flags") && !q.get("flags").isEmpty() ? List.of(q.get("flags").split(",")) : List.of());
+                        q.containsKey("flags") && !q.get("flags").isEmpty() ? List.of(q.get("flags").split(",")) : List.of(),
+                        q.containsKey("swing") ? (int) d(q, "swing") : -1, (int) d(q, "attack"));
             }
             entities.put(id, new LiveEntityState(id, q.getOrDefault("type", "minecraft:item"),
                     new Vector3d(d(q, "x"), d(q, "y"), d(q, "z")), d(q, "yaw"), d(q, "pitch"),

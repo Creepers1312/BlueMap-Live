@@ -44,6 +44,8 @@ const cos = Math.cos, sin = Math.sin;
  *     headYaw: number,         degrees, relative to the body
  *     headPitch: number,       degrees
  *     swingProgress: number,   0..1 (vanilla handSwingProgress), 0 if not swinging
+ *     swingOffHand: boolean,   the swing is done with the off-hand (vanilla preferredHand)
+ *     attackTicks: number,     the remaining ticks of the attack-animation (iron golem, ravager, hoglin, zoglin)
  *     flags: Set<string>,      e.g. "attacking"
  *     mainHand: {id: string} | null,
  *     leftHanded: boolean,
@@ -102,7 +104,8 @@ export function meleeAttack(leftArm, rightArm, attacking, swingProgress, age) {
 function animateArms(p, input) {
     const swing = input.swingProgress;
     if (!(swing > 0)) return;
-    const right = !input.leftHanded;
+    // vanilla getPreferredArm: the main arm, the other one for a swing with the off-hand
+    const right = input.swingOffHand ? input.leftHanded : !input.leftHanded;
     const arm = right ? p.right_arm : p.left_arm;
     const body = p.body;
     body.yaw = sin(Math.sqrt(swing) * PI * 2) * 0.2;
@@ -458,15 +461,25 @@ export function illager(p, input) {
     rightArm.visible = !crossed;
 }
 
-/** vanilla IronGolemEntityModel: legs and arms swing with a triangle-wave */
+/** vanilla MathHelper.wrap: a triangle-wave with the period size (-1..1) */
+export function wrap(value, size) {
+    return (Math.abs(value % size - size * 0.5) - size * 0.25) / (size * 0.25);
+}
+
+/** vanilla IronGolemEntityModel: legs and arms swing with a triangle-wave, both arms strike while attacking */
 export function ironGolem(p, input) {
     const f = input.limbAngle, g = input.limbDistance;
-    const wave = x => (Math.abs(x % 13 - 6.5) - 3.25) / 3.25;
+    const wave = x => wrap(x, 13);
     look(p, input);
     p.right_leg.pitch = -1.5 * wave(f) * g;
     p.left_leg.pitch = 1.5 * wave(f) * g;
-    p.right_arm.pitch = (-0.2 + 1.5 * wave(f)) * g;
-    p.left_arm.pitch = (-0.2 - 1.5 * wave(f)) * g;
+    if (input.attackTicks > 0) { // animateModel: getAttackTicksLeft (10 .. 0)
+        p.right_arm.pitch = -2 + 1.5 * wrap(input.attackTicks, 10);
+        p.left_arm.pitch = -2 + 1.5 * wrap(input.attackTicks, 10);
+    } else {
+        p.right_arm.pitch = (-0.2 + 1.5 * wave(f)) * g;
+        p.left_arm.pitch = (-0.2 - 1.5 * wave(f)) * g;
+    }
 }
 
 /** vanilla SnowGolemEntityModel */
@@ -596,12 +609,15 @@ export function guardian(p, input) {
     p["head/tail0/tail1/tail2"].yaw = a * 2;
 }
 
-/** vanilla HoglinEntityModel: ears and legs */
+/** vanilla HoglinEntityModel (hoglin, zoglin): ears and legs, the head is thrown up while attacking */
 export function hoglin(p, input) {
     const f = input.limbAngle, g = input.limbDistance;
     p["head/right_ear"].roll = -0.6981317 - g * sin(f);
     p["head/left_ear"].roll = 0.6981317 + g * sin(f);
     p.head.yaw = input.headYaw * DEG;
+    // getMovementCooldownTicks (10 .. 0 after an attack): up to -20 degrees at the half
+    const k = 1 - Math.abs(10 - 2 * Math.max(0, input.attackTicks || 0)) / 10;
+    p.head.pitch = 0.87266463 + (-PI / 9 - 0.87266463) * Math.max(0, k);
     const front = cos(f) * 1.2 * g;
     p.right_front_leg.pitch = front;
     p.left_front_leg.pitch = -front;
@@ -609,11 +625,23 @@ export function hoglin(p, input) {
     p.left_hind_leg.pitch = front;
 }
 
-/** vanilla RavagerEntityModel (walking) */
+/** vanilla RavagerEntityModel (walking, the bite: the neck lunges forward and the mouth opens) */
 export function ravager(p, input) {
     const f = input.limbAngle, g = input.limbDistance;
     p["neck/head"].yaw = input.headYaw * DEG;
     p["neck/head"].pitch = input.headPitch * DEG;
+    const l = input.attackTicks || 0; // animateModel: getAttackTick (10 .. 0); stunned and roaring are not shown
+    if (l > 0) {
+        const o = (1 + wrap(l, 10)) * 0.5;
+        const q = o * o * o * 12;
+        p.neck.pivotZ = -6.5 + q;
+        p.neck.pivotY = -7 - q * sin(p.neck.pitch);
+        p["neck/head/mouth"].pitch = l > 5 ? sin((l - 4) / 4) * PI * 0.4 : PI / 20 * sin(PI * l / 10);
+    } else {
+        p.neck.pivotZ = 5.5;
+        p.neck.pivotY = -7;
+        p["neck/head/mouth"].pitch = 0;
+    }
     const leg = cos(f * 0.6662) * 0.4 * g;
     p.right_hind_leg.pitch = leg;
     p.left_hind_leg.pitch = -leg;

@@ -51,7 +51,12 @@ import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.entity.mob.AbstractPiglinEntity;
 import net.minecraft.entity.mob.CreeperEntity;
 import net.minecraft.entity.mob.EndermanEntity;
+import net.minecraft.entity.mob.Hoglin;
+import net.minecraft.entity.mob.HostileEntity;
 import net.minecraft.entity.mob.MobEntity;
+import net.minecraft.entity.mob.RavagerEntity;
+import net.minecraft.entity.passive.IronGolemEntity;
+import net.minecraft.util.Hand;
 import net.minecraft.entity.mob.SlimeEntity;
 import net.minecraft.entity.mob.ZombieVillagerEntity;
 import net.minecraft.entity.passive.MooshroomEntity;
@@ -89,6 +94,7 @@ final class FabricMobs {
      * that type are not sampled anymore instead of failing every tick
      */
     private static volatile boolean detailsUnavailable = false;
+    private static volatile boolean attackUnavailable = false;
 
     static LiveMobState sample(LivingEntity entity) {
         List<String> flags = new ArrayList<>();
@@ -103,6 +109,24 @@ final class FabricMobs {
             } catch (LinkageError error) {
                 detailsUnavailable = true;
                 Logger.global.logWarning("BlueMap Live: mob-details are not available: " + error);
+            }
+        }
+
+        // the visible attack: the hand-swing (only hostile mobs advance it on the server: HostileEntity.tickMovement)
+        // and the attack-timers the vanilla models animate
+        int swingTicks = -1, attackTicks = 0;
+        if (!attackUnavailable) {
+            try {
+                if (entity instanceof HostileEntity && entity.handSwinging) {
+                    swingTicks = Math.max(entity.handSwingTicks, 0);
+                    if (entity.preferredHand == Hand.OFF_HAND) flags.add("swing_off_hand");
+                }
+                if (entity instanceof IronGolemEntity golem) attackTicks = golem.getAttackTicksLeft();
+                else if (entity instanceof RavagerEntity ravager) attackTicks = ravager.getAttackTick();
+                else if (entity instanceof Hoglin hoglin) attackTicks = hoglin.getMovementCooldownTicks();
+            } catch (LinkageError error) {
+                attackUnavailable = true;
+                Logger.global.logWarning("BlueMap Live: mob-attacks are not available: " + error);
             }
         }
 
@@ -124,7 +148,9 @@ final class FabricMobs {
                 entity.getWidth(),
                 entity.getHeight(),
                 models,
-                flags
+                flags,
+                swingTicks,
+                Math.max(attackTicks, 0)
         );
     }
 

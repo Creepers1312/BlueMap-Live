@@ -42,7 +42,8 @@ public class E2EItemResources implements ItemModelBaker.Resources {
             DIAMOND = 0xFF8080FF, SNOWBALL = 0xFF80FFFF, ARROW = 0xFFFF80C0,
             ZOMBIE = 0xFF309060, COW = 0xFF804020, SHEEP = 0xFF606060, WOOL = 0xFFFFFFFF,
             VILLAGER = 0xFFC08040, FARMER = 0xFFFF00C0, IRON_ARMOR = 0xFFA0FF00, LEATHER = 0xFFFFFFFF,
-            MOOSHROOM = 0xFF602020, MUSHROOM = 0xFFFF2080, ENDERMAN = 0xFF202020, GRASS = 0xFF40FF40, CREEPER = 0xFF00C0C0;
+            MOOSHROOM = 0xFF602020, MUSHROOM = 0xFFFF2080, ENDERMAN = 0xFF202020, GRASS = 0xFF40FF40, CREEPER = 0xFF00C0C0,
+            GOLEM = 0xFFE0A000;
 
     private final Map<String, String> models = new HashMap<>();
     private final Map<String, BufferedImage> textures = new HashMap<>();
@@ -152,6 +153,7 @@ public class E2EItemResources implements ItemModelBaker.Resources {
         textures.put("minecraft:entity/cow/red_mooshroom", rect(64, 32, 0, 0, 64, 32, MOOSHROOM));
         textures.put("minecraft:entity/enderman/enderman", rect(64, 32, 0, 0, 64, 32, ENDERMAN));
         textures.put("minecraft:entity/creeper/creeper", rect(64, 32, 0, 0, 64, 32, CREEPER));
+        textures.put("minecraft:entity/iron_golem/iron_golem", square(128, 0, 0, 128, 128, GOLEM));
 
         // armor-layers (64x32, one color; the leather-overlay is transparent)
         textures.put("minecraft:models/armor/iron_layer_1", rect(64, 32, 0, 0, 64, 32, IRON_ARMOR));

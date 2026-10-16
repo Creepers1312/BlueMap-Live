@@ -248,6 +248,8 @@ public class LivePlayersDataSupplierTest {
         assertEquals(120, mob.get("headYaw").getAsDouble());
         assertEquals(7, mob.get("hurtTime").getAsInt());
         assertFalse(mob.has("deathTime"), "only values that differ from the default");
+        assertFalse(mob.has("swingTicks"), "not swinging");
+        assertFalse(mob.has("attackTicks"));
         assertTrue(mob.get("baby").getAsBoolean());
         assertEquals("attacking", mob.getAsJsonArray("flags").get(0).getAsString());
         JsonObject equipment = mob.getAsJsonObject("equipment");
@@ -273,6 +275,20 @@ public class LivePlayersDataSupplierTest {
         assertEquals("minecraft:models/armor/iron_layer_1", mooshroomJson.getAsJsonObject("equipment").getAsJsonObject("armor")
                 .getAsJsonArray("head").get(0).getAsJsonObject().get("texture").getAsString());
         assertEquals(List.of("minecraft:block/red_mushroom", "texture:minecraft:models/armor/iron_layer_1"), requested2);
+
+        // the hand-swing and the attack-animation
+        LiveMobState golem = new LiveMobState(0, 0, 0, 0, false, null, null, 0, 1.4, 2.7, List.of(), List.of(), 0, 10);
+        LiveMobState swinging = new LiveMobState(0, 0, 0, 0, false, null, null, 0, 0.6, 1.95, List.of(), List.of("swing_off_hand"), 3, 0);
+        server.entities = List.of(
+                new LiveEntityState(4, "minecraft:iron_golem", new Vector3d(1, 0, 0), 0, 0, Vector3d.ZERO, 1000, null, true, golem),
+                new LiveEntityState(5, "minecraft:zombie", new Vector3d(1, 0, 1), 0, 0, Vector3d.ZERO, 1000, null, true, swinging));
+        JsonArray attacks = entities(supplyEntities(new PluginConfig(), server, new ArrayList<>()));
+        JsonObject golemJson = attacks.get(0).getAsJsonObject().getAsJsonObject("mob");
+        assertEquals(0, golemJson.get("swingTicks").getAsInt(), "the first tick of a swing");
+        assertEquals(10, golemJson.get("attackTicks").getAsInt());
+        JsonObject swingJson = attacks.get(1).getAsJsonObject().getAsJsonObject("mob");
+        assertEquals(3, swingJson.get("swingTicks").getAsInt());
+        assertFalse(swingJson.has("attackTicks"));
 
         // flags are sorted and unique
         assertEquals(List.of("a", "b"), new LiveMobState(0, 0, 0, 0, false, null, null, 0, 1, 1, List.of("b", "a", "b")).flags());

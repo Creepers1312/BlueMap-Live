@@ -106,9 +106,13 @@ export const THROWN_ITEM_SCALES = {"minecraft:fireball": 3, "minecraft:small_fir
  * @typedef LiveMob {{
  *     bodyYaw: number, headYaw: number, hurtTime: number, deathTime: number, baby: boolean,
  *     variant: string | null, size: number, width: number, height: number, flags: Set<string>, models: string[],
+ *     swingTicks: number, attackTicks: number,
  *     equipment: {mainHand: object | null, offHand: object | null, leftHanded: boolean} | null
  * }}
  */
+
+/** vanilla LivingEntity.getHandSwingDuration (without haste and mining fatigue) */
+export const MOB_SWING_TICKS = 6;
 
 const VARIANT_PATTERN = /^[a-z0-9_-]+(\/[a-z0-9_-]+)*$/;
 const FLAG_PATTERN = /^[a-z0-9_]{1,32}$/;
@@ -146,6 +150,9 @@ export function parseMob(value) {
         width: clampNumber(value.width, 0.1, 16, 0.6),
         height: clampNumber(value.height, 0.1, 16, 1.8),
         flags,
+        // the hand-swing (ticks since its start, -1: none) and the attack-animation (remaining ticks)
+        swingTicks: isFiniteNumber(value.swingTicks) && value.swingTicks >= 0 ? Math.min(value.swingTicks, MOB_SWING_TICKS) : -1,
+        attackTicks: clampNumber(value.attackTicks, 0, 20, 0),
         models: Array.isArray(value.models) ?
             value.models.slice(0, 4).filter(model => typeof model === "string" && TYPE_PATTERN.test(model) && !model.includes("..")) : [],
         equipment: parseEquipment(value.equipment),

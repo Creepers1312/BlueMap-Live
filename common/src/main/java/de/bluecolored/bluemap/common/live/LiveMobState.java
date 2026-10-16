@@ -45,6 +45,9 @@ import java.util.List;
  *               enderman carries (<code>minecraft:block/red_mushroom</code>), provided like the item-assets
  * @param flags further states that change the model or its animation (e.g. <code>attacking</code>,
  *              <code>sheared</code>, <code>saddled</code>), sorted
+ * @param swingTicks the ticks since the hand-swing started (vanilla <code>handSwingTicks</code>), -1 if not swinging
+ * @param attackTicks the remaining ticks of a type-specific attack-animation (iron golem, ravager, hoglin, zoglin),
+ *                    0 if none
  */
 public record LiveMobState(
         double bodyYaw,
@@ -58,12 +61,20 @@ public record LiveMobState(
         double width,
         double height,
         List<String> models,
-        List<String> flags
+        List<String> flags,
+        int swingTicks,
+        int attackTicks
 ) {
 
     public LiveMobState {
         models = List.copyOf(models);
         flags = flags.stream().sorted().distinct().toList();
+    }
+
+    public LiveMobState(double bodyYaw, double headYaw, int hurtTime, int deathTime, boolean baby,
+                        @Nullable Equipment equipment, @Nullable String variant, int size, double width, double height,
+                        List<String> models, List<String> flags) {
+        this(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height, models, flags, -1, 0);
     }
 
     public LiveMobState(double bodyYaw, double headYaw, int hurtTime, int deathTime, boolean baby,
