@@ -124,6 +124,7 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
     static boolean isItemRelevantTexture(String namespace, String value) {
         if (!namespace.equals("minecraft")) return true;
         if (value.startsWith("entity/")) return true; // shield, projectiles and the mob-textures
+        if (value.startsWith("models/armor/")) return true; // armor-layers
         int slash = value.indexOf('/');
         return slash < 0 || !SKIPPED_TEXTURE_FOLDERS.contains(value.substring(0, slash));
     }

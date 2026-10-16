@@ -59,6 +59,7 @@ public class ItemAssetUpdater {
 
     private final Set<String> requested = ConcurrentHashMap.newKeySet();
     private final Set<String> requestedEntities = ConcurrentHashMap.newKeySet();
+    private final Set<String> requestedTextures = ConcurrentHashMap.newKeySet();
     private @Nullable ItemModelBaker.Resources resources;
 
     /**
@@ -115,6 +116,7 @@ public class ItemAssetUpdater {
      * Invalid item-ids are ignored.
      */
     public CompletableFuture<Void> request(String itemId) {
+        if (itemId.startsWith(TEXTURE_PREFIX)) return requestTexture(itemId.substring(TEXTURE_PREFIX.length()));
         if (requested.contains(itemId) || requested.size() >= MAX_ITEMS) return CompletableFuture.completedFuture(null);
         if (!ItemModelBaker.Key.isValid(itemId)) return CompletableFuture.completedFuture(null);
         if (!requested.add(itemId)) return CompletableFuture.completedFuture(null);
@@ -124,6 +126,45 @@ public class ItemAssetUpdater {
                 if (!write(itemId)) requested.remove(itemId); // not ready yet, try again with the next request
             } catch (Exception ex) {
                 Logger.global.logWarning("Failed to create the item-asset for '" + itemId + "': " + ex);
+            }
+        }, executor);
+    }
+
+    /** requests with this prefix are textures (see {@link #requestTexture}) */
+    public static final String TEXTURE_PREFIX = "texture:";
+
+    public static String textureAssetName(String textureKey) {
+        ItemModelBaker.Key key = ItemModelBaker.Key.parse(textureKey);
+        return "textures/" + key.namespace() + "/" + key.path() + ".png";
+    }
+
+    /**
+     * Makes sure a texture of the resource-pack is available as png (<code>assets/textures/&lt;ns&gt;/&lt;path&gt;.png</code>),
+     * e.g. the armor-textures. Only textures that {@link ItemModelBaker#isProvidedTexture} allows.
+     */
+    public CompletableFuture<Void> requestTexture(String textureKey) {
+        if (!ItemModelBaker.Key.isValid(textureKey) || !ItemModelBaker.isProvidedTexture(textureKey))
+            return CompletableFuture.completedFuture(null);
+        if (requestedTextures.size() >= MAX_ITEMS || !requestedTextures.add(textureKey)) return CompletableFuture.completedFuture(null);
+
+        return CompletableFuture.runAsync(() -> {
+            try {
+                Collection<MapStorage> mapStorages = storages.get();
+                ItemModelBaker.Resources resources = mapStorages != null ? getResources() : null;
+                java.awt.image.BufferedImage image = resources != null ? resources.texture(textureKey) : null;
+                if (image == null) {
+                    if (resources == null) requestedTextures.remove(textureKey); // not ready yet
+                    return;
+                }
+                java.io.ByteArrayOutputStream png = new java.io.ByteArrayOutputStream();
+                javax.imageio.ImageIO.write(image, "png", png);
+                for (MapStorage storage : mapStorages) {
+                    try (OutputStream out = storage.asset(textureAssetName(textureKey)).write()) {
+                        png.writeTo(out);
+                    }
+                }
+            } catch (Exception ex) {
+                Logger.global.logWarning("Failed to create the texture-asset for '" + textureKey + "': " + ex);
             }
         }, executor);
     }

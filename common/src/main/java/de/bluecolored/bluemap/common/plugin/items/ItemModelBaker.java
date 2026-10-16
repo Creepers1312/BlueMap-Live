@@ -143,6 +143,12 @@ public class ItemModelBaker {
         return ENTITY_MODELS.containsKey(entityType) || MobTextures.TEXTURES.containsKey(entityType);
     }
 
+    /** textures that are provided on their own (requested by the live-data): the armor-textures */
+    static boolean isProvidedTexture(String textureKey) {
+        int colon = textureKey.indexOf(':');
+        return textureKey.startsWith("models/armor/", colon + 1);
+    }
+
     /** protection against huge folders (a resource-pack with very many villager-textures) */
     static final int MAX_MOB_TEXTURES = 128;
 

@@ -151,6 +151,7 @@ public final class LivePlayersJson {
                     writeItem(json, equipment.offHand());
                 }
                 if (equipment.fishing()) json.name("fishing").value(true);
+                if (equipment.armor() != null) writeArmor(json, equipment.armor());
                 json.endObject();
             }
 
@@ -183,6 +184,28 @@ public final class LivePlayersJson {
         }
 
         json.endObject();
+    }
+
+    /** the worn armor: per slot the texture-layers (with the dye-color of leather) */
+    static void writeArmor(JsonWriter json, Armor armor) throws IOException {
+        json.name("armor").beginObject();
+        writeArmorSlot(json, "head", armor.head());
+        writeArmorSlot(json, "chest", armor.chest());
+        writeArmorSlot(json, "legs", armor.legs());
+        writeArmorSlot(json, "feet", armor.feet());
+        json.endObject();
+    }
+
+    private static void writeArmorSlot(JsonWriter json, String slot, @org.jetbrains.annotations.Nullable java.util.List<Armor.Layer> layers) throws IOException {
+        if (layers == null) return;
+        json.name(slot).beginArray();
+        for (Armor.Layer layer : layers) {
+            json.beginObject();
+            json.name("texture").value(layer.texture());
+            if (layer.color() != null) json.name("color").value(layer.color() & 0xFFFFFF);
+            json.endObject();
+        }
+        json.endArray();
     }
 
     /** only the id and the flags that are set, so an item costs only a few bytes per update */

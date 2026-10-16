@@ -33,9 +33,19 @@ import org.jetbrains.annotations.Nullable;
  * @param offHand the item in the off hand, null if the hand is empty
  * @param leftHanded true if the main hand of the player is the left one
  * @param fishing true if the player has cast a fishing rod
+ * @param armor the worn armor, null if none
  */
-public record Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand, boolean leftHanded, boolean fishing) {
+public record Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand, boolean leftHanded, boolean fishing,
+                        @Nullable Armor armor) {
 
     public static final Equipment EMPTY = new Equipment(null, null, false, false);
+
+    public Equipment(@Nullable HeldItem mainHand, @Nullable HeldItem offHand, boolean leftHanded, boolean fishing) {
+        this(mainHand, offHand, leftHanded, fishing, null);
+    }
+
+    public Equipment {
+        if (armor != null && armor.isEmpty()) armor = null;
+    }
 
 }

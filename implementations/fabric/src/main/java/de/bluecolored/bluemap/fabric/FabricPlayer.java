@@ -25,6 +25,7 @@
 package de.bluecolored.bluemap.fabric;
 
 import com.flowpowered.math.vector.Vector3d;
+import de.bluecolored.bluemap.common.live.Armor;
 import de.bluecolored.bluemap.common.live.Equipment;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.ItemUse;
@@ -220,8 +221,11 @@ public class FabricPlayer extends Player {
 
         boolean leftHanded = player.getMainArm() == Arm.LEFT;
         boolean fishing = player.fishHook != null;
-        if (changed || leftHanded != equipment.leftHanded() || fishing != equipment.fishing()) {
-            equipment = new Equipment(mainHandItem, offHandItem, leftHanded, fishing);
+        Armor armor = FabricArmor.sample(player);
+        if (armor.isEmpty()) armor = null;
+        if (changed || leftHanded != equipment.leftHanded() || fishing != equipment.fishing() ||
+                !java.util.Objects.equals(armor, equipment.armor())) {
+            equipment = new Equipment(mainHandItem, offHandItem, leftHanded, fishing, armor);
         }
         return equipment;
     }

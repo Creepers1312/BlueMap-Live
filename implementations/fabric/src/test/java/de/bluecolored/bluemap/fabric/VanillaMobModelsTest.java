@@ -190,6 +190,13 @@ public class VanillaMobModelsTest {
         LAYERS.put("minecraft:piglin#main", piglin);
         LAYERS.put("minecraft:zombified_piglin#main", piglin);
         LAYERS.put("minecraft:piglin_brute#main", piglin);
+        // armor (ArmorEntityModel, ZombieVillagerEntityModel.getArmorTexturedModelData)
+        LAYERS.put("minecraft:player#inner_armor", () -> of(call(MODEL + "ArmorEntityModel", "getModelData", dilation(0.5f)), 64, 32));
+        LAYERS.put("minecraft:player#outer_armor", () -> of(call(MODEL + "ArmorEntityModel", "getModelData", dilation(1f)), 64, 32));
+        LAYERS.put("minecraft:zombie_villager#inner_armor", () -> call(MODEL + "ZombieVillagerEntityModel", "getArmorTexturedModelData", dilation(0.5f)));
+        LAYERS.put("minecraft:zombie_villager#outer_armor", () -> call(MODEL + "ZombieVillagerEntityModel", "getArmorTexturedModelData", dilation(1f)));
+        LAYERS.put("minecraft:piglin#inner_armor", () -> of(call(MODEL + "ArmorEntityModel", "getModelData", dilation(0.5f)), 64, 32));
+        LAYERS.put("minecraft:piglin#outer_armor", () -> of(call(MODEL + "ArmorEntityModel", "getModelData", dilation(1.02f)), 64, 32));
     }
 
     /** calls a static method by its name and the number of arguments (primitive floats are matched) */

@@ -53,6 +53,9 @@ public class LivePlayersDataSupplier implements Supplier<String> {
     private final Function<UUID, LivePlayersJson.Skin> skinLookup;
     private final Consumer<String> itemRequester;
 
+    /** item-requests with this prefix request a texture (armor), e.g. <code>texture:minecraft:models/armor/iron_layer_1</code> */
+    public static final String TEXTURE_PREFIX = "texture:";
+
     private transient @Nullable ServerWorld serverWorld;
 
     public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter) {
@@ -123,6 +126,7 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                 if (equipment != null && config.isLivePlayerExtendedData()) {
                     if (equipment.mainHand() != null) itemRequester.accept(equipment.mainHand().id());
                     if (equipment.offHand() != null) itemRequester.accept(equipment.offHand().id());
+                    if (equipment.armor() != null) equipment.armor().textures().forEach(t -> itemRequester.accept(TEXTURE_PREFIX + t));
                 }
 
                 entries.add(new LivePlayersJson.Entry(

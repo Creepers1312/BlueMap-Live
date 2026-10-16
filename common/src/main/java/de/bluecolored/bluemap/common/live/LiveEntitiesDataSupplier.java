@@ -126,6 +126,7 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
                     if (equipment != null) {
                         if (equipment.mainHand() != null) itemRequester.accept(equipment.mainHand().id());
                         if (equipment.offHand() != null) itemRequester.accept(equipment.offHand().id());
+                        if (equipment.armor() != null) equipment.armor().textures().forEach(t -> itemRequester.accept(LivePlayersDataSupplier.TEXTURE_PREFIX + t));
                     }
                     entityRequester.accept(entity.type());
                     result.add(entity);

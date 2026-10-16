@@ -24,6 +24,7 @@
  */
 package de.bluecolored.bluemap.fabric;
 
+import de.bluecolored.bluemap.common.live.Armor;
 import de.bluecolored.bluemap.common.live.Equipment;
 import de.bluecolored.bluemap.common.live.HeldItem;
 import de.bluecolored.bluemap.common.live.LiveMobState;
@@ -90,8 +91,9 @@ final class FabricMobs {
 
         HeldItem mainHand = FabricPlayer.toHeldItem(entity.getMainHandStack());
         HeldItem offHand = FabricPlayer.toHeldItem(entity.getOffHandStack());
-        Equipment equipment = mainHand != null || offHand != null ?
-                new Equipment(mainHand, offHand, entity.getMainArm() == Arm.LEFT, false) : null;
+        Armor armor = FabricArmor.sample(entity);
+        Equipment equipment = mainHand != null || offHand != null || !armor.isEmpty() ?
+                new Equipment(mainHand, offHand, entity.getMainArm() == Arm.LEFT, false, armor) : null;
 
         return new LiveMobState(
                 entity.bodyYaw,
