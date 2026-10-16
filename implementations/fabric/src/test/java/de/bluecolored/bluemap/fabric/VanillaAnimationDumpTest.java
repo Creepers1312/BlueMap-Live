@@ -78,10 +78,32 @@ public class VanillaAnimationDumpTest {
                 "getVehicleAttachmentPos", "getRidingOffset", "getLeashPos", "getLeashOffset"));
         METHODS.put("net/minecraft/entity/player/PlayerEntity", Set.of("getLeashOffset", "getLeashPos"));
         METHODS.put(RENDER + "EntityRenderer", Set.of("render", "renderLeash", "renderLeashSegment", "renderLeashPiece", "shouldRender"));
-        METHODS.put("net/minecraft/entity/LivingEntity", Set.of("getPassengerRidingPos", "getPassengerAttachmentPos", "getLeashPos"));
         METHODS.put("net/minecraft/entity/decoration/LeashKnotEntity", Set.of("getLeashPos", "getLeashOffset", "<init>"));
         METHODS.put("net/minecraft/entity/vehicle/BoatEntity", Set.of("tick", "interpolatePaddlePhase", "isPaddleMoving",
                 "updatePassengerPosition", "getPassengerAttachmentPos", "getVariant", "clampPassengerYaw", "getMaxPassengers", "getLeashOffset"));
+        // effects and particles: explosions, potion swirls, splash potions, lingering clouds, death poof, fire overlay
+        METHODS.put("net/minecraft/client/particle/ExplosionLargeParticle", Set.of());
+        METHODS.put("net/minecraft/client/particle/ExplosionEmitterParticle", Set.of());
+        METHODS.put("net/minecraft/client/particle/SpellParticle", Set.of());
+        METHODS.put("net/minecraft/client/particle/SpriteBillboardParticle", Set.of());
+        METHODS.put("net/minecraft/client/particle/BillboardParticle", Set.of());
+        METHODS.put("net/minecraft/client/particle/AnimatedParticle", Set.of());
+        METHODS.put("net/minecraft/client/particle/ExplosionSmokeParticle", Set.of());
+        METHODS.put("net/minecraft/client/particle/Particle", Set.of("<init>", "tick", "move", "getMaxAge", "setMaxAge", "scale", "setColor", "setAlpha"));
+        METHODS.put("net/minecraft/world/explosion/Explosion", Set.of("affectWorld", "<init>", "getParticle"));
+        METHODS.put("net/minecraft/client/network/ClientPlayNetworkHandler", Set.of("onExplosion", "onEntityStatus"));
+        METHODS.put("net/minecraft/entity/LivingEntity", Set.of("getPassengerRidingPos", "getPassengerAttachmentPos", "getLeashPos",
+                "tickStatusEffects", "updatePostDeath", "handleStatus", "addDeathParticles", "updatePotionVisibility"));
+        METHODS.put("net/minecraft/entity/projectile/thrown/PotionEntity", Set.of("onCollision", "applySplashPotion", "applyLingeringPotion"));
+        METHODS.put("net/minecraft/entity/AreaEffectCloudEntity", Set.of("tick", "clientTick", "getColor"));
+        METHODS.put("net/minecraft/client/render/WorldRenderer", Set.of("processWorldEvent", "processGlobalEvent"));
+        METHODS.put("net/minecraft/client/world/ClientWorld", Set.of("syncWorldEvent", "addParticle"));
+        METHODS.put(RENDER + "EntityRenderDispatcher", Set.of("renderFire"));
+        METHODS.put("net/minecraft/entity/mob/CreeperEntity", Set.of("explode", "tick"));
+        METHODS.put("net/minecraft/entity/TntEntity", Set.of("explode", "tick"));
+        METHODS.put("net/minecraft/entity/projectile/FireballEntity", Set.of("onCollision", "<init>"));
+        METHODS.put("net/minecraft/entity/decoration/EndCrystalEntity", Set.of("damage"));
+        METHODS.put("net/minecraft/entity/projectile/WitherSkullEntity", Set.of("onCollision"));
         // horses: grazing, rearing, eating, tail, gallop (model and the animation-progress of the entity)
         METHODS.put(MODEL + "HorseEntityModel", Set.of());
         METHODS.put(MODEL + "DonkeyEntityModel", Set.of());
@@ -93,7 +115,12 @@ public class VanillaAnimationDumpTest {
     }
 
     /** text-resources of the game (shaders, atlas-definitions), printed as they are */
-    private static final List<String> RESOURCES = List.of();
+    private static final List<String> RESOURCES = List.of(
+            "assets/minecraft/particles/explosion.json", "assets/minecraft/particles/explosion_emitter.json",
+            "assets/minecraft/particles/entity_effect.json", "assets/minecraft/particles/effect.json",
+            "assets/minecraft/particles/poof.json", "assets/minecraft/particles/splash.json",
+            "assets/minecraft/particles/instant_effect.json", "assets/minecraft/particles/smoke.json",
+            "assets/minecraft/particles/large_smoke.json", "assets/minecraft/particles/flame.json");
 
     private static final Map<Integer, String> OPCODES = new HashMap<>();
     static {
