@@ -166,6 +166,39 @@ export function parseItemUse(value) {
     };
 }
 
+/** vanilla LivingEntityRenderer.getYaw(Direction) and Direction.getOffsetX/Z: the beds by their direction */
+export const BED_DIRECTIONS = {
+    south: {yaw: 90, x: 0, z: 1},
+    west: {yaw: 0, x: -1, z: 0},
+    north: {yaw: 270, x: 0, z: -1},
+    east: {yaw: 180, x: 1, z: 0},
+};
+
+/**
+ * vanilla LivingEntityRenderer: lying in a bed (EntityPose.SLEEPING), moved towards the head-end by the offset
+ * (getEyeHeight(STANDING) - 0.1) and turned by the direction of the bed (by the body if the bed is unknown)
+ * @param direction {string | null} - e.g. "north"
+ * @param offset {number}
+ * @param bodyYaw {number}
+ * @returns {{yaw: number, x: number, z: number}} - the yaw in degrees and the offset in blocks
+ */
+export function bedTransform(direction, offset, bodyYaw) {
+    const d = direction && BED_DIRECTIONS[direction];
+    if (!d) return {yaw: bodyYaw, x: 0, z: 0};
+    return {yaw: d.yaw, x: -d.x * offset, z: -d.z * offset};
+}
+
+/**
+ * @param value {any}
+ * @returns {{direction: string | null, offset: number} | null} - the bed of a sleeping player
+ */
+export function parseBed(value) {
+    if (!value || typeof value !== "object") return null;
+    const direction = typeof value.direction === "string" && BED_DIRECTIONS[value.direction] ? value.direction : null;
+    const offset = isFiniteNumber(value.offset) ? Math.max(-4, Math.min(4, value.offset)) : 0;
+    return {direction, offset};
+}
+
 /**
  * @param value {any}
  * @returns {{id: number, offset: {x: number, y: number, z: number}, bodyYaw: number, headYaw: number} | null} - the
@@ -244,6 +277,7 @@ export function parsePlayer(raw) {
     if (raw.state && typeof raw.state === "object") {
         state = {};
         STATE_KEYS.forEach(key => state[key] = raw.state[key] === true);
+        state.bed = parseBed(raw.state.bed);
     }
 
     return {

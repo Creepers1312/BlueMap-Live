@@ -25,11 +25,14 @@
 import {Marker} from "./Marker";
 import {CSS2DObject} from "../util/CSS2DRenderer";
 import {animate, htmlToElement} from "../util/Utils";
-import {MathUtils} from "three";
-import {angleDelta, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse, riderOnVehicle} from "./LivePlayerData";
+import {MathUtils, Quaternion, Vector3} from "three";
+import {angleDelta, bedTransform, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse, riderOnVehicle} from "./LivePlayerData";
 import {PlayerModel} from "./player/PlayerModel";
 import {PlayerSkinCache} from "./player/PlayerSkinCache";
 import {PlayerAnimator} from "./player/PlayerAnimator";
+
+const Y_AXIS = new Vector3(0, 1, 0), Z_AXIS = new Vector3(0, 0, 1);
+const tempQuaternion = new Quaternion();
 
 /** Height of the head-marker above the players feet */
 const PLAYER_HEIGHT = 1.8;
@@ -165,6 +168,7 @@ export class PlayerMarker extends Marker {
             this.updateMovement(previous, markerData, updateInterval);
             this.lastPlayerData = markerData;
             this.vehicle = markerData.vehicle;
+            this.applyDisplay(); // e.g. into or out of the bed
         }
 
         this.updateSkin(markerData.skin);
@@ -288,7 +292,19 @@ export class PlayerMarker extends Marker {
         this.data.rotation.pitch = state.pitch;
         this.data.rotation.yaw = state.headYaw;
 
-        this.model.rotation.y = MathUtils.degToRad(-state.bodyYaw);
+        // vanilla LivingEntityRenderer: lying in a bed (moved towards the head-end, turned by the bed, lying on the
+        // back); the player-model is the vanilla model turned by 180 degrees and flipped, so R_y(270) becomes R_y(90)
+        const bed = this.lastPlayerData && this.lastPlayerData.state ? this.lastPlayerData.state.bed : null;
+        if (bed) {
+            const t = bedTransform(bed.direction, bed.offset, state.bodyYaw);
+            this.model.position.set(t.x, -PLAYER_HEIGHT, t.z);
+            this.model.quaternion.setFromAxisAngle(Y_AXIS, MathUtils.degToRad(t.yaw))
+                .multiply(tempQuaternion.setFromAxisAngle(Z_AXIS, MathUtils.degToRad(90)))
+                .multiply(tempQuaternion.setFromAxisAngle(Y_AXIS, MathUtils.degToRad(90)));
+        } else {
+            this.model.position.set(0, -PLAYER_HEIGHT, 0);
+            this.model.rotation.set(0, MathUtils.degToRad(-state.bodyYaw), 0);
+        }
         this.headPivot.rotation.y = MathUtils.degToRad(-(state.headYaw - state.bodyYaw));
         this.headPivot.rotation.x = MathUtils.degToRad(state.pitch);
     }

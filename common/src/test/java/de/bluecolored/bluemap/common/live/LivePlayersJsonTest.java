@@ -135,6 +135,23 @@ public class LivePlayersJsonTest {
     }
 
     @Test
+    public void testSleeping() throws IOException {
+        JsonObject root = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld",
+                state(new MovementState(false, false, true, false, false, false, false, "north", 1.52)))));
+        JsonObject bed = root.getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonObject("state").getAsJsonObject("bed");
+        assertEquals("north", bed.get("direction").getAsString());
+        assertEquals(1.52, bed.get("offset").getAsDouble(), 1e-9);
+
+        JsonObject unknown = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld",
+                state(new MovementState(false, false, true, false, false, false, false, "", 1.52)))));
+        assertFalse(unknown.getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonObject("state").getAsJsonObject("bed").has("direction"));
+
+        JsonObject awake = writeAndParse(true, List.of(new LivePlayersJson.Entry(UUID, "Notch", false, "minecraft:overworld",
+                state(new MovementState(false, false, true, false, false, false)))));
+        assertFalse(awake.getAsJsonArray("players").get(0).getAsJsonObject().getAsJsonObject("state").has("bed"));
+    }
+
+    @Test
     public void testVehicle() throws IOException {
         LivePlayerState riding = new LivePlayerState(new Vector3d(10.5, 64.9, -20.25), new Vector3d(15, 90, 0), 80,
                 new Vector3d(0, 0, 0), 3, 123456789L, null, null, null, null, null,

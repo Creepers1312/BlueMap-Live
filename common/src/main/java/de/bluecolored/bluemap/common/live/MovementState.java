@@ -24,10 +24,16 @@
  */
 package de.bluecolored.bluemap.common.live;
 
+import org.jetbrains.annotations.Nullable;
+
 /**
  * Movement-flags of a player, as known by the server.
  *
  * @param riding the player sits on a vehicle (vanilla hasVehicle: horse, boat, minecart, ...)
+ * @param sleeping the player lies in a bed (vanilla EntityPose.SLEEPING): the direction of the bed
+ *                 (vanilla getSleepingDirection, e.g. "north"), "" if unknown; null if not sleeping
+ * @param bedOffset sleeping: how far the model is moved towards the head-end (vanilla
+ *                  <code>getEyeHeight(STANDING) - 0.1</code>), 0 otherwise
  */
 public record MovementState(
         boolean sneaking,
@@ -36,11 +42,18 @@ public record MovementState(
         boolean swimming,
         boolean flying,
         boolean fallFlying,
-        boolean riding
+        boolean riding,
+        @Nullable String sleeping,
+        double bedOffset
 ) {
 
     public MovementState(boolean sneaking, boolean sprinting, boolean onGround, boolean swimming, boolean flying, boolean fallFlying) {
         this(sneaking, sprinting, onGround, swimming, flying, fallFlying, false);
+    }
+
+    public MovementState(boolean sneaking, boolean sprinting, boolean onGround, boolean swimming, boolean flying, boolean fallFlying,
+                         boolean riding) {
+        this(sneaking, sprinting, onGround, swimming, flying, fallFlying, riding, null, 0);
     }
 
     /**

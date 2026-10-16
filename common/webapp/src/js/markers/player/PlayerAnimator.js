@@ -119,6 +119,7 @@ export class PlayerAnimator {
         this.targetLimbSpeed = 0;
         this.sneaking = false;
         this.riding = false;
+        this.sleeping = false;
         this.inAir = false;
         this.fallSpeed = 0;
         this.leaning = false;
@@ -181,13 +182,15 @@ export class PlayerAnimator {
         const horizontalSpeed = velocity ? Math.sqrt(velocity.x * velocity.x + velocity.z * velocity.z) : 0;
         // vanilla LivingEntityRenderer: a passenger has no limb-animation
         this.riding = !!(state && state.riding);
-        this.targetLimbSpeed = this.riding ? 0 : Math.min(horizontalSpeed * LIMB_SPEED_FACTOR, 1);
+        // lying in a bed: no walking and no air-pose (the model is laid down by the PlayerMarker)
+        this.sleeping = !!(state && state.bed);
+        this.targetLimbSpeed = this.riding || this.sleeping ? 0 : Math.min(horizontalSpeed * LIMB_SPEED_FACTOR, 1);
 
         this.sneaking = !!(state && state.sneaking);
         this.flying = !!(state && state.flying);
         this.fallFlying = !!(state && state.fallFlying);
         this.leaning = !!(state && (state.swimming || state.fallFlying));
-        this.inAir = !!(state && !state.onGround && !this.flying && !this.leaning && !this.riding);
+        this.inAir = !!(state && !state.onGround && !this.flying && !this.leaning && !this.riding && !this.sleeping);
         this.fallSpeed = velocity && velocity.y < 0 ? Math.min(-velocity.y / 20, 1) : 0;
 
         const swing = player.swing;

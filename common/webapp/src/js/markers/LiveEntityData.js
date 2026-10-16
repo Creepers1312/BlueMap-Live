@@ -28,7 +28,7 @@
  * unit-tested with node). See docs/bluemap-live/phase-5.md for the format.
  */
 
-import {parseEquipment, parseItem, resolveUpdateInterval, SUPPORTED_PROTOCOL} from "./LivePlayerData.js";
+import {BED_DIRECTIONS, bedTransform, parseEquipment, parseItem, resolveUpdateInterval, SUPPORTED_PROTOCOL} from "./LivePlayerData.js";
 import {MOB_TYPES} from "./mob/MobTypes.js";
 
 const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
@@ -111,14 +111,6 @@ export const THROWN_ITEM_SCALES = {"minecraft:fireball": 3, "minecraft:small_fir
  * }}
  */
 
-/** vanilla LivingEntityRenderer.getYaw(Direction) and Direction.getOffsetX/Z: the beds by their direction */
-const BED_DIRECTIONS = {
-    south: {yaw: 90, x: 0, z: 1},
-    west: {yaw: 0, x: -1, z: 0},
-    north: {yaw: 270, x: 0, z: -1},
-    east: {yaw: 180, x: 1, z: 0},
-};
-
 /**
  * vanilla LivingEntityRenderer: a mob lying in a bed (EntityPose.SLEEPING) is moved towards the head-end by
  * getEyeHeight(STANDING) - 0.1 and turned by the direction of the bed (by its body if the bed is unknown)
@@ -127,10 +119,8 @@ const BED_DIRECTIONS = {
  */
 export function bedPose(mob) {
     if (!mob || !mob.flags.has("in_bed")) return null;
-    for (const [name, d] of Object.entries(BED_DIRECTIONS)) {
-        if (mob.flags.has("bed_" + name)) return {yaw: d.yaw, x: -d.x * mob.bedOffset, z: -d.z * mob.bedOffset};
-    }
-    return {yaw: mob.bodyYaw, x: 0, z: 0};
+    const direction = Object.keys(BED_DIRECTIONS).find(name => mob.flags.has("bed_" + name)) || null;
+    return bedTransform(direction, mob.bedOffset, mob.bodyYaw);
 }
 
 /** vanilla LivingEntity.getHandSwingDuration (without haste and mining fatigue) */

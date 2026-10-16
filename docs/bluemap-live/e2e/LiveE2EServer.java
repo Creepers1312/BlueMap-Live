@@ -194,6 +194,7 @@ public class LiveE2EServer {
     /**
      * One server-sample: /control?uuid=..&name=..&x=..&y=..&z=..&pitch=..&yaw=..&bodyYaw=..&world=..&respawn=1
      * Movement-flags (default: standing on the ground): &sneaking=1&sprinting=1&ground=0&swimming=1&flying=1&fallFlying=1&riding=1
+     * Sleeping: &bed=north|east|south|west|(empty: unknown)&bedOffset=1.52
      * Vehicle (offset and yaws relative to the drawn vehicle-yaw): &vehicle=ENTITY_ID&vox=..&voy=..&voz=..&vbody=..&vhead=..
      * Velocity override (instead of the one derived from the samples): &vx=..&vy=..&vz=..
      * Arm-swing (increments the swing-counter): &swing=right|left&swingKind=attack|mine|use|swing
@@ -315,7 +316,8 @@ public class LiveE2EServer {
                     now,
                     new MovementState(
                             flag(q, "sneaking"), flag(q, "sprinting"), !"0".equals(q.get("ground")),
-                            flag(q, "swimming"), flag(q, "flying"), flag(q, "fallFlying"), flag(q, "riding")
+                            flag(q, "swimming"), flag(q, "flying"), flag(q, "fallFlying"), flag(q, "riding"),
+                            q.get("bed"), q.containsKey("bed") ? d(q, "bedOffset") : 0
                     ),
                     new SwingState(p.swingCount, p.swingLeft, p.swingKind),
                     equipment,

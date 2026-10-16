@@ -270,6 +270,7 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 - Bestätigt nach diesen Korrekturen: „okay klappt“ (Pferdeanimation, Reiten).
 - Danach bestätigt: Boote mit Ruderanimation, Loren, Lama-Teppiche, Verzierungen (Q18), Schädel und Glanz (Q19), Dorfbewohner legen sich schlafen.
 - Gemeldet: Leine fehlte (jetzt eingebaut, Q23); Bett unter dem Dorfbewohner fehlte (Kartenblock, erscheint nach dem Neu-Rendern des Bereichs).
+- Danach bestätigt: Betten erscheinen, Leine funktioniert. Gemeldet: schlafender Spieler lag nicht (jetzt eingebaut, Q24).
 
 | # | Prüfung | Erwartung |
 |---|---|---|
@@ -296,6 +297,7 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q21 | Mit dem Pferd galoppieren und Kurven reiten; Boot (auch Bambusfloß, Kistenboot) fahren und rudern; Lore auf Schienen mit Steigung | Reiter bleibt auf dem Pferd bzw. im Boot, auch bei Tempo; Boot mit Holzart und Rudern; Lore folgt der Steigung |
 | Q22 | Pferde auf Gras beobachten; ungezähmtes Pferd reiten, bis es steigt; galoppieren | Kopf senkt sich zum Grasen und nickt; Pferd steigt auf die Hinterbeine; beim Galopp nickt der Kopf und der Schweif hebt sich |
 | Q23 | Tier an der Leine führen; Leine an einen Zaun knoten; Boot an der Leine | Seil hängt durch zwischen Kopf des Tiers und Hand bzw. Knoten, folgt beim Laufen; Knoten am Zaun sichtbar |
+| Q24 | Nachts ins Bett legen (am besten zu zweit oder mit `/gamerule playersSleepingPercentage 200`, damit die Nacht nicht sofort vorbei ist) | Spieler liegt im Bett, Kopf am Kopfende, wie ein schlafender Dorfbewohner |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

@@ -21,6 +21,7 @@ import {
     parseSwing,
     resolveUpdateInterval,
     riderOnVehicle,
+    bedTransform,
     SUPPORTED_PROTOCOL,
 } from "../src/js/markers/LivePlayerData.js";
 
@@ -58,7 +59,7 @@ test("parses a complete protocol-1 response", () => {
     assert.equal(p.generation, 3);
     assert.equal(p.time, 123456789);
     assert.deepEqual(p.velocity, {x: 4.3, y: 0, z: 0});
-    assert.deepEqual(p.state, {sneaking: true, sprinting: false, onGround: true, swimming: false, flying: false, fallFlying: true, riding: false});
+    assert.deepEqual(p.state, {sneaking: true, sprinting: false, onGround: true, swimming: false, flying: false, fallFlying: true, riding: false, bed: null});
 });
 
 test("parses the legacy format of older servers (no protocol field)", () => {
@@ -331,4 +332,15 @@ test("riding: the vehicle is parsed, the rider is drawn on the drawn vehicle", (
     // the vehicle turns: the rider (e.g. the second seat of a boat) turns with it
     const seat = riderOnVehicle({offset: {x: 0, y: 0, z: -0.6}, bodyYaw: 0, headYaw: 0}, {x: 0, y: 0, z: 0}, 90);
     assert.ok(Math.abs(seat.x - 0.6) < 1e-9 && Math.abs(seat.z) < 1e-9);
+});
+
+test("sleeping players: the bed is parsed, the model is moved like vanilla LivingEntityRenderer", () => {
+    const p = parsePlayer({...v1Player(), state: {onGround: true, bed: {direction: "north", offset: 1.52}}});
+    assert.deepEqual(p.state.bed, {direction: "north", offset: 1.52});
+    assert.deepEqual(parsePlayer({...v1Player(), state: {bed: {offset: 1.52}}}).state.bed, {direction: null, offset: 1.52}, "unknown direction");
+    assert.equal(parsePlayer({...v1Player(), state: {onGround: true}}).state.bed, null);
+    // north: getYaw 270, moved by -offset * (offsetX, offsetZ) = (0, +1.52)
+    assert.deepEqual(bedTransform("north", 1.52, 30), {yaw: 270, x: -0, z: 1.52});
+    assert.deepEqual(bedTransform("east", 1.52, 30), {yaw: 180, x: -1.52, z: -0});
+    assert.deepEqual(bedTransform(null, 1.52, 30), {yaw: 30, x: 0, z: 0}, "unknown: the body-yaw");
 });

@@ -43,6 +43,7 @@ import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.ChargedProjectilesComponent;
 import net.minecraft.component.type.CustomModelDataComponent;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
@@ -306,7 +307,11 @@ public class FabricPlayer extends Player {
                 player.isSwimming(),
                 player.getAbilities().flying,
                 player.isFallFlying(),
-                player.hasVehicle()
+                player.hasVehicle(),
+                // vanilla LivingEntityRenderer: lying in the bed (direction of the bed, moved towards the head-end)
+                player.isInPose(EntityPose.SLEEPING) ?
+                        (player.getSleepingDirection() != null ? player.getSleepingDirection().asString() : "") : null,
+                player.isInPose(EntityPose.SLEEPING) ? player.getEyeHeight(EntityPose.STANDING) - 0.1 : 0
         );
         // vanilla LivingEntityRenderer: on a living vehicle the body follows the vehicle
         float bodyYaw = player.getVehicle() instanceof LivingEntity vehicle ?

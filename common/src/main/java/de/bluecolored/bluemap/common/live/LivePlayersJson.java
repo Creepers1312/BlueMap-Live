@@ -211,6 +211,12 @@ public final class LivePlayersJson {
                 json.name("flying").value(movement.flying());
                 json.name("fallFlying").value(movement.fallFlying());
                 if (movement.riding()) json.name("riding").value(true);
+                if (movement.sleeping() != null) {
+                    json.name("bed").beginObject();
+                    if (!movement.sleeping().isEmpty()) json.name("direction").value(movement.sleeping());
+                    json.name("offset").value(finite(movement.bedOffset()));
+                    json.endObject();
+                }
                 json.endObject();
             }
         }
