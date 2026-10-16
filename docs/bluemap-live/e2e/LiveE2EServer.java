@@ -191,7 +191,7 @@ public class LiveE2EServer {
 
     /**
      * One server-sample: /control?uuid=..&name=..&x=..&y=..&z=..&pitch=..&yaw=..&bodyYaw=..&world=..&respawn=1
-     * Movement-flags (default: standing on the ground): &sneaking=1&sprinting=1&ground=0&swimming=1&flying=1&fallFlying=1
+     * Movement-flags (default: standing on the ground): &sneaking=1&sprinting=1&ground=0&swimming=1&flying=1&fallFlying=1&riding=1
      * Velocity override (instead of the one derived from the samples): &vx=..&vy=..&vz=..
      * Arm-swing (increments the swing-counter): &swing=right|left&swingKind=attack|mine|use|swing
      * Held items (kept until changed, "none" clears): &main=minecraft:diamond_sword&off=minecraft:shield&leftHanded=1&charged=1
@@ -307,7 +307,7 @@ public class LiveE2EServer {
                     now,
                     new MovementState(
                             flag(q, "sneaking"), flag(q, "sprinting"), !"0".equals(q.get("ground")),
-                            flag(q, "swimming"), flag(q, "flying"), flag(q, "fallFlying")
+                            flag(q, "swimming"), flag(q, "flying"), flag(q, "fallFlying"), flag(q, "riding")
                     ),
                     new SwingState(p.swingCount, p.swingLeft, p.swingKind),
                     equipment,
