@@ -71,6 +71,17 @@ public class ItemModelBaker {
         default @Nullable String blockStateJson(String key) {
             return null;
         }
+        /**
+         * BlueMap Live (block-previews): the texture with all frames of an animation (a vertical strip of square frames),
+         * by default the same as {@link #texture}
+         */
+        default @Nullable BufferedImage textureFrames(String key) {
+            return texture(key);
+        }
+        /** BlueMap Live (block-previews): the json of the .png.mcmeta of a texture, null if there is none */
+        default @Nullable String textureMeta(String key) {
+            return null;
+        }
         /** the keys of all textures in a folder (e.g. <code>minecraft:entity/villager/</code>, including sub-folders), sorted */
         default List<String> textureKeys(String folder) {
             return List.of();
@@ -663,7 +674,7 @@ public class ItemModelBaker {
      */
     public String bakeBlock(String state) throws IOException {
         de.bluecolored.bluemap.core.world.BlockState blockState = de.bluecolored.bluemap.core.world.BlockState.fromString(state);
-        Textures textures = new Textures();
+        Textures textures = new Textures(true);
         List<float[]> quads = new ArrayList<>();
 
         String json = resources.blockStateJson(blockState.getId().getFormatted());
@@ -707,6 +718,24 @@ public class ItemModelBaker {
             writer.name("textures").beginArray();
             for (String dataUrl : textures.dataUrls) writer.value(dataUrl);
             writer.endArray();
+            // animated textures (e.g. fire): the frames are a vertical strip, the webapp shows one after the other
+            writer.name("animations").beginArray();
+            for (Animation animation : textures.animations) {
+                if (animation == null) {
+                    writer.nullValue();
+                    continue;
+                }
+                writer.beginObject();
+                writer.name("frames").value(animation.frames());
+                writer.name("frametime").value(animation.frametime());
+                if (animation.order() != null) {
+                    writer.name("order").beginArray();
+                    for (int frame : animation.order()) writer.value(frame);
+                    writer.endArray();
+                }
+                writer.endObject();
+            }
+            writer.endArray();
             writer.name("quads").beginArray();
             for (float[] quad : quads) {
                 for (float value : quad) {
@@ -748,13 +777,34 @@ public class ItemModelBaker {
         final List<String> dataUrls = new ArrayList<>();
         /** per texture-index: if all pixels are opaque */
         final Map<Integer, Boolean> opaque = new HashMap<>();
+        /** BlueMap Live (block-previews): per texture-index the animation, null if not animated */
+        final List<@Nullable Animation> animations = new ArrayList<>();
+        /** with all frames of animated textures (block-previews), otherwise only the first frame (items) */
+        final boolean animated;
+
+        Textures() {
+            this(false);
+        }
+
+        Textures(boolean animated) {
+            this.animated = animated;
+        }
 
         /** @return the index of the texture, -1 if it does not exist */
         int add(String key, Resources resources) {
             Integer index = indices.get(key);
             if (index != null) return index;
 
-            BufferedImage image = resources.texture(key);
+            BufferedImage image = animated ? resources.textureFrames(key) : resources.texture(key);
+            Animation animation = null;
+            if (image != null && animated) {
+                int w = image.getWidth(), h = image.getHeight();
+                if (h > w && h % w == 0 && h <= MAX_TEXTURE_SIZE) {
+                    animation = Animation.of(h / w, resources.textureMeta(key));
+                } else if (h > w && h % w == 0) {
+                    image = image.getSubimage(0, 0, w, w); // too large: the first frame
+                }
+            }
             int result = -1;
             if (image != null && image.getWidth() <= MAX_TEXTURE_SIZE && image.getHeight() <= MAX_TEXTURE_SIZE) {
                 try {
@@ -763,10 +813,41 @@ public class ItemModelBaker {
                     dataUrls.add("data:image/png;base64," + Base64.getEncoder().encodeToString(out.toByteArray()));
                     result = dataUrls.size() - 1;
                     opaque.put(result, isOpaque(image));
+                    animations.add(animation);
                 } catch (IOException ignored) {}
             }
             indices.put(key, result);
             return result;
+        }
+    }
+
+    /**
+     * The animation of a texture like vanilla (the .png.mcmeta): the frames, their order (null: in order) and the
+     * ticks per frame (per-frame times are not used, interpolation neither).
+     */
+    record Animation(int frames, int frametime, @Nullable int[] order) {
+
+        static Animation of(int frames, @Nullable String mcmeta) {
+            int frametime = 1;
+            int[] order = null;
+            if (mcmeta != null) {
+                try {
+                    JsonObject animation = JsonParser.parseString(mcmeta).getAsJsonObject().getAsJsonObject("animation");
+                    if (animation != null) {
+                        if (animation.get("frametime") instanceof JsonElement time && time.isJsonPrimitive())
+                            frametime = Math.max(1, time.getAsInt());
+                        if (animation.get("frames") instanceof JsonArray list && !list.isEmpty()) {
+                            order = new int[Math.min(list.size(), 1024)];
+                            for (int i = 0; i < order.length; i++) {
+                                JsonElement frame = list.get(i);
+                                int value = frame.isJsonObject() ? frame.getAsJsonObject().get("index").getAsInt() : frame.getAsInt();
+                                order[i] = Math.max(0, Math.min(frames - 1, value));
+                            }
+                        }
+                    }
+                } catch (RuntimeException ignored) {}
+            }
+            return new Animation(frames, frametime, order);
         }
     }
 

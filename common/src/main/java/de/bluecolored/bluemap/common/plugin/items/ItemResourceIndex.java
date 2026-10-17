@@ -60,6 +60,8 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
     /** BlueMap Live: the blockstate-files (block-previews of changed blocks) */
     private final Map<String, String> blockStates = new HashMap<>();
     private final Map<String, byte[]> textures = new HashMap<>();
+    /** BlueMap Live: the .png.mcmeta of the textures (animations of the block-previews) */
+    private final Map<String, String> textureMetas = new HashMap<>();
 
     /**
      * @param pack used to traverse the roots like BlueMap does (zip-files, nested mod-jars, overlays)
@@ -86,6 +88,10 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
 
     void putTexture(String key, byte[] png) {
         textures.putIfAbsent(key, png);
+    }
+
+    void putTextureMeta(String key, String json) {
+        textureMetas.putIfAbsent(key, json);
     }
 
     private void loadRoot(Path root) {
@@ -124,6 +130,21 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
                 }
 
                 Path texturesRoot = namespaceRoot.resolve("textures");
+                try (Stream<Path> files = Pack.walk(texturesRoot)) {
+                    files.filter(file -> file.getFileName().toString().endsWith(".png.mcmeta"))
+                            .filter(Files::isRegularFile)
+                            .forEach(file -> {
+                                String value = relativeKey(texturesRoot, file, ".png.mcmeta");
+                                if (!isItemRelevantTexture(namespace, value)) return;
+                                String key = namespace + ":" + value;
+                                if (textureMetas.containsKey(key)) return;
+                                try {
+                                    textureMetas.put(key, Files.readString(file, StandardCharsets.UTF_8));
+                                } catch (IOException ex) {
+                                    Logger.global.logDebug("Failed to read texture-meta '" + file + "': " + ex);
+                                }
+                            });
+                }
                 try (Stream<Path> files = Pack.walk(texturesRoot)) {
                     files.filter(file -> file.getFileName().toString().endsWith(".png"))
                             .filter(Files::isRegularFile)
@@ -179,7 +200,21 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
     }
 
     @Override
+    public @Nullable String textureMeta(String key) {
+        return textureMetas.get(key);
+    }
+
+    @Override
+    public @Nullable BufferedImage textureFrames(String key) {
+        return readTexture(key, false);
+    }
+
+    @Override
     public @Nullable BufferedImage texture(String key) {
+        return readTexture(key, true);
+    }
+
+    private @Nullable BufferedImage readTexture(String key, boolean firstFrame) {
         byte[] png = textures.get(key);
         if (png == null) return null;
         try {
@@ -188,7 +223,7 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
 
             // animated textures are vertical strips of square frames: use the first frame (entity-textures are never animated)
             int w = image.getWidth(), h = image.getHeight();
-            if (h > w && h % w == 0 && !key.contains(":entity/") && !key.startsWith("minecraft:block/fire_"))
+            if (firstFrame && h > w && h % w == 0 && !key.contains(":entity/") && !key.startsWith("minecraft:block/fire_"))
                 image = image.getSubimage(0, 0, w, w);
 
             // always 32-bit ARGB, so the alpha-channel can be read the same way for all images

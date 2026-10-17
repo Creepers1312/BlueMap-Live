@@ -54,6 +54,23 @@ public class BlockModelBakerTest {
             models.put("minecraft:block/full_glass", """
                     {"parent": "minecraft:block/cube_cull", "textures": {"all": "minecraft:block/glass"}}""");
             textures.put("minecraft:block/glass", ItemModelBakerTest.square(16, 0, 0, 1, 16));
+            models.put("minecraft:block/fire_floor", """
+                    {"parent": "minecraft:block/cube_cull", "textures": {"all": "minecraft:block/fire_0"}}""");
+            // an animated texture: 4 frames of 16x16 below each other
+            textures.put("minecraft:block/fire_0", ItemModelBakerTest.square(16, 0, 0, 16, 16));
+            strips.put("minecraft:block/fire_0", new java.awt.image.BufferedImage(16, 64, java.awt.image.BufferedImage.TYPE_INT_ARGB));
+        }
+
+        final java.util.Map<String, java.awt.image.BufferedImage> strips = new java.util.HashMap<>();
+
+        @Override
+        public @Nullable java.awt.image.BufferedImage textureFrames(String key) {
+            return strips.containsKey(key) ? strips.get(key) : texture(key);
+        }
+
+        @Override
+        public @Nullable String textureMeta(String key) {
+            return key.equals("minecraft:block/fire_0") ? "{\"animation\": {\"frametime\": 2, \"frames\": [3, 1, {\"index\": 0, \"time\": 5}]}}" : null;
         }
 
         @Override
@@ -64,6 +81,8 @@ public class BlockModelBakerTest {
                           "type=top": {"model": "minecraft:block/stone_slab", "x": 180}}}""";
                 case "minecraft:stone" -> """
                         {"variants": {"": {"model": "minecraft:block/full_stone"}}}""";
+                case "minecraft:fire" -> """
+                        {"variants": {"": {"model": "minecraft:block/fire_floor"}}}""";
                 case "minecraft:glass" -> """
                         {"variants": {"": {"model": "minecraft:block/full_glass"}}}""";
                 case "minecraft:furnace" -> """
@@ -103,6 +122,18 @@ public class BlockModelBakerTest {
         // y: 90 turns north to east
         JsonArray turned = bake("minecraft:furnace[facing=east]").getAsJsonArray("quads");
         assertEquals(6, turned.get(2 * 23 + 22).getAsInt(), "the north-face (3rd) culls east = 6");
+    }
+
+    @Test
+    public void testAnimatedTexturesKeepAllFramesWithTheMcmeta() throws Exception {
+        JsonObject fire = bake("minecraft:fire");
+        JsonArray animations = fire.getAsJsonArray("animations");
+        assertEquals(1, animations.size());
+        JsonObject animation = animations.get(0).getAsJsonObject();
+        assertEquals(4, animation.get("frames").getAsInt());
+        assertEquals(2, animation.get("frametime").getAsInt());
+        assertEquals("[3,1,0]", animation.getAsJsonArray("order").toString());
+        assertTrue(bake("minecraft:stone").getAsJsonArray("animations").get(0).isJsonNull(), "not animated");
     }
 
     @Test

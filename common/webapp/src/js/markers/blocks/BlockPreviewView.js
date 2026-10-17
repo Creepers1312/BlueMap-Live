@@ -95,6 +95,13 @@ export class BlockAssetCache {
                     }
                     entry.data = data;
                     entry.textures = textures;
+                    entry.animations = textures.map((texture, i) => {
+                        const animation = parseAnimation(Array.isArray(data.animations) ? data.animations[i] : null);
+                        // one frame of the vertical strip (flipY: the first frame is at the top)
+                        if (animation && texture) texture.repeat.set(1, 1 / animation.frames);
+                        return animation;
+                    });
+                    entry.animations.forEach((animation, i) => animation && textures[i] && setFrame(textures[i], animation, 0));
                     entry.status = "loaded";
                     this.onChange();
                 });
@@ -115,6 +122,31 @@ export class BlockAssetCache {
         this.entries.clear();
     }
 
+}
+
+/**
+ * @param value {any} - an entry of the "animations" of a block-asset
+ * @returns {{frames: number, frametime: number, order: number[] | null} | null}
+ */
+export function parseAnimation(value) {
+    if (!value || typeof value !== "object" || !Number.isInteger(value.frames) || value.frames < 2 || value.frames > 1024) return null;
+    const frametime = Number.isInteger(value.frametime) && value.frametime > 0 ? value.frametime : 1;
+    const order = Array.isArray(value.order) && value.order.length > 0 && value.order.every(f => Number.isInteger(f) && f >= 0 && f < value.frames) ?
+        value.order : null;
+    return {frames: value.frames, frametime, order};
+}
+
+/**
+ * The frame of an animation at a tick, like vanilla (frametime ticks per frame, in the order of the .mcmeta)
+ * @returns {number}
+ */
+export function animationFrame(animation, ticks) {
+    const step = Math.floor(ticks / animation.frametime);
+    return animation.order ? animation.order[step % animation.order.length] : step % animation.frames;
+}
+
+function setFrame(texture, animation, frame) {
+    texture.offset.y = 1 - (frame + 1) / animation.frames;
 }
 
 function loadTexture(url) {
@@ -204,6 +236,28 @@ export class BlockPreviewView {
         this.table = new Float32Array(TABLE_SIZE * TABLE_SIZE * 4);
         this.hiddenTexture = null;
         this.hiddenCount = 0;
+        /** the block-states that are drawn */
+        this.drawnStates = new Set();
+    }
+
+    /**
+     * Shows the current frame of the animated textures (e.g. fire).
+     * @param timeMs {number}
+     * @returns {boolean} if an animated texture is drawn (needs a redraw)
+     */
+    animate(timeMs) {
+        let animated = false;
+        const ticks = Math.floor(timeMs / 50);
+        for (const state of this.drawnStates) {
+            const entry = this.assets.entries.get(state);
+            if (!entry || !entry.animations) continue;
+            entry.animations.forEach((animation, i) => {
+                if (!animation || !entry.textures[i]) return;
+                setFrame(entry.textures[i], animation, animationFrame(animation, ticks));
+                animated = true;
+            });
+        }
+        return animated;
     }
 
     /** an asset was loaded: the meshes are built again */
@@ -229,9 +283,11 @@ export class BlockPreviewView {
                 byState.get(part.state).push(part);
             }
         });
+        this.drawnStates = new Set();
         byState.forEach((placements, state) => {
             const entry = this.assets.get(state);
             if (entry.status !== "loaded") return;
+            this.drawnStates.add(state);
             entry.textures.forEach((texture, index) => {
                 if (!texture) return;
                 const geometry = buildPreviewGeometry(entry.data.quads, index, placements, blockTint(state));

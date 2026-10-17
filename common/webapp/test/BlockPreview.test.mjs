@@ -109,3 +109,15 @@ test("block-preview: geometry of the placed parts (cullface-filter, tint only fo
     assert.equal(buildPreviewGeometry(topNoCull, 0, [{x: 0, y: 0, z: 0, cullface: 2, skip: []}], 0).getAttribute("position").count, 6);
     assert.equal(buildPreviewGeometry(topNoCull, 0, [{x: 0, y: 0, z: 0, cullface: 1, skip: []}], 0), null);
 });
+
+import {animationFrame, parseAnimation} from "../src/js/markers/blocks/BlockPreviewView.js";
+
+test("block-preview: animated textures (fire) - frames of the strip in the order and speed of the .mcmeta", () => {
+    assert.equal(parseAnimation(null), null);
+    assert.equal(parseAnimation({frames: 1}), null, "one frame is no animation");
+    const fire = parseAnimation({frames: 32, frametime: 1, order: [16, 17, 0]});
+    assert.deepEqual([0, 1, 2, 3].map(t => animationFrame(fire, t)), [16, 17, 0, 16]);
+    const slow = parseAnimation({frames: 4, frametime: 2});
+    assert.deepEqual([0, 1, 2, 3, 8].map(t => animationFrame(slow, t)), [0, 0, 1, 1, 0]);
+    assert.equal(parseAnimation({frames: 4, order: [9]}).order, null, "invalid order: in order");
+});

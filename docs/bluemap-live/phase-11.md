@@ -73,6 +73,7 @@ Rendert eine Region gerade erst, kommen bis zu 10 s Abklingzeit dazu. Läuft ger
 - Flüssigkeiten, Blockentities (Schilder, Banner, Köpfe, Truhen) und Blöcke mit eigenem Renderer haben keine Vorschau.
 - Zufällige Varianten (z. B. gedrehte Grasoberseiten) können sich bei der Bestätigung ändern.
 - Uv-Lock wird nicht angewendet.
+- Animierte Texturen (Feuer, Seelaterne, Magma …): Die Vorschau zeigt die Bilder nacheinander in Reihenfolge und Tempo der `.mcmeta`, ohne Überblendung und ohne Zeiten pro Bild. Behoben nach dem Test des Nutzers: Vorher lag der ganze Bildstreifen gestreift auf jeder Fläche.
 
 ## 3. Truhen
 
@@ -119,8 +120,8 @@ Gemessen wird mit wenigen Zählern pro Ereignis (`LiveStats`, 60 Sekunden-Fäche
 
 | Test | Ergebnis |
 |---|---|
-| Node `npm test` | 159/159, neu `LiveTiles.test.mjs` (5), `ChestLids.test.mjs` (7), `BlockPreview.test.mjs` (7: Asset-Namen, Daten, Bestätigung nach Chunk-Zeit, Verwerfen, sichtbare Flächen, Hash-Tabelle, Geometrie) |
-| JUnit lokal | 95/95, neu `LiveStatsTest`, `LiveTileLogTest`, `LiveBlockLogTest`, `BlockModelBakerTest` (Varianten, Drehung samt Cullface, voller Würfel, Asset-Namen), Truhen und Blockänderungen im Data-Supplier |
+| Node `npm test` | 160/160, neu `LiveTiles.test.mjs` (5), `ChestLids.test.mjs` (7), `BlockPreview.test.mjs` (7: Asset-Namen, Daten, Bestätigung nach Chunk-Zeit, Verwerfen, sichtbare Flächen, Hash-Tabelle, Geometrie) |
+| JUnit lokal | 96/96, Animation der Blocktexturen, neu `LiveStatsTest`, `LiveTileLogTest`, `LiveBlockLogTest`, `BlockModelBakerTest` (Varianten, Drehung samt Cullface, voller Würfel, Asset-Namen), Truhen und Blockänderungen im Data-Supplier |
 | Browser `blocks-e2e.mjs` | 15/15: Kachel ohne Lücke neu geladen (unter 4 s), keine doppelten oder ungeladenen Anfragen, Lowres neu geladen, neuer Cache-Hash nach Kartenwechsel, keine alten Änderungen beim Öffnen, Truhen; **Vorschau:** gesetzter Block nach unter 1,5 s sichtbar (Pixel), abgebauter Block mit Loch und Nachbarfläche (Pixel), keine Bestätigung durch ältere Chunk-Daten, Bestätigung und Entfernen nach neuer Kachel, Verwerfen nach 90 s |
 | Browser übrige Suiten | `entities` 12/12, `mobs` 15/15, `playback` 6/6, `player` 21/22 (der bekannte Skin-Schritt), `animation` 19/19, `items` 16/16, `worldtime` 9/9, `particles` 13/13 (die Pixelprüfung der Explosion zählt jetzt auch dunkelgraue Wolken) |
 

@@ -297,8 +297,9 @@ export class EntityMarkerManager extends MarkerManager {
         // the previews are part of the map (shown with a hidden entity-set as well)
         if (this.blockView.group.parent !== this.root) this.root.add(this.blockView.group);
         const changed = this.blockView.update();
+        const animated = this.blockView.animate(Date.now());
         this.blockView.applyHiddenBlocks(this.mapUniforms);
-        return changed;
+        return changed || animated;
     }
 
     /** @private shows the effects whose time has come */
