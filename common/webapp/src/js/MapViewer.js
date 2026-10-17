@@ -111,6 +111,8 @@ export class MapViewer {
 		this.css2dRenderer = new CSS2DRenderer(this.events);
 
 		this.skyboxScene = new SkyboxScene(this.data.uniforms);
+		// BlueMap Live: sun, moon and stars of the live weather, drawn after the sky with the sky-camera (WeatherView)
+		this.skyExtras = null;
 
 		this.camera = new CombinedCamera(75, 1, 0.1, 10000, 0);
 		this.skyboxCamera = new PerspectiveCamera(75, 1, 0.1, 10000);
@@ -337,6 +339,17 @@ export class MapViewer {
 
 		// render skybox
 		this.renderer.render(this.skyboxScene, this.skyboxCamera);
+		if (this.skyExtras && this.skyExtras.visible && this.camera.ortho < 1) {
+			// the sky-camera of BlueMap keeps its own projection (the sky is one color), the sun and moon need the one of the camera
+			if (!this.skyExtrasCamera) this.skyExtrasCamera = new PerspectiveCamera(75, 1, 0.1, 10000);
+			this.skyExtrasCamera.rotation.copy(this.camera.rotation);
+			if (this.skyExtrasCamera.fov !== this.camera.fov || this.skyExtrasCamera.aspect !== this.camera.aspect) {
+				this.skyExtrasCamera.fov = this.camera.fov;
+				this.skyExtrasCamera.aspect = this.camera.aspect;
+				this.skyExtrasCamera.updateProjectionMatrix();
+			}
+			this.renderer.render(this.skyExtras, this.skyExtrasCamera);
+		}
 		this.renderer.clearDepth();
 
 		if (this.map && this.map.isLoaded) {

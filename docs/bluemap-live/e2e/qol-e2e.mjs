@@ -72,6 +72,42 @@ const openSettings = async () => {
     await sleep(500);
 };
 
+// screenshot decoding (same decoder as player-e2e.mjs)
+function decodePng(buffer) {
+    let pos = 8, width, height, colorType, idat = [];
+    while (pos < buffer.length) {
+        const length = buffer.readUInt32BE(pos), type = buffer.toString("ascii", pos + 4, pos + 8);
+        const data = buffer.subarray(pos + 8, pos + 8 + length);
+        if (type === "IHDR") {
+            width = data.readUInt32BE(0); height = data.readUInt32BE(4);
+            assert.equal(data[8], 8, "bit depth"); colorType = data[9]; assert.equal(data[12], 0, "interlace");
+        } else if (type === "IDAT") idat.push(data);
+        pos += 12 + length;
+    }
+    const bpp = colorType === 6 ? 4 : 3, stride = width * bpp, raw = inflateSync(Buffer.concat(idat));
+    const out = Buffer.alloc(height * stride);
+    for (let y = 0; y < height; y++) {
+        const filter = raw[y * (stride + 1)];
+        for (let x = 0; x < stride; x++) {
+            const r = raw[y * (stride + 1) + 1 + x];
+            const a = x >= bpp ? out[y * stride + x - bpp] : 0, b = y > 0 ? out[(y - 1) * stride + x] : 0;
+            const c = x >= bpp && y > 0 ? out[(y - 1) * stride + x - bpp] : 0;
+            let v;
+            switch (filter) {
+                case 0: v = r; break;
+                case 1: v = r + a; break;
+                case 2: v = r + b; break;
+                case 3: v = r + ((a + b) >> 1); break;
+                case 4: { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c);
+                          v = r + (pa <= pb && pa <= pc ? a : pb <= pc ? b : c); break; }
+                default: throw new Error("bad png filter " + filter);
+            }
+            out[y * stride + x] = v & 0xFF;
+        }
+    }
+    return {width, height, pixel: (x, y) => { const i = Math.round(y) * stride + Math.round(x) * bpp; return [out[i], out[i + 1], out[i + 2]]; }};
+}
+
 // --- load the original webapp close to the test-tile ---
 await page.goto(`${BASE}/#world:8.5:64.5:9.5:6:0:1.2:0:0:perspective`);
 await page.waitForFunction(() => window.bluemap?.mapViewer?.map?.isLoaded, null, {timeout: 60000});
@@ -263,6 +299,116 @@ await step("follow-camera: first-person at the eyes (own model hidden), shoulder
     c = await cam();
     assert.equal(c.hidden, false, "shown again when the camera stops following");
     await page.evaluate(() => window.bluemap.setLiveDisplay("followMode", "map"));
+});
+
+const weather = () => page.evaluate(() => {
+    const v = window.bluemap.weatherView;
+    return {active: v.active, sun: v.sun.visible, sunOpacity: v.sun.material.opacity, moon: v.moon.visible, stars: v.stars.visible,
+        clouds: v.clouds.visible, cloudOpacity: v.clouds.material.opacity, drops: v.drops.visible, precipitation: v.precipitation,
+        moonPhase: v.moonPhase};
+});
+const centerPixel = async name => {
+    const png = decodePng(await page.screenshot({path: `${OUT}/${name}.png`, clip: {x: 630, y: 390, width: 20, height: 20}}));
+    const [r, g, b] = png.pixel(10, 10);
+    return {r, g, b};
+};
+// looking straight up in the free-flight view, above the clouds (they cover the sky from below like in vanilla)
+const lookUp = () => page.evaluate(() => {
+    window.bluemap.setFreeFlight(0);
+    return new Promise(resolve => setTimeout(() => {
+        const cm = window.bluemap.mapViewer.controlsManager;
+        cm.position.set(8, 300, 8); // above the clouds
+        cm.rotation = 0;
+        cm.angle = Math.PI;
+        window.bluemap.mapViewer.redraw();
+        setTimeout(resolve, 600);
+    }, 300));
+});
+
+await step("live weather: only in the world-time mode, sun at noon (textures of the resource-pack)", async () => {
+    await control({dayTime: 6000, rain: 0, thunder: 0, cycle: 0});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10});
+    await page.waitForFunction(() => window.bluemap.appState.worldTime.available, null, {timeout: 10000});
+    await page.evaluate(() => window.bluemap.setWorldTimeLighting(false));
+    await sleep(300);
+    assert.equal((await weather()).active, false, "not without the world-time mode");
+    await page.evaluate(() => window.bluemap.setWorldTimeLighting(true));
+    await page.waitForFunction(() => window.bluemap.weatherView.sun.visible && window.bluemap.weatherView.clouds.visible, null, {timeout: 15000});
+    const w = await weather();
+    assert.deepEqual({active: w.active, sun: w.sun, stars: w.stars, drops: w.drops}, {active: true, sun: true, stars: false, drops: false});
+    await lookUp();
+    await page.screenshot({path: `${OUT}/q09-sky-noon.png`});
+    const pixel = await centerPixel("q09-sun");
+    // the sun is added to the sky (vanilla: additive), the yellow test-sun on the light-blue sky (r 128) is white
+    assert.ok(pixel.r > 240 && pixel.g > 240, "the sun straight up at noon: " + JSON.stringify(pixel));
+});
+
+await step("live weather: midnight with stars and the moon-phase of the world", async () => {
+    await control({dayTime: 18000, rain: 0, thunder: 0, cycle: 0, moonPhase: 2});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10});
+    await page.waitForFunction(() => window.bluemap.weatherView.moonPhase === 2 && window.bluemap.weatherView.stars.visible, null, {timeout: 10000});
+    await sleep(500);
+    await page.screenshot({path: `${OUT}/q10-sky-night.png`});
+    const pixel = await centerPixel("q10-moon");
+    // phase 2 of the test-texture is blue
+    assert.ok(pixel.b > 150 && pixel.r < 120 && pixel.g < 120, "the moon (phase 2) straight up at midnight: " + JSON.stringify(pixel));
+});
+
+await step("live weather: rain hides sun and moon, snow where the nearest player has snow, lightning in a thunderstorm", async () => {
+    await control({dayTime: 6000, rain: 1, thunder: 0, cycle: 0});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10, health: 20, precipitation: "rain"});
+    await page.evaluate(() => window.bluemap.resetCamera());
+    await page.waitForFunction(() => window.bluemap.weatherView.drops.visible, null, {timeout: 10000});
+    let w = await weather();
+    assert.equal(w.precipitation, "rain");
+    assert.equal(w.sunOpacity, 0);
+    await sleep(500);
+    await page.screenshot({path: `${OUT}/q11-rain.png`});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10, health: 20, precipitation: "snow"});
+    await page.waitForFunction(() => window.bluemap.weatherView.precipitation === "snow", null, {timeout: 10000});
+    await sleep(500);
+    await page.screenshot({path: `${OUT}/q12-snow.png`});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10, health: 20, precipitation: "none"});
+    await page.waitForFunction(() => !window.bluemap.weatherView.drops.visible, null, {timeout: 10000});
+
+    await control({dayTime: 6000, rain: 1, thunder: 1, cycle: 0});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10, health: 20, precipitation: "rain"});
+    await sleep(1500);
+    const base = await page.evaluate(() => window.bluemap.mapViewer.data.uniforms.sunlightStrength.value);
+    const flash = await page.evaluate(() => new Promise(resolve => {
+        window.bluemap.weatherView.nextFlash = 0;
+        let max = 0;
+        const t0 = performance.now();
+        const sample = () => {
+            max = Math.max(max, window.bluemap.mapViewer.data.uniforms.sunlightStrength.value);
+            if (performance.now() - t0 < 700) requestAnimationFrame(sample); else resolve(max);
+        };
+        sample();
+    }));
+    assert.ok(flash > base + 0.2, `the map is lit by the flash: ${base} -> ${flash}`);
+    await sleep(800);
+    const after = await page.evaluate(() => window.bluemap.mapViewer.data.uniforms.sunlightStrength.value);
+    assert.ok(Math.abs(after - base) < 0.01, "back to the world-time lighting");
+});
+
+await step("live weather: clouds see-through from above, switched off in the settings", async () => {
+    const w = await weather();
+    assert.equal(w.clouds, true);
+    assert.ok(w.cloudOpacity < 0.5, "from the map-view above the clouds: " + w.cloudOpacity);
+    // the (checkered) clouds are drawn over the black void around the test-tile
+    const png = decodePng(await page.screenshot({path: `${OUT}/q13-clouds-above.png`}));
+    let gray = 0;
+    for (let y = 100; y < 700; y += 10) for (let x = 100; x < 1180; x += 10) {
+        const [r, g, b] = png.pixel(x, y);
+        if (r > 8 && Math.abs(r - g) < 8 && Math.abs(r - b) < 8) gray++; // dark storm-clouds
+    }
+    assert.ok(gray > 500, "cloud-pixels: " + gray);
+    await page.evaluate(() => window.bluemap.setLiveDisplay("weather", false));
+    await sleep(300);
+    assert.equal((await weather()).active, false);
+    await page.evaluate(() => { window.bluemap.setLiveDisplay("weather", true); window.bluemap.setWorldTimeLighting(false); });
+    await sleep(300);
+    assert.equal((await weather()).active, false);
 });
 
 //__MORE__

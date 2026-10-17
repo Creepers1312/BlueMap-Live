@@ -173,6 +173,9 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
         // the particles the webapp draws (see the java ParticleState.TEXTURES)
         if (value.startsWith("particle/")) return namespace.equals("minecraft") &&
                 de.bluecolored.bluemap.common.live.ParticleState.TEXTURES.contains(namespace + ":" + value);
+        // the sky and the weather of the live world-time mode (see the java LiveWorldTime.TEXTURES)
+        if (value.startsWith("environment/")) return namespace.equals("minecraft") &&
+                de.bluecolored.bluemap.common.live.LiveWorldTime.TEXTURES.contains(namespace + ":" + value);
         // the same folders are skipped for mods (BlueMap Live: with many mods their gui- and particle-textures
         // would take a lot of memory)
         int slash = value.indexOf('/');
@@ -221,9 +224,11 @@ public class ItemResourceIndex implements ItemModelBaker.Resources {
             BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
             if (image == null) return null;
 
-            // animated textures are vertical strips of square frames: use the first frame (entity-textures are never animated)
+            // animated textures are vertical strips of square frames: use the first frame (entity-textures are never animated,
+            // the rain- and snow-textures are 4 rows of drops, not frames)
             int w = image.getWidth(), h = image.getHeight();
-            if (firstFrame && h > w && h % w == 0 && !key.contains(":entity/") && !key.startsWith("minecraft:block/fire_"))
+            if (firstFrame && h > w && h % w == 0 && !key.contains(":entity/") && !key.startsWith("minecraft:block/fire_") &&
+                    !key.startsWith("minecraft:environment/"))
                 image = image.getSubimage(0, 0, w, w);
 
             // always 32-bit ARGB, so the alpha-channel can be read the same way for all images

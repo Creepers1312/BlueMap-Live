@@ -155,6 +155,10 @@ public class LivePlayersDataSupplier implements Supplier<String> {
             }
         }
 
+        LiveWorldTime worldTime = serverWorld != null ? server.getLiveWorldTime(serverWorld) : null;
+        // the sky- and weather-textures of the world-time mode (cheap if they were requested before)
+        if (worldTime != null) for (String texture : LiveWorldTime.TEXTURES) itemRequester.accept(TEXTURE_PREFIX + texture);
+
         try (StringWriter jsonString = new StringWriter();
             JsonWriter json = new JsonWriter(jsonString)) {
 
@@ -164,7 +168,7 @@ public class LivePlayersDataSupplier implements Supplier<String> {
                     updateIntervalMillis,
                     config.isLivePlayerExtendedData(),
                     entries,
-                    serverWorld != null ? server.getLiveWorldTime(serverWorld) : null
+                    worldTime
             );
 
             json.flush();

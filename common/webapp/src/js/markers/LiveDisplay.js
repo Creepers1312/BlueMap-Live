@@ -45,6 +45,8 @@ export const LIVE_DISPLAY = {
     healthBars: false,
     /** the camera while following a player: "map" (BlueMaps own), "firstPerson", "shoulder" (see FollowCamera) */
     followMode: "map",
+    /** the live weather (sun, moon, stars, clouds, rain, snow, lightning) in the world-time mode */
+    weather: true,
 };
 
 const FOLLOW_MODES = ["map", "firstPerson", "shoulder"];
@@ -80,10 +82,10 @@ export const ENTITY_DISTANCE_MIN = 50;
 export const ENTITY_DISTANCE_MAX = 1000;
 
 /** the keys of setLiveDisplay (saved as user-settings "live.<key>") */
-export const LIVE_DISPLAY_KEYS = ["entityRadius", "entityDistance", "particles", "blockPreview", "nameTags", "healthBars", "followMode",
+export const LIVE_DISPLAY_KEYS = ["entityRadius", "entityDistance", "particles", "blockPreview", "nameTags", "healthBars", "followMode", "weather",
     ...ENTITY_CATEGORIES.map(category => "category." + category)];
 
-const BOOLEAN_KEYS = new Set(["particles", "blockPreview", "nameTags", "healthBars"]);
+const BOOLEAN_KEYS = new Set(["particles", "blockPreview", "nameTags", "healthBars", "weather"]);
 
 /**
  * Sets a display-setting, invalid values are replaced by the default.

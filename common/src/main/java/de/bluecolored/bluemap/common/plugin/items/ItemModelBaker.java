@@ -160,13 +160,14 @@ public class ItemModelBaker {
         return ENTITY_MODELS.containsKey(entityType) || MobTextures.TEXTURES.containsKey(entityType);
     }
 
-    /** textures that are provided on their own (requested by the live-data): armor-textures, armor-trims, skulls, particles, chests */
+    /** textures that are provided on their own (requested by the live-data): armor-textures, armor-trims, skulls, particles, chests, sky and weather */
     static boolean isProvidedTexture(String textureKey) {
         int colon = textureKey.indexOf(':');
         return textureKey.startsWith("models/armor/", colon + 1) || textureKey.startsWith(TRIM_SPRITES, colon + 1) ||
                 SKULL_TEXTURES.containsValue(textureKey) || textureKey.equals(de.bluecolored.bluemap.common.live.Armor.GLINT_TEXTURE) ||
                 de.bluecolored.bluemap.common.live.ParticleState.TEXTURES.contains(textureKey) ||
-                de.bluecolored.bluemap.common.live.OpenContainer.TEXTURES.contains(textureKey);
+                de.bluecolored.bluemap.common.live.OpenContainer.TEXTURES.contains(textureKey) ||
+                de.bluecolored.bluemap.common.live.LiveWorldTime.TEXTURES.contains(textureKey);
     }
 
     /** vanilla SkullBlockEntityRenderer.TEXTURES by the skull-items (player-heads: the default skin) */

@@ -254,6 +254,12 @@ public class ItemModelBakerTest {
         assertFalse(ItemResourceIndex.isItemRelevantTexture("mymod", "gui/container"));
         assertFalse(ItemResourceIndex.isItemRelevantTexture("mymod", "particle/spark"));
         assertFalse(ItemResourceIndex.isItemRelevantTexture("mymod", "entity/giant_squid"));
+        // BlueMap Live: the sky and weather of the world-time mode, only these
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "environment/moon_phases"));
+        assertTrue(ItemResourceIndex.isItemRelevantTexture("minecraft", "environment/rain"));
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("minecraft", "environment/end_sky"));
+        assertFalse(ItemResourceIndex.isItemRelevantTexture("mymod", "environment/sun"));
+        assertTrue(ItemModelBaker.isProvidedTexture("minecraft:environment/clouds"));
     }
 
     @Test

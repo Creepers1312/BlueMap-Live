@@ -144,6 +144,23 @@ public class E2EItemResources implements ItemModelBaker.Resources {
                     square(texture.contains("explosion") ? 16 : 8, 0, 0, texture.contains("explosion") ? 16 : 8,
                             texture.contains("explosion") ? 16 : 8, 0xFFFFFFFF));
         }
+        // sky and weather (LiveWorldTime.TEXTURES): a yellow sun, one color per moon-phase (4 x 2), checkered clouds,
+        // blue rain-streaks and white snow-flakes
+        textures.put("minecraft:environment/sun", square(32, 8, 8, 16, 16, 0xFFFFE040));
+        BufferedImage moon = new BufferedImage(128, 64, BufferedImage.TYPE_INT_ARGB);
+        int[] moonColors = {0xFFFF0000, 0xFF00FF00, 0xFF0000FF, 0xFFFFFF00, 0xFFFF00FF, 0xFF00FFFF, 0xFFFF8000, 0xFF8000FF};
+        for (int phase = 0; phase < 8; phase++) for (int x = 8; x < 24; x++) for (int y = 8; y < 24; y++)
+            moon.setRGB((phase % 4) * 32 + x, (phase / 4) * 32 + y, moonColors[phase]);
+        textures.put("minecraft:environment/moon_phases", moon);
+        BufferedImage clouds = new BufferedImage(256, 256, BufferedImage.TYPE_INT_ARGB);
+        for (int x = 0; x < 256; x++) for (int y = 0; y < 256; y++) if (((x / 16) + (y / 16)) % 2 == 0) clouds.setRGB(x, y, 0xFFFFFFFF);
+        textures.put("minecraft:environment/clouds", clouds);
+        BufferedImage rain = new BufferedImage(64, 256, BufferedImage.TYPE_INT_ARGB);
+        for (int x = 0; x < 64; x += 4) for (int y = 0; y < 256; y++) if ((y + x * 7) % 64 < 40) rain.setRGB(x + 1, y, 0xFF4060FF);
+        textures.put("minecraft:environment/rain", rain);
+        BufferedImage snow = new BufferedImage(64, 256, BufferedImage.TYPE_INT_ARGB);
+        for (int x = 2; x < 64; x += 8) for (int y = 2; y < 256; y += 8) for (int d = 0; d < 4; d++) snow.setRGB(x + d % 2, y + d / 2, 0xFFFFFFFF);
+        textures.put("minecraft:environment/snow", snow);
         textures.put("minecraft:entity/sheep/sheep", rect(64, 32, 0, 0, 64, 32, SHEEP));
         textures.put("minecraft:entity/sheep/sheep_fur", rect(64, 32, 0, 0, 64, 32, WOOL));
         textures.put("minecraft:entity/villager/villager", square(64, 0, 0, 64, 64, VILLAGER));

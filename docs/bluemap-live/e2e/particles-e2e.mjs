@@ -177,6 +177,8 @@ await step("explosion of a creeper (power 3, blocks destroyed): the emitter, 6 x
     assert.equal(await manager("mgr.particleView.layout.cells.size"), 42, "all particle-textures in the atlas");
     // vanilla: 8 ticks of the emitter plus at most 9 ticks per sprite
     await waitFor("mgr.particleSystem.count === 0", 3000);
+    // the group is hidden in the frame after the last particle is gone
+    await waitFor("!mgr.particleView.group.visible", 1000).catch(() => {});
     assert.equal(await manager("mgr.particleView.group.visible"), false, "nothing drawn afterwards");
 });
 

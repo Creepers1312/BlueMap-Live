@@ -12,6 +12,7 @@
       <Slider :value="mapViewer.uniforms.ambientLight.value" :min="0" :max="1" :step="0.01"
               @update="mapViewer.uniforms.ambientLight.value = $event; $bluemap.mapViewer.redraw()">{{$t('lighting.ambientLight')}}</Slider>
       <SwitchButton v-if="appState.worldTime.available" :on="appState.worldTime.enabled" @action="$bluemap.setWorldTimeLighting(!appState.worldTime.enabled)">{{ $t("lighting.worldTime.button") }}</SwitchButton>
+      <SwitchButton v-if="appState.worldTime.available" :on="appState.live.weather" @action="$bluemap.setLiveDisplay('weather', !appState.live.weather); $bluemap.saveUserSettings()">{{ $t("live.weather") }}</SwitchButton>
     </Group>
 
     <Group :title="$t('live.title')">

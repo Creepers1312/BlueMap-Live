@@ -25,6 +25,8 @@
 import {liveConnectionState} from "./markers/LiveConnection";
 import {qualityPreset} from "./QualityPresets";
 import {eyeHeight, followCameraPose} from "./controls/FollowCamera";
+import {WeatherView} from "./weather/WeatherView";
+import {currentDayTime} from "./markers/WorldTime";
 import {LIVE_DISPLAY, LIVE_DISPLAY_KEYS, liveDisplayValue, setLiveDisplayValue} from "./markers/LiveDisplay";
 import {LiveTileUpdater, TILE_UPDATE_INTERVAL} from "./map/LiveTileUpdater";
 import "./BlueMap";
@@ -140,6 +142,7 @@ export class BlueMapApp {
                 blockPreview: LIVE_DISPLAY.blockPreview,
                 nameTags: LIVE_DISPLAY.nameTags,
                 followMode: LIVE_DISPLAY.followMode,
+                weather: LIVE_DISPLAY.weather,
                 healthBars: LIVE_DISPLAY.healthBars,
                 categories: {...LIVE_DISPLAY.categories},
                 // the radius around the players in which the server sends entities (live-entities-radius)
@@ -149,6 +152,10 @@ export class BlueMapApp {
                 connection: "unknown",
             }
         });
+
+        // BlueMap Live: the sky and weather of the world-time mode
+        this.weatherView = null;
+        this.events.addEventListener("bluemapRenderFrame", evt => this.updateWeather(evt.detail ? evt.detail.delta : 16));
 
         // BlueMap Live: the hidden first-person model is shown again when the camera stops following
         this.events.addEventListener("bluemapRenderFrame", () => {
@@ -317,6 +324,8 @@ export class BlueMapApp {
             this.resetCamera();
 
         this.updatePageAddress();
+
+        this.initWeather();
 
         await Promise.all([
             this.initPlayerMarkerManager(),
@@ -535,6 +544,48 @@ export class BlueMapApp {
             for (let i = 0; i < 60 && cm.controls !== this.freeFlightControls; i++) await new Promise(r => requestAnimationFrame(r));
         }
         if (cm.controls && cm.controls.followPlayerMarker) cm.controls.followPlayerMarker(marker);
+    }
+
+    /** BlueMap Live: the sky and weather of the live world-time mode (WeatherView), per map (its textures) */
+    initWeather() {
+        if (this.weatherView) this.weatherView.dispose();
+        this.weatherView = null;
+        this.mapViewer.skyExtras = null;
+        const map = this.mapViewer.map;
+        if (!map) return;
+        this.weatherView = new WeatherView(map.data.mapDataRoot + "/assets/textures/");
+        this.mapViewer.skyExtras = this.weatherView.skyScene;
+        this.mapViewer.markers.add(this.weatherView.group);
+    }
+
+    /** @private BlueMap Live: one frame of the weather, only in the world-time mode (and if switched on) */
+    updateWeather(delta) {
+        const view = this.weatherView;
+        if (!view) return;
+        const lighting = this.worldTimeLighting;
+        const shown = LIVE_DISPLAY.weather && this.appState.worldTime.enabled && lighting.world;
+        let world = null, ticks = 0;
+        if (shown) {
+            const seconds = (Date.now() - lighting.sampleTime) / 1000;
+            world = {...lighting.world, dayTime: currentDayTime(lighting.world, seconds)};
+            ticks = lighting.world.dayTime + Math.max(0, seconds) * 20;
+        }
+        const cm = this.mapViewer.controlsManager;
+        const players = [];
+        const playerSet = this.mapViewer.markers.markerSets.get("bm-players");
+        if (shown && playerSet) playerSet.markers.forEach(marker => {
+            const status = marker.lastPlayerData && marker.lastPlayerData.status;
+            if (status && marker.isPlayerMarker) players.push({x: marker.position.x, z: marker.position.z, precipitation: status.precipitation});
+        });
+        const flashBefore = view.flash;
+        const moving = view.update(Math.min(delta / 1000, 0.1), {world, ticks, camera: this.mapViewer.camera,
+            target: cm.position, distance: cm.distance, players});
+        // lightning lights the map (on top of the world-time lighting, back to it when the flash is over)
+        if (view.flash > 0 || flashBefore > 0) {
+            const base = lighting.worldSunlight ?? this.mapViewer.data.uniforms.sunlightStrength.value;
+            this.mapViewer.data.uniforms.sunlightStrength.value = base + (1 - base) * view.flash * 0.7;
+        }
+        if (moving) this.mapViewer.redraw();
     }
 
     /** BlueMap Live: the state of the live-indicator from the age of the last players.json (see LiveConnection) */

@@ -40,4 +40,16 @@ public record LiveWorldTime(long dayTime, double rain, double thunder, boolean c
         this(dayTime, rain, thunder, cycle, 0);
     }
 
+    /**
+     * the textures of the sky and the weather the webapp draws in the live world-time mode (sun, moon-phases, clouds,
+     * rain and snow), provided like the particle-textures (only these, only from minecraft)
+     */
+    public static final java.util.List<String> TEXTURES = java.util.List.of(
+            "minecraft:environment/sun",
+            "minecraft:environment/moon_phases",
+            "minecraft:environment/clouds",
+            "minecraft:environment/rain",
+            "minecraft:environment/snow"
+    );
+
 }
