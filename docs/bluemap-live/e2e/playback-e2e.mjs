@@ -134,7 +134,7 @@ await step("the delay and the frame-rate-limit are saved and loaded with the use
         app.setFpsLimit(0);
         await app.loadUserSettings();
         app.settings.useCookies = false;
-        return {stored, live: {...app.appState.live}, viewer: app.mapViewer.data.fpsLimit};
+        return {stored, live: {delay: app.appState.live.delay, fpsLimit: app.appState.live.fpsLimit}, viewer: app.mapViewer.data.fpsLimit};
     });
     assert.deepEqual(saved, {stored: ["750", "30"], live: {delay: 750, fpsLimit: 30}, viewer: 30});
 });
