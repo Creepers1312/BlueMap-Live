@@ -365,19 +365,18 @@ public class FabricPlayer extends Player {
     }
 
 
-    /**
-     * The vehicle and the offset of the player on it (same tick), relative to the yaw the vehicle is drawn with
-     * (see FabricVehicles.drawnRotation, the same yaw is sent with the vehicle).
-     */
     /** set if a method is not available in this version (e.g. Biome.getPrecipitation): the status is not sampled anymore */
     private static volatile boolean statusUnavailable = false;
 
-    /** health and the precipitation at the player (vanilla Biome.getPrecipitation: rain, snow or none) */
+    /**
+     * health and the precipitation at the player (vanilla Biome.getPrecipitation: rain, snow or none);
+     * RegistryEntry.value() is unmapped in the yarn-mappings of 1.21 (comp_349, see FabricParticles)
+     */
     static @Nullable de.bluecolored.bluemap.common.live.PlayerStatus sampleStatus(ServerPlayerEntity player) {
         if (statusUnavailable) return null;
         try {
             net.minecraft.util.math.BlockPos pos = player.getBlockPos();
-            String precipitation = player.getWorld().getBiome(pos).value().getPrecipitation(pos).name()
+            String precipitation = player.getWorld().getBiome(pos).comp_349().getPrecipitation(pos).name()
                     .toLowerCase(java.util.Locale.ROOT);
             return new de.bluecolored.bluemap.common.live.PlayerStatus(player.getHealth(), player.getMaxHealth(), precipitation);
         } catch (LinkageError ex) {
@@ -386,6 +385,10 @@ public class FabricPlayer extends Player {
         }
     }
 
+    /**
+     * The vehicle and the offset of the player on it (same tick), relative to the yaw the vehicle is drawn with
+     * (see FabricVehicles.drawnRotation, the same yaw is sent with the vehicle).
+     */
     static @Nullable Vehicle sampleVehicle(Entity passenger, float bodyYaw) {
         Entity vehicle = passenger.getVehicle();
         if (vehicle == null) return null;
