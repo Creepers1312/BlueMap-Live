@@ -25,6 +25,7 @@
 package de.bluecolored.bluemap.common.serverinterface;
 
 import com.flowpowered.math.vector.Vector3d;
+import de.bluecolored.bluemap.common.live.LivePlayerState;
 import de.bluecolored.bluemap.common.plugin.text.Text;
 
 import java.util.UUID;
@@ -43,6 +44,40 @@ public abstract class Player {
      * x -> pitch, y -> yaw, z -> roll
      */
     public abstract Vector3d getRotation();
+
+    /**
+     * Returns a consistent snapshot of all live-data of this player (position, rotation, velocity, ...).
+     * <p>Implementations should override this to provide a snapshot where all values are sampled at the same time,
+     * and to provide velocity, generation and movement-state.
+     * The default implementation only uses {@link #getPosition()} and {@link #getRotation()}.</p>
+     */
+    public LivePlayerState getLiveState() {
+        Vector3d rotation = getRotation();
+        return new LivePlayerState(
+                getPosition(),
+                rotation,
+                rotation.getY(),
+                Vector3d.ZERO,
+                0,
+                System.currentTimeMillis(),
+                null
+        );
+    }
+
+    /**
+     * Returns the world and the live-state of this player as one consistent snapshot,
+     * so that e.g. a world-change can never be combined with a position from the previous world.
+     * <p>Implementations that sample asynchronously should override this together with {@link #getLiveState()}.</p>
+     */
+    public LiveSnapshot getLiveSnapshot() {
+        return new LiveSnapshot(getWorld(), getLiveState());
+    }
+
+    /**
+     * @param world the world the player was in when the state was sampled
+     * @param state the live-state of the player
+     */
+    public record LiveSnapshot(ServerWorld world, LivePlayerState state) {}
 
     public abstract int getSkyLight();
 

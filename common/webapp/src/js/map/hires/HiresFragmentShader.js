@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 import { ShaderChunk } from 'three';
+import {HIDDEN_BLOCKS_GLSL} from "../../markers/blocks/BlockPreviewData.js";
 
 // language=GLSL
 export const HIRES_FRAGMENT_SHADER = `
@@ -41,6 +42,13 @@ uniform float animationFrameIndex;
 uniform float animationInterpolationFrameIndex;
 uniform float animationInterpolation;
 uniform bool chunkBorders;
+// BlueMap Live: dynamic lights (xyz: position, w: light level), the block-light decreases by 1 per block distance
+uniform vec4 dynamicLights[8];
+uniform int dynamicLightCount;
+uniform vec3 hiddenBoxesMin[16];
+uniform vec3 hiddenBoxesMax[16];
+uniform int hiddenBoxCount;
+${HIDDEN_BLOCKS_GLSL}
 
 varying vec3 vPosition;
 varying vec3 vWorldPosition;
@@ -53,6 +61,14 @@ varying float vBlocklight;
 //varying float vDistance;
 
 void main() {
+
+	// BlueMap Live: hidden parts of the tile (the lids of opened chests, drawn by the webapp)
+	for (int i = 0; i < 16; i++) {
+		if (i >= hiddenBoxCount) break;
+		if (all(greaterThan(vWorldPosition, hiddenBoxesMin[i])) && all(lessThan(vWorldPosition, hiddenBoxesMax[i]))) discard;
+	}
+	// BlueMap Live: blocks that changed (the webapp draws the preview, see BlockPreviewView)
+	if (isHiddenBlock(vWorldPosition, vNormal)) discard;
 
 	vec4 color = texture(textureImage, vec2(vUv.x, animationFrameHeight * (vUv.y + animationFrameIndex)));
 	if (animationInterpolation > 0.0) {
@@ -68,7 +84,13 @@ void main() {
 	color.rgb *= vAo;
 	
 	//apply light
-	float light = mix(vBlocklight, max(vSunlight, vBlocklight), sunlightStrength);
+	float blocklight = vBlocklight;
+	for (int i = 0; i < 8; i++) {
+		if (i >= dynamicLightCount) break;
+		vec4 dynamicLight = dynamicLights[i];
+		blocklight = max(blocklight, clamp(dynamicLight.w - length(vWorldPosition - dynamicLight.xyz), 0.0, 15.0));
+	}
+	float light = mix(blocklight, max(vSunlight, blocklight), sunlightStrength);
 	color.rgb *= mix(ambientLight, 1.0, light / 15.0);
 	
 	if (chunkBorders) {

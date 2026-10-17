@@ -32,7 +32,12 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.function.Supplier;
+import java.util.zip.GZIPOutputStream;
 
 @Getter @Setter
 public class JsonDataRequestHandler implements HttpRequestHandler {
@@ -43,12 +48,33 @@ public class JsonDataRequestHandler implements HttpRequestHandler {
         this.dataSupplier = dataSupplier;
     }
 
+    /** BlueMap Live: smaller responses are not worth compressing */
+    static final int MIN_COMPRESSED_SIZE = 1024;
+
     @Override
     public HttpResponse handle(HttpRequest request) {
         HttpResponse response = new HttpResponse(HttpStatusCode.OK);
         response.addHeader("Cache-Control", "no-cache");
         response.addHeader("Content-Type", "application/json");
-        response.setData(dataSupplier.get());
+        String data = dataSupplier.get();
+        // BlueMap Live: the live-data (players.json, entities.json) is requested several times per second,
+        // compressed it is a fraction of the size (faster over the internet)
+        byte[] bytes = data.getBytes(StandardCharsets.UTF_8);
+        if (bytes.length >= MIN_COMPRESSED_SIZE && request.hasHeaderValue("Accept-Encoding", "gzip")) {
+            try {
+                ByteArrayOutputStream compressed = new ByteArrayOutputStream(bytes.length / 4 + 64);
+                try (GZIPOutputStream out = new GZIPOutputStream(compressed)) {
+                    out.write(bytes);
+                }
+                response.addHeader("Content-Encoding", "gzip");
+                response.addHeader("Vary", "Accept-Encoding");
+                response.setData(new ByteArrayInputStream(compressed.toByteArray()));
+                return response;
+            } catch (IOException ignore) {
+                // uncompressed below
+            }
+        }
+        response.setData(new ByteArrayInputStream(bytes));
         return response;
     }
 

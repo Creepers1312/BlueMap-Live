@@ -24,10 +24,22 @@
  */
 package de.bluecolored.bluemap.fabric;
 
+import com.flowpowered.math.vector.Vector3d;
 import com.github.benmanes.caffeine.cache.LoadingCache;
 import de.bluecolored.bluecommands.brigadier.BrigadierBridge;
+import de.bluecolored.bluemap.common.BlueMapService;
 import de.bluecolored.bluemap.common.commands.BrigadierExecutionHandler;
 import de.bluecolored.bluemap.common.commands.Commands;
+import de.bluecolored.bluemap.common.config.PluginConfig;
+import de.bluecolored.bluemap.common.live.HeldItem;
+import de.bluecolored.bluemap.common.live.LiveEffect;
+import de.bluecolored.bluemap.common.live.LiveEffectLog;
+import de.bluecolored.bluemap.common.live.LiveBlockLog;
+import de.bluecolored.bluemap.common.live.OpenContainer;
+import de.bluecolored.bluemap.common.live.LiveEntityState;
+import de.bluecolored.bluemap.common.live.LiveMobState;
+import de.bluecolored.bluemap.common.live.LiveWorldTime;
+import de.bluecolored.bluemap.common.live.SwingState;
 import de.bluecolored.bluemap.common.plugin.Plugin;
 import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.Server;
@@ -35,20 +47,41 @@ import de.bluecolored.bluemap.common.serverinterface.ServerEventListener;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
 import de.bluecolored.bluemap.core.logger.Logger;
 import de.bluecolored.bluemap.core.util.Caches;
+import de.bluecolored.bluemap.core.util.Key;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.SharedConstants;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.FlyingItemEntity;
+import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.projectile.PersistentProjectileEntity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.GameRules;
 import net.minecraft.world.World;
 import org.apache.logging.log4j.LogManager;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -66,6 +99,18 @@ public class FabricMod implements ModInitializer, Server {
 
     private int playerUpdateIndex = 0;
     private final Map<UUID, Player> onlinePlayerMap;
+
+    // BlueMap Live: the entities around the players per world, sampled on the server-thread, read by the webserver
+    private volatile Map<Key, List<LiveEntityState>> liveEntities = Map.of();
+    private volatile Map<Key, LiveWorldTime> liveWorldTimes = Map.of();
+    // BlueMap Live: the recent explosions and splash-potions per world
+    private final Map<Key, LiveEffectLog> liveEffects = new ConcurrentHashMap<>();
+    // BlueMap Live: the block-changes per world (previews until the tile is rendered again)
+    private final Map<Key, LiveBlockLog> liveBlockChanges = new ConcurrentHashMap<>();
+    // BlueMap Live: the opened chests per world
+    private final FabricContainers containers = new FabricContainers();
+    private volatile Map<Key, List<OpenContainer>> openContainers = Map.of();
+    private int liveEntitySampleTicks = 0;
     private final List<FabricPlayer> onlinePlayerList;
 
     public FabricMod() {
@@ -125,8 +170,51 @@ public class FabricMod implements ModInitializer, Server {
             this.onPlayerLeave(server, handler.getPlayer());
         });
 
+        // respawns and world-changes are discontinuous position-changes, update those players immediately
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+            this.onPlayerDiscontinuity(newPlayer);
+        });
+
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> {
+            this.onPlayerDiscontinuity(player);
+        });
+
+        // actions that cause an arm-swing, only observed (always PASS), so the swing can be classified
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
+            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.ATTACK);
+            return ActionResult.PASS;
+        });
+
+        AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
+            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.MINE);
+            return ActionResult.PASS;
+        });
+
+        UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
+            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.USE);
+            if (!world.isClient()) this.containers.onUseBlock(player, world, hitResult.getBlockPos());
+            return ActionResult.PASS;
+        });
+
+        UseItemCallback.EVENT.register((player, world, hand) -> {
+            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.USE);
+            return TypedActionResult.pass(ItemStack.EMPTY);
+        });
+
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+            if (world.getServer() == this.serverInstance) this.onEntityRemoved(entity, world);
+        });
+
         ServerTickEvents.END_SERVER_TICK.register((MinecraftServer server) -> {
-            if (server == this.serverInstance) this.updateSomePlayers();
+            if (server == this.serverInstance) {
+                this.flushBlockChanges(server);
+                this.trackSwings(server);
+                this.updateSomePlayers();
+                long sampleStart = System.nanoTime();
+                boolean sampled = this.sampleLiveEntities(server);
+                if (sampled) de.bluecolored.bluemap.common.live.LiveStats.add(
+                        de.bluecolored.bluemap.common.live.LiveStats.ENTITY_SAMPLE_NANOS, System.nanoTime() - sampleStart);
+            }
         });
 
         this.eventForwarder.init();
@@ -136,6 +224,12 @@ public class FabricMod implements ModInitializer, Server {
     @Override
     public String getMinecraftVersion() {
         return SharedConstants.getGameVersion().getId();
+    }
+
+    @Override
+    public boolean isIntegratedServer() {
+        MinecraftServer server = this.serverInstance;
+        return server != null && !server.isDedicated();
     }
 
     @Override
@@ -205,8 +299,21 @@ public class FabricMod implements ModInitializer, Server {
 
         UUID playerUUID = player.getUuid();
         onlinePlayerMap.remove(playerUUID);
+        containers.onLeave(playerUUID);
         synchronized (onlinePlayerList) {
             onlinePlayerList.removeIf(p -> p.getUuid().equals(playerUUID));
+        }
+    }
+
+    /**
+     * Called (on the server-thread) when a players position changed discontinuously, e.g. on respawn or world-change.
+     */
+    public void onPlayerDiscontinuity(ServerPlayerEntity playerInstance) {
+        if (this.serverInstance != playerInstance.getServer()) return;
+
+        if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+            player.markDiscontinuity();
+            player.update(playerInstance);
         }
     }
 
@@ -225,23 +332,243 @@ public class FabricMod implements ModInitializer, Server {
 
     /**
      * Only update some of the online players each tick to minimize performance impact on the server-thread.
+     * The players are spread over the configured live-player-update-interval, so each player is updated once per interval.
      * Only call this method on the server-thread.
      */
     private void updateSomePlayers() {
         int onlinePlayerCount = onlinePlayerList.size();
         if (onlinePlayerCount == 0) return;
 
-        int playersToBeUpdated = onlinePlayerCount / 20; //with 20 tps, each player is updated once a second
-        if (playersToBeUpdated == 0) playersToBeUpdated = 1;
+        int intervalTicks = getPlayerUpdateIntervalTicks();
+        int playersToBeUpdated = Math.ceilDiv(onlinePlayerCount, intervalTicks);
+        int cycleLength = Math.max(intervalTicks, onlinePlayerCount);
 
         for (int i = 0; i < playersToBeUpdated; i++) {
             playerUpdateIndex++;
-            if (playerUpdateIndex >= 20 && playerUpdateIndex >= onlinePlayerCount) playerUpdateIndex = 0;
+            if (playerUpdateIndex >= cycleLength) playerUpdateIndex = 0;
 
             if (playerUpdateIndex < onlinePlayerCount) {
                 onlinePlayerList.get(playerUpdateIndex).update();
             }
         }
+    }
+
+    /**
+     * Only call this method on the server-thread.
+     */
+    private void onPlayerAction(PlayerEntity playerInstance, SwingState.Kind action) {
+        if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+            player.noteAction(action);
+        }
+    }
+
+    /**
+     * Checks all online players for new arm-swings (a few field-reads per player).
+     * This is done every tick, because a swing only lasts a few ticks and could be missed between two samples.
+     * Only call this method on the server-thread.
+     */
+    private void trackSwings(MinecraftServer server) {
+        for (ServerPlayerEntity playerInstance : server.getPlayerManager().getPlayerList()) {
+            if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+                player.trackSwing(playerInstance);
+            }
+        }
+    }
+
+    /** the entity-types that are shown on the map (dropped items, thrown items, arrows, tridents and mobs) */
+    private static boolean isLiveEntity(Entity entity) {
+        return entity instanceof ItemEntity || entity instanceof FlyingItemEntity || entity instanceof PersistentProjectileEntity ||
+                FabricMobs.isLiveMob(entity) || FabricVehicles.isVehicle(entity) || FabricParticles.isParticleEntity(entity);
+    }
+
+    /** a protection against huge entity-amounts (e.g. farms), the data-supplier applies the configured limit */
+    private static final int MAX_SAMPLED_ENTITIES_PER_WORLD = 2000;
+
+    /**
+     * Samples the entities around all players, once per live-player-update-interval.
+     * Only call this method on the server-thread.
+     */
+    /** @return if it sampled in this tick */
+    private boolean sampleLiveEntities(MinecraftServer server) {
+        if (++liveEntitySampleTicks < getPlayerUpdateIntervalTicks()) return false;
+        liveEntitySampleTicks = 0;
+
+        // the time and weather of the worlds with a day-night-cycle (cheap: a few field-reads per world);
+        // the nether and the end have a fixed time
+        Map<Key, LiveWorldTime> times = new HashMap<>();
+        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
+            if (world.getDimension().hasFixedTime()) continue;
+            times.put(getServerWorld(world).getDimension(), new LiveWorldTime(
+                    Math.floorMod(world.getTimeOfDay(), 24000L),
+                    world.getRainGradient(1f),
+                    world.getThunderGradient(1f),
+                    world.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE)
+            ));
+        }
+        liveWorldTimes = times;
+
+        BlueMapService blueMap = pluginInstance.getBlueMap();
+        PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
+        if (config == null || !config.isLiveEntities() || !config.isLivePlayerMarkers() || config.getLiveEntitiesRadius() <= 0) {
+            liveEntities = Map.of();
+            return true;
+        }
+
+        double radius = config.getLiveEntitiesRadius();
+        long now = System.currentTimeMillis();
+        Map<Key, List<LiveEntityState>> result = new HashMap<>();
+        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
+            List<ServerPlayerEntity> players = world.getPlayers();
+            if (players.isEmpty()) continue;
+
+            Map<Integer, LiveEntityState> entities = new LinkedHashMap<>();
+            for (ServerPlayerEntity player : players) {
+                Box box = player.getBoundingBox().expand(radius);
+                for (Entity entity : world.getOtherEntities(player, box, FabricMod::isLiveEntity)) {
+                    if (entities.size() >= MAX_SAMPLED_ENTITIES_PER_WORLD) break;
+                    if (entities.containsKey(entity.getId())) continue;
+                    LiveEntityState state = toLiveEntity(entity, now);
+                    if (state != null) entities.put(entity.getId(), state);
+                }
+            }
+            result.put(getServerWorld(world).getDimension(), List.copyOf(entities.values()));
+        }
+        liveEntities = result;
+
+        Map<Key, List<OpenContainer>> opened = new HashMap<>();
+        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
+            List<OpenContainer> list = containers.sample(world, now);
+            if (!list.isEmpty()) opened.put(getServerWorld(world).getDimension(), list);
+        }
+        openContainers = opened;
+        return true;
+    }
+
+    private static @Nullable LiveEntityState toLiveEntity(Entity entity, long now) {
+        String type = entity.getType().getRegistryEntry().getKey().map(key -> key.getValue().toString()).orElse(null);
+        if (type == null) return null;
+
+        HeldItem item = null;
+        if (entity instanceof ItemEntity itemEntity) item = FabricPlayer.toHeldItem(itemEntity.getStack());
+        else if (entity instanceof FlyingItemEntity flyingItem) item = FabricPlayer.toHeldItem(flyingItem.getStack());
+        else if (entity instanceof PersistentProjectileEntity projectile) item = FabricPlayer.toHeldItem(projectile.getItemStack());
+
+        Vec3d pos = entity.getPos();
+        Vec3d velocity = entity.getVelocity();
+        boolean onGround = entity.isOnGround();
+
+        // a projectile stuck in a block does not move anymore (its velocity is not reset in vanilla):
+        // it is sent as resting (onGround) without velocity, so the webapp does not predict a flight
+        if (entity instanceof PersistentProjectileEntity) {
+            double dx = pos.x - entity.prevX, dy = pos.y - entity.prevY, dz = pos.z - entity.prevZ;
+            if (dx * dx + dy * dy + dz * dz < 1e-8) {
+                onGround = true;
+                velocity = Vec3d.ZERO;
+            }
+        }
+
+        // flying projectiles: where they will hit a block, so the webapp-prediction does not fly through it
+        LiveEntityState.Impact impact = null;
+        if (!onGround && (entity instanceof PersistentProjectileEntity || entity instanceof FlyingItemEntity) &&
+                velocity.lengthSquared() > 1e-6) {
+            impact = FabricProjectiles.predictImpact(entity, type, pos, velocity);
+        }
+
+        // boats and minecarts: the yaw and pitch the vanilla renderer draws them with
+        float yaw = entity.getYaw(), pitch = entity.getPitch();
+        LiveMobState vehicle = null;
+        if (FabricVehicles.isVehicle(entity)) {
+            float[] rotation = FabricVehicles.drawnRotation(entity);
+            yaw = rotation[0];
+            pitch = rotation[1];
+            vehicle = FabricVehicles.sample(entity, yaw);
+        }
+
+        return new LiveEntityState(
+                entity.getId(),
+                type,
+                new Vector3d(pos.x, pos.y, pos.z),
+                yaw,
+                pitch,
+                new Vector3d(velocity.x * 20, velocity.y * 20, velocity.z * 20), // blocks per tick -> per second
+                now,
+                item,
+                onGround,
+                withLeash(entity instanceof LivingEntity living ? FabricMobs.sample(living) : vehicle, entity),
+                impact,
+                FabricParticles.sample(entity)
+        );
+    }
+
+    /** the leash of a mob or boat (the rope is drawn by the webapp) */
+    private static @Nullable LiveMobState withLeash(@Nullable LiveMobState mob, Entity entity) {
+        if (mob == null) return null;
+        de.bluecolored.bluemap.common.live.Leash leash = FabricVehicles.leash(entity);
+        return leash != null ? mob.withLeash(leash) : mob;
+    }
+
+    @Override
+    public List<LiveEntityState> getLiveEntities(ServerWorld world) {
+        return liveEntities.getOrDefault(world.getDimension(), List.of());
+    }
+
+    /** the effect an entity caused when it was removed (explosions, splash-potions), only while live-entities are shown */
+    private void onEntityRemoved(Entity entity, net.minecraft.server.world.ServerWorld world) {
+        if (entity.getRemovalReason() == null || entity.getRemovalReason() == Entity.RemovalReason.UNLOADED_TO_CHUNK ||
+                entity.getRemovalReason() == Entity.RemovalReason.UNLOADED_WITH_PLAYER) return;
+        BlueMapService blueMap = pluginInstance.getBlueMap();
+        PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
+        if (config == null || !config.isLiveEntities() || !config.isLivePlayerMarkers()) return;
+        LiveEffectLog log = liveEffects.computeIfAbsent(getServerWorld(world).getDimension(), key -> new LiveEffectLog());
+        FabricParticles.onRemoved(entity, log, System.currentTimeMillis());
+    }
+
+    /** the block-changes of the tick (see FabricBlockChanges), only call on the server-thread */
+    private void flushBlockChanges(MinecraftServer server) {
+        BlueMapService blueMap = pluginInstance.getBlueMap();
+        PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
+        boolean enabled = config != null && config.isLiveBlockPreviewEnabled() && config.isLivePlayerMarkers() &&
+                !server.getPlayerManager().getPlayerList().isEmpty();
+        if (enabled != FabricBlockChanges.isListening()) FabricBlockChanges.setListening(enabled);
+        if (!enabled) return;
+        List<net.minecraft.server.world.ServerWorld> worlds = new ArrayList<>();
+        server.getWorlds().forEach(worlds::add);
+        FabricBlockChanges.flush(worlds, world -> liveBlockChanges.computeIfAbsent(getServerWorld(world).getDimension(),
+                key -> new LiveBlockLog()), config.getLiveBlockPreviewRadius(), System.currentTimeMillis());
+    }
+
+    @Override
+    public List<LiveBlockLog.Change> getLiveBlockChanges(ServerWorld world) {
+        LiveBlockLog log = liveBlockChanges.get(world.getDimension());
+        return log != null ? log.recent(System.currentTimeMillis()) : List.of();
+    }
+
+    @Override
+    public List<OpenContainer> getOpenContainers(ServerWorld world) {
+        return openContainers.getOrDefault(world.getDimension(), List.of());
+    }
+
+    @Override
+    public List<LiveEffect> getLiveEffects(ServerWorld world) {
+        LiveEffectLog log = liveEffects.get(world.getDimension());
+        return log != null ? log.recent(System.currentTimeMillis()) : List.of();
+    }
+
+    @Override
+    public @Nullable LiveWorldTime getLiveWorldTime(ServerWorld world) {
+        return liveWorldTimes.get(world.getDimension());
+    }
+
+    /**
+     * The configured live-player-update-interval in ticks (50ms), or 20 ticks (the previous fixed interval) if
+     * the config is not (yet) available.
+     */
+    private int getPlayerUpdateIntervalTicks() {
+        BlueMapService blueMap = pluginInstance.getBlueMap();
+        if (blueMap == null) return 20;
+
+        int intervalMillis = blueMap.getConfig().getPluginConfig().getLivePlayerUpdateInterval();
+        return Math.max(1, Math.round(intervalMillis / 50f));
     }
 
 }

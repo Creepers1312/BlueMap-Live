@@ -8,9 +8,35 @@
 
     <Group :title="$t('lighting.title')">
       <Slider :value="mapViewer.uniforms.sunlightStrength.value" :min="0" :max="1" :step="0.01"
-              @update="mapViewer.uniforms.sunlightStrength.value = $event; $bluemap.mapViewer.redraw()">{{$t('lighting.sunlight')}}</Slider>
+              @update="appState.worldTime.enabled && $bluemap.setWorldTimeLighting(false); mapViewer.uniforms.sunlightStrength.value = $event; $bluemap.mapViewer.redraw()">{{$t('lighting.sunlight')}}</Slider>
       <Slider :value="mapViewer.uniforms.ambientLight.value" :min="0" :max="1" :step="0.01"
               @update="mapViewer.uniforms.ambientLight.value = $event; $bluemap.mapViewer.redraw()">{{$t('lighting.ambientLight')}}</Slider>
+      <SwitchButton v-if="appState.worldTime.available" :on="appState.worldTime.enabled" @action="$bluemap.setWorldTimeLighting(!appState.worldTime.enabled)">{{ $t("lighting.worldTime.button") }}</SwitchButton>
+    </Group>
+
+    <Group :title="$t('live.title')">
+      <div class="bm-live-setting-label">{{ $t("live.smoothing") }}</div>
+      <SimpleButton v-for="delay of playbackDelays" :key="delay"
+                    :active="appState.live.delay === delay"
+                    @action="$bluemap.setLivePlaybackDelay(delay); $bluemap.saveUserSettings()"
+      >{{ delay === 0 ? $t("live.smoothingOff") : delay + " ms" }}</SimpleButton>
+      <div class="bm-live-setting-label">{{ $t("live.fpsLimit") }}</div>
+      <SimpleButton v-for="limit of fpsLimits" :key="limit"
+                    :active="appState.live.fpsLimit === limit"
+                    @action="$bluemap.setFpsLimit(limit); $bluemap.saveUserSettings()"
+      >{{ limit === 0 ? $t("live.fpsUnlimited") : limit + " FPS" }}</SimpleButton>
+    </Group>
+
+    <Group :title="$t('live.displayTitle')">
+      <Slider :value="appState.live.entityRadius === null ? appState.live.serverRadius : Math.min(appState.live.entityRadius, appState.live.serverRadius)"
+              :min="0" :max="appState.live.serverRadius" :step="1" :formatter="blocksFormatter"
+              @update="$bluemap.setLiveDisplay('entityRadius', $event >= appState.live.serverRadius ? null : $event)"
+              @lazy="$bluemap.saveUserSettings()">{{ $t("live.entityRadius") }}</Slider>
+      <Slider :value="appState.live.entityDistance" :min="entityDistanceMin" :max="entityDistanceMax" :step="50" :formatter="blocksFormatter"
+              @update="$bluemap.setLiveDisplay('entityDistance', $event)"
+              @lazy="$bluemap.saveUserSettings()">{{ $t("live.entityDistance") }}</Slider>
+      <SwitchButton :on="appState.live.particles" @action="$bluemap.setLiveDisplay('particles', !appState.live.particles); $bluemap.saveUserSettings()">{{ $t("live.particles") }}</SwitchButton>
+      <SwitchButton :on="appState.live.blockPreview" @action="$bluemap.setLiveDisplay('blockPreview', !appState.live.blockPreview); $bluemap.saveUserSettings()">{{ $t("live.blockPreview") }}</SwitchButton>
     </Group>
 
     <Group :title="$t('resolution.title')">
@@ -70,6 +96,8 @@ import SimpleButton from "./SimpleButton.vue";
 import Slider from "./Slider.vue";
 import SwitchButton from "./SwitchButton.vue";
 import {i18n, setLanguage} from "../../i18n";
+import {PLAYBACK_DELAYS} from "../../js/markers/LivePlayback";
+import {ENTITY_DISTANCE_MAX, ENTITY_DISTANCE_MIN} from "../../js/markers/LiveDisplay";
 
 const themes = [
   {get name(){ return i18n.t("theme.default")}, value: null},
@@ -104,6 +132,10 @@ name: "SettingsMenu",
 
       qualityStages: qualityStages,
       themes: themes,
+      playbackDelays: PLAYBACK_DELAYS,
+      fpsLimits: [0, 60, 30],
+      entityDistanceMin: ENTITY_DISTANCE_MIN,
+      entityDistanceMax: ENTITY_DISTANCE_MAX,
     }
   },
   computed: {
@@ -119,6 +151,9 @@ name: "SettingsMenu",
     switchDebug() {
       this.$bluemap.setDebug(!this.appState.debug);
     },
+    blocksFormatter(value) {
+      return Math.round(parseFloat(value)) + " " + this.$t("live.blocks");
+    },
     renderDistanceFormatter(value) {
       let f = parseFloat(value);
       return f === 0 ? this.$t("renderDistance.off") : f.toFixed(0);
@@ -133,5 +168,9 @@ name: "SettingsMenu",
 </script>
 
 <style>
-
+.bm-live-setting-label {
+  padding: 0.5em 1em 0.25em;
+  opacity: 0.75;
+  font-size: 0.9em;
+}
 </style>

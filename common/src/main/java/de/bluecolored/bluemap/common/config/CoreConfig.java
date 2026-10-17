@@ -38,7 +38,8 @@ public class CoreConfig {
 
     private int renderThreadCount = 1;
 
-    private boolean metrics = true;
+    // BlueMap Live: disabled by default (no reports to the original projects metrics-server unless enabled explicitly)
+    private boolean metrics = false;
 
     private Path data = Path.of("bluemap");
     private boolean scanForModResources = true;

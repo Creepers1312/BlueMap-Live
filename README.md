@@ -1,3 +1,42 @@
+# BlueMap Live
+
+> **Dies ist ein Fork von [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap)** (Branch `mc1.21.1`) mit dem Ziel,
+> die originale BlueMap-Karte um **Live-Inhalte** zu ergänzen – ohne die Karte, ihre Texturen, den Webclient oder die Navigation zu ersetzen.
+
+**Ziel:** Minecraft Java Edition **1.21.1** mit **Fabric**
+
+- echte 3D-Spielermodelle mit Skin, Live-Position, Blickrichtung und Animationen (siehe auch [BlueMap#95](https://github.com/BlueMap-Minecraft/BlueMap/issues/95))
+- Live-Blockänderungen ohne komplettes Neu-Rendern der Welt
+
+### Stand
+
+| Phase | Inhalt | Status |
+|---|---|---|
+| 1 | Analyse und Architektur | fertig – [`docs/bluemap-live/analysis.md`](docs/bluemap-live/analysis.md) |
+| 2 | End-to-End-Prototyp: erweiterte Live-Spielerdaten + **vorläufiges** 3D-Objekt im Webclient | implementiert, teilweise getestet, **noch nicht mit Gradle gebaut und nicht auf einem echten Server geprüft** – [`docs/bluemap-live/phase-2.md`](docs/bluemap-live/phase-2.md) |
+| 3 | Echte Spielermodelle mit Skin und Animationen | implementiert, automatisiert getestet und vom Nutzer in Minecraft geprüft (Einzelspieler) – [`docs/bluemap-live/phase-3.md`](docs/bluemap-live/phase-3.md) |
+| 3b | Gehaltene Items und Item-Animationen | implementiert, automatisiert getestet und vom Nutzer in Minecraft geprüft (inkl. F5-Vergleich) – [`docs/bluemap-live/phase-4.md`](docs/bluemap-live/phase-4.md) |
+| 5 | Entities (Release 0.2.0): Gegenstände am Boden, Wurfgegenstände, Pfeile, Treffer-Blitz | implementiert und automatisiert getestet; nach erstem Test in Minecraft überarbeitet, erneute Prüfung offen – [`docs/bluemap-live/phase-5.md`](docs/bluemap-live/phase-5.md) |
+| 6 | Mobs (Release 0.3.0): Vanilla-Modelle mit Textur und Animation, Platzhalter für andere Lebewesen | implementiert und automatisiert getestet (Modelldaten im CI gegen Minecraft geprüft); in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-6.md`](docs/bluemap-live/phase-6.md) |
+| 7 | Live-Blockänderungen (Release 0.4.0, zuverlässig, dann inkrementell), darin auch Truhen/interaktive Blöcke (Entscheidung: Option 1, `phase-4.md` §8) | geplant |
+| 8 | Effekte (0.5.0), Stabilisierung und Dokumentation (1.0) | geplant |
+
+Aktuelle Version: [0.1.0-alpha (Pre-release)](https://github.com/Creepers1312/BlueMap-Live/releases/tag/v0.1.0-alpha) · Release-Plan (was in die nächsten Versionen kommt): [`docs/bluemap-live/roadmap.md`](docs/bluemap-live/roadmap.md)
+
+Noch **nicht für den produktiven Einsatz** gedacht.
+
+Test in einer Einzelspielerwelt: [`docs/bluemap-live/singleplayer-test.md`](docs/bluemap-live/singleplayer-test.md)
+
+### Branches
+
+- `mc1.21.1` – unveränderter Stand des Original-BlueMap-Branches (Basis)
+- `bluemap-live` – Entwicklungsstand von BlueMap Live
+
+Lizenz und Urheberschaft von BlueMap bleiben unverändert (MIT, siehe [LICENSE](LICENSE)).
+Alles unterhalb dieser Linie ist die originale BlueMap-README.
+
+---
+
 [![title-banner](https://bluecolored.de/paste/BluemapBanner.png)](https://bluemap.bluecolored.de/)
 
 <div align="center">

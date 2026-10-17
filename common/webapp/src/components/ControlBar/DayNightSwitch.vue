@@ -36,6 +36,9 @@ export default {
 
         evt.preventDefault();
 
+        // BlueMap Live: the own switch ends the day-night-cycle of the world
+        if (this.$bluemap.appState.worldTime?.enabled) this.$bluemap.setWorldTimeLighting(false);
+
         if (animation) animation.cancel();
 
         let startValue = this.mapViewer.uniforms.sunlightStrength.value;

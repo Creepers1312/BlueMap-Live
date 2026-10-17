@@ -1,0 +1,379 @@
+// Unit-tests for src/js/markers/LivePlayerData.js
+// Run with: npm test   (uses the node built-in test-runner, no additional dependencies)
+
+import {test} from "node:test";
+import assert from "node:assert/strict";
+
+import {
+    angleDelta,
+    DEFAULT_UPDATE_INTERVAL,
+    interpolationDuration,
+    isDiscontinuous,
+    isStaleResponse,
+    MAX_UPDATE_INTERVAL,
+    MIN_UPDATE_INTERVAL,
+    parsePlayer,
+    parsePlayersResponse,
+    parseSkin,
+    parseEquipment,
+    parseItem,
+    parseItemUse,
+    parseSwing,
+    resolveUpdateInterval,
+    riderOnVehicle,
+    bedTransform,
+    SUPPORTED_PROTOCOL,
+} from "../src/js/markers/LivePlayerData.js";
+import {applyDynamicLights, dynamicBlockLight, LIGHT_HEIGHT, MAX_DYNAMIC_LIGHTS, playerLights} from "../src/js/markers/DynamicLights.js";
+
+const UUID = "069a79f4-44e9-4726-a5be-fca90e38aaf5";
+
+// this is exactly the output of the java LivePlayersJson writer (see LivePlayersJsonTest)
+const v1Player = () => ({
+    uuid: UUID, name: "Notch", foreign: false,
+    position: {x: 10.5, y: 64, z: -20.25},
+    rotation: {pitch: 15, yaw: 90, roll: 0},
+    world: "minecraft:overworld", generation: 3, time: 123456789, bodyYaw: 80,
+    velocity: {x: 4.3, y: 0, z: 0},
+    state: {sneaking: true, sprinting: false, onGround: true, swimming: false, flying: false, fallFlying: true},
+});
+
+const v1Response = (players = [v1Player()]) => ({protocol: 1, serverTime: 1000, updateInterval: 250, players});
+
+test("parses a complete protocol-1 response", () => {
+    const r = parsePlayersResponse(v1Response());
+    assert.equal(r.protocol, 1);
+    assert.equal(r.supported, true);
+    assert.equal(r.serverTime, 1000);
+    assert.equal(r.updateInterval, 250);
+    assert.equal(r.invalid, 0);
+    assert.equal(r.players.length, 1);
+
+    const p = r.players[0];
+    assert.equal(p.uuid, UUID);
+    assert.equal(p.name, "Notch");
+    assert.equal(p.foreign, false);
+    assert.deepEqual(p.position, {x: 10.5, y: 64, z: -20.25});
+    assert.deepEqual(p.rotation, {pitch: 15, yaw: 90, roll: 0});
+    assert.equal(p.bodyYaw, 80);
+    assert.equal(p.world, "minecraft:overworld");
+    assert.equal(p.generation, 3);
+    assert.equal(p.time, 123456789);
+    assert.deepEqual(p.velocity, {x: 4.3, y: 0, z: 0});
+    assert.deepEqual(p.state, {sneaking: true, sprinting: false, onGround: true, swimming: false, flying: false, fallFlying: true, riding: false, bed: null});
+});
+
+test("parses the legacy format of older servers (no protocol field)", () => {
+    const r = parsePlayersResponse({players: [{
+        uuid: UUID, name: "Notch", foreign: false,
+        position: {x: 1, y: 2, z: 3}, rotation: {pitch: 4, yaw: 5, roll: 0},
+    }]});
+    assert.equal(r.protocol, 0);
+    assert.equal(r.supported, true);
+    assert.equal(r.serverTime, null);
+    assert.equal(r.updateInterval, null);
+
+    const p = r.players[0];
+    assert.deepEqual(p.position, {x: 1, y: 2, z: 3});
+    assert.equal(p.bodyYaw, 5, "bodyYaw falls back to the head-yaw");
+    assert.equal(p.generation, null);
+    assert.equal(p.world, null);
+    assert.equal(p.state, null);
+});
+
+test("unsupported (newer) protocol: only the guaranteed original fields are used", () => {
+    const data = v1Response();
+    data.protocol = SUPPORTED_PROTOCOL + 1;
+    const r = parsePlayersResponse(data);
+    assert.equal(r.supported, false);
+
+    const p = r.players[0];
+    assert.deepEqual(p.position, {x: 10.5, y: 64, z: -20.25});
+    assert.deepEqual(p.rotation, {pitch: 15, yaw: 90, roll: 0});
+    assert.equal(p.generation, null);
+    assert.equal(p.state, null);
+    assert.equal(p.velocity, null);
+    assert.equal(p.bodyYaw, 90);
+});
+
+test("rejects responses that are no players-data at all", () => {
+    assert.equal(parsePlayersResponse(null), null);
+    assert.equal(parsePlayersResponse("BlueMap - Exception handling this request"), null);
+    assert.equal(parsePlayersResponse({}), null);
+    assert.equal(parsePlayersResponse({players: {}}), null);
+});
+
+test("skips invalid player-entries and counts them", () => {
+    const valid = v1Player();
+    const r = parsePlayersResponse(v1Response([
+        valid,
+        null,
+        "player",
+        {name: "no uuid", position: {x: 0, y: 0, z: 0}},
+        {uuid: "", position: {x: 0, y: 0, z: 0}},
+        {uuid: "no-position"},
+        {uuid: "nan-position", position: {x: NaN, y: 0, z: 0}},
+        {uuid: "string-position", position: {x: "1", y: 0, z: 0}},
+    ]));
+    assert.equal(r.players.length, 1);
+    assert.equal(r.players[0].uuid, UUID);
+    assert.equal(r.invalid, 7);
+});
+
+test("missing or invalid optional fields get defaults", () => {
+    const p = parsePlayer({
+        uuid: UUID,
+        position: {x: 1, y: 2, z: 3},
+        rotation: {pitch: "x", yaw: null},
+        generation: 1.5,
+        time: "now",
+        velocity: {x: 1},
+        state: {sneaking: "yes", sprinting: true},
+        world: 5,
+        foreign: "true",
+    });
+    assert.equal(p.name, UUID, "name falls back to uuid");
+    assert.deepEqual(p.rotation, {pitch: 0, yaw: 0, roll: 0});
+    assert.equal(p.generation, null);
+    assert.equal(p.time, null);
+    assert.equal(p.velocity, null);
+    assert.equal(p.world, null);
+    assert.equal(p.foreign, false, "only boolean true counts as foreign");
+    assert.equal(p.state.sneaking, false, "only boolean true counts");
+    assert.equal(p.state.sprinting, true);
+    assert.equal(p.state.swimming, false);
+});
+
+test("position and rotation updates are taken over", () => {
+    const a = parsePlayer(v1Player());
+    const raw = v1Player();
+    raw.position = {x: 11, y: 65, z: -20};
+    raw.rotation = {pitch: -10, yaw: 120, roll: 0};
+    const b = parsePlayer(raw);
+    assert.deepEqual(b.position, {x: 11, y: 65, z: -20});
+    assert.deepEqual(b.rotation, {pitch: -10, yaw: 120, roll: 0});
+    assert.equal(isDiscontinuous(a, b), false, "normal movement is interpolated");
+});
+
+test("rotation only (no movement) is continuous", () => {
+    const a = parsePlayer(v1Player());
+    const raw = v1Player();
+    raw.rotation = {pitch: 80, yaw: -170, roll: 0};
+    assert.equal(isDiscontinuous(a, parsePlayer(raw)), false);
+});
+
+test("generation change (teleport/respawn) is discontinuous", () => {
+    const a = parsePlayer(v1Player());
+    const raw = v1Player();
+    raw.generation = 4;
+    raw.position = {x: 11, y: 64, z: -20}; // even if close-by
+    assert.equal(isDiscontinuous(a, parsePlayer(raw)), true);
+});
+
+test("dimension change is discontinuous", () => {
+    const a = parsePlayer(v1Player());
+
+    const sameGenOtherWorld = v1Player();
+    sameGenOtherWorld.world = "minecraft:the_nether";
+    assert.equal(isDiscontinuous(a, parsePlayer(sameGenOtherWorld)), true);
+
+    const foreign = v1Player();
+    foreign.foreign = true;
+    assert.equal(isDiscontinuous(a, parsePlayer(foreign)), true);
+});
+
+test("without generation (legacy servers) large jumps are still not interpolated", () => {
+    const a = parsePlayer({uuid: UUID, position: {x: 0, y: 64, z: 0}});
+    const near = parsePlayer({uuid: UUID, position: {x: 5, y: 64, z: 0}});
+    const far = parsePlayer({uuid: UUID, position: {x: 500, y: 64, z: 0}});
+    assert.equal(isDiscontinuous(a, near), false);
+    assert.equal(isDiscontinuous(a, far), true);
+});
+
+test("first update is always discontinuous", () => {
+    assert.equal(isDiscontinuous(null, parsePlayer(v1Player())), true);
+});
+
+test("stale responses are detected", () => {
+    assert.equal(isStaleResponse(null, 1000), false);
+    assert.equal(isStaleResponse(1000, null), false);
+    assert.equal(isStaleResponse(1000, 1000), false);
+    assert.equal(isStaleResponse(1000, 1250), false);
+    assert.equal(isStaleResponse(1250, 1000), true);
+});
+
+test("update-interval is clamped", () => {
+    assert.equal(resolveUpdateInterval(null), DEFAULT_UPDATE_INTERVAL);
+    assert.equal(resolveUpdateInterval(NaN), DEFAULT_UPDATE_INTERVAL);
+    assert.equal(resolveUpdateInterval(250), 250);
+    assert.equal(resolveUpdateInterval(1), MIN_UPDATE_INTERVAL);
+    assert.equal(resolveUpdateInterval(1e9), MAX_UPDATE_INTERVAL);
+});
+
+test("angleDelta takes the shortest way", () => {
+    assert.equal(angleDelta(0, 90), 90);
+    assert.equal(angleDelta(170, -170), 20);
+    assert.equal(angleDelta(-170, 170), -20);
+    assert.equal(angleDelta(0, 720), 0);
+    assert.equal(angleDelta(10, 190), -180);
+});
+
+test("interpolation duration follows the sample times", () => {
+    const a = parsePlayer({...v1Player(), time: 1000});
+    const b = parsePlayer({...v1Player(), time: 1250});
+    assert.equal(interpolationDuration(a, b, 1000), 250);
+    assert.equal(interpolationDuration(null, b, 400), 400);
+    assert.equal(interpolationDuration(b, a, 400), 400, "non-increasing times fall back to the interval");
+    assert.equal(interpolationDuration(a, parsePlayer({...v1Player(), time: 1001}), 400), 50, "lower bound");
+    assert.equal(interpolationDuration(a, parsePlayer({...v1Player(), time: 11000}), 250), 250, "never longer than the update-interval");
+});
+
+test("skin-info is parsed and validated", () => {
+    assert.deepEqual(parseSkin({model: "slim", version: "0123abcd"}), {model: "slim", version: "0123abcd"});
+    assert.deepEqual(parseSkin({model: "classic", version: "ab"}), {model: "classic", version: "ab"});
+    assert.deepEqual(parseSkin({model: "giant", version: "ab"}), {model: "classic", version: "ab"}, "unknown model -> classic");
+    assert.deepEqual(parseSkin({version: "ab"}), {model: "classic", version: "ab"});
+    assert.equal(parseSkin(null), null);
+    assert.equal(parseSkin({model: "slim"}), null, "no version -> no skin");
+    assert.equal(parseSkin({model: "slim", version: "../evil"}), null, "version is used in the url and must be hex");
+    assert.equal(parseSkin({model: "slim", version: 5}), null);
+
+    const p = parsePlayer({...v1Player(), skin: {model: "slim", version: "05"}});
+    assert.deepEqual(p.skin, {model: "slim", version: "05"});
+    assert.equal(parsePlayer(v1Player()).skin, null, "missing skin field");
+
+    const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), skin: {model: "slim", version: "05"}}]});
+    assert.equal(legacy.players[0].skin, null, "unsupported protocol -> only the original fields");
+});
+
+test("swing-info is parsed and validated", () => {
+    assert.deepEqual(parseSwing({count: 3, arm: "left", kind: "attack"}), {count: 3, arm: "left", kind: "attack"});
+    assert.deepEqual(parseSwing({count: 0, arm: "right"}), {count: 0, arm: "right", kind: "swing"}, "older servers: no kind");
+    assert.deepEqual(parseSwing({count: 2, kind: "explode"}), {count: 2, arm: "right", kind: "swing"}, "unknown arm/kind -> right/swing");
+    assert.equal(parseSwing(null), null);
+    assert.equal(parseSwing({count: -1}), null);
+    assert.equal(parseSwing({count: 1.5}), null);
+    assert.equal(parseSwing({count: "1"}), null);
+
+    assert.deepEqual(parsePlayer({...v1Player(), swing: {count: 4, arm: "left"}}).swing, {count: 4, arm: "left", kind: "swing"});
+    assert.equal(parsePlayer(v1Player()).swing, null, "missing swing field");
+    const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), swing: {count: 4, arm: "left"}}]});
+    assert.equal(legacy.players[0].swing, null, "unsupported protocol -> only the original fields");
+});
+
+test("held items are parsed and validated", () => {
+    assert.deepEqual(parseItem({id: "minecraft:bow", glint: true}),
+        {id: "minecraft:bow", glint: true, customModelData: null, charged: false, firework: false});
+    assert.deepEqual(parseItem({id: "minecraft:crossbow", customModelData: 3, charged: true, firework: true}),
+        {id: "minecraft:crossbow", glint: false, customModelData: 3, charged: true, firework: true});
+    assert.deepEqual(parseItem({id: "mymod:tools/hammer"}).id, "mymod:tools/hammer");
+    assert.equal(parseItem(null), null, "empty hand");
+    assert.equal(parseItem({}), null);
+    assert.equal(parseItem({id: "stone"}), null, "the namespace is required");
+    assert.equal(parseItem({id: "minecraft:../../evil"}), null, "the id is used in an url");
+    assert.equal(parseItem({id: "Minecraft:Stone"}), null);
+    assert.equal(parseItem({id: 5}), null);
+
+    const equipment = parseEquipment({mainArm: "left", mainHand: {id: "minecraft:diamond_sword"}, fishing: true});
+    assert.equal(equipment.leftHanded, true);
+    assert.equal(equipment.mainHand.id, "minecraft:diamond_sword");
+    assert.equal(equipment.offHand, null);
+    assert.equal(equipment.fishing, true);
+    assert.deepEqual(parseEquipment({}), {mainHand: null, offHand: null, leftHanded: false, fishing: false, armor: null, head: null, light: 0}, "empty hands");
+    assert.equal(parseEquipment({head: {id: "minecraft:carved_pumpkin"}}).head.id, "minecraft:carved_pumpkin", "item on the head");
+
+    // armor: per slot the texture-layers (vanilla ArmorFeatureRenderer), invalid entries are dropped
+    const armor = parseEquipment({armor: {
+        head: [{texture: "minecraft:models/armor/iron_layer_1"}],
+        legs: [{texture: "minecraft:models/armor/leather_layer_2", color: 0xA06540}, {texture: "minecraft:models/armor/leather_layer_2_overlay"}],
+        chest: [{texture: "../evil"}], feet: "x",
+    }}).armor;
+    assert.deepEqual(armor, {
+        head: [{texture: "minecraft:models/armor/iron_layer_1", color: null}],
+        legs: [{texture: "minecraft:models/armor/leather_layer_2", color: 0xA06540}, {texture: "minecraft:models/armor/leather_layer_2_overlay", color: null}],
+    });
+    assert.equal(parseEquipment({armor: {}}).armor, null);
+    assert.equal(parseEquipment(null), null);
+
+    assert.deepEqual(parseItemUse({hand: "off", action: "block", ticks: 12}), {mainHand: false, action: "block", ticks: 12});
+    assert.deepEqual(parseItemUse({action: "eat"}), {mainHand: true, action: "eat", ticks: 0});
+    assert.equal(parseItemUse({action: "<script>"}), null);
+    assert.equal(parseItemUse(null), null);
+
+    const p = parsePlayer({...v1Player(), equipment: {mainHand: {id: "minecraft:bow"}}, use: {hand: "main", action: "bow", ticks: 5}});
+    assert.equal(p.equipment.mainHand.id, "minecraft:bow");
+    assert.equal(p.use.action, "bow");
+    assert.equal(parsePlayer(v1Player()).equipment, null, "older servers: no equipment");
+
+    const legacy = parsePlayersResponse({protocol: 99, players: [{...v1Player(), equipment: {mainHand: {id: "minecraft:bow"}}}]});
+    assert.equal(legacy.players[0].equipment, null, "unsupported protocol -> only the original fields");
+    assert.equal(legacy.players[0].use, null);
+});
+
+test("riding: the vehicle is parsed, the rider is drawn on the drawn vehicle", () => {
+    const p = parsePlayer({...v1Player(), vehicle: {id: 42, offset: {x: 0.2, y: 0.85, z: -0.3}, bodyYaw: 10, headYaw: -30}});
+    assert.deepEqual(p.vehicle, {id: 42, offset: {x: 0.2, y: 0.85, z: -0.3}, bodyYaw: 10, headYaw: -30});
+    assert.equal(parsePlayer(v1Player()).vehicle, null);
+    assert.equal(parsePlayer({...v1Player(), vehicle: {id: "x", offset: {x: 0, y: 0, z: 0}}}).vehicle, null, "invalid id");
+    assert.equal(parsePlayer({...v1Player(), vehicle: {id: 1}}).vehicle, null, "no offset");
+
+    // the server turns the world-offset into the frame of the vehicle (Vehicle.toLocal): the inverse gives it back
+    const toLocal = (dx, dz, yaw) => {
+        const r = yaw * Math.PI / 180;
+        return {x: dx * Math.cos(r) + dz * Math.sin(r), z: -dx * Math.sin(r) + dz * Math.cos(r)};
+    };
+    for (const yaw of [0, 37, 90, -135, 200]) {
+        const local = toLocal(0.4, -0.7, yaw);
+        const rider = riderOnVehicle({offset: {x: local.x, y: 0.9, z: local.z}, bodyYaw: 5, headYaw: 20}, {x: 10, y: 64, z: -3}, yaw);
+        assert.ok(Math.abs(rider.x - 10.4) < 1e-9 && Math.abs(rider.z - -3.7) < 1e-9, `yaw ${yaw}`);
+        assert.equal(rider.y, 64.9);
+        assert.equal(rider.bodyYaw, yaw + 5);
+        assert.equal(rider.headYaw, yaw + 20);
+    }
+    // the vehicle turns: the rider (e.g. the second seat of a boat) turns with it
+    const seat = riderOnVehicle({offset: {x: 0, y: 0, z: -0.6}, bodyYaw: 0, headYaw: 0}, {x: 0, y: 0, z: 0}, 90);
+    assert.ok(Math.abs(seat.x - 0.6) < 1e-9 && Math.abs(seat.z) < 1e-9);
+});
+
+test("sleeping players: the bed is parsed, the model is moved like vanilla LivingEntityRenderer", () => {
+    const p = parsePlayer({...v1Player(), state: {onGround: true, bed: {direction: "north", offset: 1.52}}});
+    assert.deepEqual(p.state.bed, {direction: "north", offset: 1.52});
+    assert.deepEqual(parsePlayer({...v1Player(), state: {bed: {offset: 1.52}}}).state.bed, {direction: null, offset: 1.52}, "unknown direction");
+    assert.equal(parsePlayer({...v1Player(), state: {onGround: true}}).state.bed, null);
+    // north: getYaw 270, moved by -offset * (offsetX, offsetZ) = (0, +1.52)
+    assert.deepEqual(bedTransform("north", 1.52, 30), {yaw: 270, x: -0, z: 1.52});
+    assert.deepEqual(bedTransform("east", 1.52, 30), {yaw: 180, x: -1.52, z: -0});
+    assert.deepEqual(bedTransform(null, 1.52, 30), {yaw: 30, x: 0, z: 0}, "unknown: the body-yaw");
+});
+
+test("dynamic lights: players with light-emitting items light the map (level - distance)", () => {
+    assert.equal(parseEquipment({light: 14}).light, 14);
+    assert.equal(parseEquipment({light: 99}).light, 15);
+    assert.equal(parseEquipment({light: "x"}).light, 0);
+
+    const torch = {x: 0, y: 65.62, z: 0, level: 14};
+    assert.equal(dynamicBlockLight(0, [torch], 0, 65.62, 0), 14, "at the light");
+    assert.ok(Math.abs(dynamicBlockLight(0, [torch], 4, 65.62, 3) - 9) < 1e-9, "5 blocks away: 14 - 5");
+    assert.equal(dynamicBlockLight(0, [torch], 20, 65, 0), 0, "out of range");
+    assert.equal(dynamicBlockLight(12, [torch], 4, 65.62, 3), 12, "the map is brighter there");
+
+    const marker = (light, x, foreign = false, visible = true) => ({
+        isPlayerMarker: true, visible, lastPlayerData: {foreign, equipment: {light}},
+        anchor: {position: {x, y: 64, z: 0}, yaw: 0},
+    });
+    const lights = playerLights([marker(14, 0), marker(0, 5), marker(15, 10, true), marker(10, 20, false, false), marker(15, 30)]);
+    assert.deepEqual(lights, [{x: 0, y: 64 + LIGHT_HEIGHT, z: 0, level: 14}, {x: 30, y: 64 + LIGHT_HEIGHT, z: 0, level: 15}],
+        "only shown players of this world with a light");
+    const many = playerLights(Array.from({length: 12}, (_, i) => marker(14, i * 10)), {x: 100, y: 0, z: 0});
+    assert.equal(many.length, MAX_DYNAMIC_LIGHTS);
+    assert.equal(many[0].x, 100, "the nearest to the camera first");
+
+    const vec = () => ({x: 0, y: 0, z: 0, w: 0, set(x, y, z, w) { Object.assign(this, {x, y, z, w}); }});
+    const uniforms = {dynamicLights: {value: Array.from({length: 8}, vec)}, dynamicLightCount: {value: 0}};
+    assert.equal(applyDynamicLights(uniforms, lights), true);
+    assert.equal(uniforms.dynamicLightCount.value, 2);
+    assert.equal(uniforms.dynamicLights.value[1].w, 15);
+    assert.equal(applyDynamicLights(uniforms, lights), false, "unchanged: no redraw needed");
+    assert.equal(applyDynamicLights(uniforms, []), true);
+    assert.equal(uniforms.dynamicLightCount.value, 0);
+});

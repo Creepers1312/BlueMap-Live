@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {Color, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, WebGLRenderer} from "three";
+import {Color, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, Vector4, WebGLRenderer} from "three";
 import {Map} from "./map/Map";
 import {SkyboxScene} from "./skybox/SkyboxScene";
 import {ControlsManager} from "./controls/ControlsManager";
@@ -63,6 +63,16 @@ export class MapViewer {
 				skyColor: { value: new Color(0.5, 0.5, 1) },
 				voidColor: { value: new Color(0, 0, 0) },
 				chunkBorders: { value: false },
+				// BlueMap Live: dynamic lights (players holding light-emitting items), see markers/DynamicLights.js
+				dynamicLights: { value: Array.from({length: 8}, () => new Vector4()) },
+				dynamicLightCount: { value: 0 },
+				// BlueMap Live: parts of the tiles that are not drawn (the lids of opened chests, see ChestLidView)
+				hiddenBoxesMin: { value: Array.from({length: 16}, () => new Vector3()) },
+				hiddenBoxesMax: { value: Array.from({length: 16}, () => new Vector3()) },
+				hiddenBoxCount: { value: 0 },
+				// BlueMap Live: changed blocks that are not drawn (see BlockPreviewView)
+				hiddenBlocks: { value: null },
+				hiddenBlockCount: { value: 0 },
 				hiresTileMap: {
 					value: {
 						map: null,
@@ -74,6 +84,8 @@ export class MapViewer {
 				}
 			},
 			superSampling: 1,
+			// BlueMap Live: the highest frame-rate while something moves (0: unlimited, the display-rate)
+			fpsLimit: 0,
 			loadedCenter: new Vector2(0, 0),
 			loadedHiresViewDistance: 200,
 			loadedLowresViewDistance: 2000,
@@ -297,7 +309,8 @@ export class MapViewer {
 		}
 
 		// render
-		if (delta >= 50 || Date.now() - this.lastRedrawChange < 1000) {
+		const minDelta = this.data.fpsLimit > 0 ? 1000 / this.data.fpsLimit - 1 : 0;
+		if (delta >= 50 || (Date.now() - this.lastRedrawChange < 1000 && delta >= minDelta)) {
 			this.lastFrame = now;
 			this.render(delta);
 		}

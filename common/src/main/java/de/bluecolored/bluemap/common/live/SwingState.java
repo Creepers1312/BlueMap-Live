@@ -1,0 +1,61 @@
+/*
+ * This file is part of BlueMap, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) Blue (Lukas Rieger) <https://bluecolored.de>
+ * Copyright (c) contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package de.bluecolored.bluemap.common.live;
+
+/**
+ * The arm-swing (attack/use animation) state of a player.
+ *
+ * @param count increased by one for every new arm-swing (wraps around), clients start a swing-animation whenever it changes
+ * @param leftArm true if the last swing was done with the left arm, false for the right arm
+ * @param kind what the last swing was detected to be (from server-events), {@link Kind#SWING} if nothing specific
+ */
+public record SwingState(int count, boolean leftArm, Kind kind) {
+
+    public SwingState(int count, boolean leftArm) {
+        this(count, leftArm, Kind.SWING);
+    }
+
+    public enum Kind {
+        /** an arm-swing without a detected action (e.g. into the air) */
+        SWING("swing"),
+        /** the player attacked an entity */
+        ATTACK("attack"),
+        /** the player started or continued breaking a block */
+        MINE("mine"),
+        /** the player used an item or interacted with a block */
+        USE("use");
+
+        private final String id;
+
+        Kind(String id) {
+            this.id = id;
+        }
+
+        public String getId() {
+            return id;
+        }
+    }
+
+}

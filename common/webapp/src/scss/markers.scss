@@ -166,7 +166,7 @@
       width: 32px;
       image-rendering: pixelated;
 
-      transition: width 0.3s;
+      transition: width 0.3s, opacity 0.3s;
     }
 
     .bm-player-name {
@@ -191,6 +191,11 @@
       .bm-player-name {
         opacity: 0;
       }
+    }
+
+    // BlueMap Live: the 3d player-model is close and visible, the head-icon would only cover its face
+    &[model-data="near"] img {
+      opacity: 0;
     }
   }
 }

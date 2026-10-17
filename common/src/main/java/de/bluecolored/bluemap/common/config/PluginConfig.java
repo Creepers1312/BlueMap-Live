@@ -37,6 +37,8 @@ import java.util.List;
 public class PluginConfig {
 
     private boolean livePlayerMarkers = true;
+    private int livePlayerUpdateInterval = 250;
+    private boolean livePlayerExtendedData = true;
 
     private List<String> hiddenGameModes = new ArrayList<>();
     private boolean hideVanished = true;
@@ -51,10 +53,67 @@ public class PluginConfig {
 
     private boolean skinDownload = true;
 
+    private boolean liveEntities = true;
+    private int liveEntitiesRadius = 30;
+    private int liveEntitiesLimit = 200;
+    private List<String> liveEntitiesHiddenTypes = new ArrayList<>();
+
+    private boolean liveBlockUpdates = true;
+    private int liveBlockUpdateCooldown = 10;
+    private boolean liveBlockPreview = true;
+    private int liveBlockPreviewRadius = 96;
+
     private int playerRenderLimit = -1;
 
     private int updateCooldown = 60;
     private int fullUpdateInterval = 1440;
+
+    /**
+     * The interval in milliseconds in which player-data is sampled on the server and refreshed for the webapp.
+     * Clamped to 50 (one tick) .. 10000.
+     */
+    public int getLivePlayerUpdateInterval() {
+        return Math.max(50, Math.min(10000, livePlayerUpdateInterval));
+    }
+
+    /**
+     * The radius (blocks) around the shown players in which entities are sent to the webapp. Clamped to 0 .. 128.
+     */
+    public int getLiveEntitiesRadius() {
+        return Math.max(0, Math.min(128, liveEntitiesRadius));
+    }
+
+    /**
+     * The maximum number of entities that are sent to the webapp per map (the nearest first). Clamped to 0 .. 1000.
+     */
+    public int getLiveEntitiesLimit() {
+        return Math.max(0, Math.min(1000, liveEntitiesLimit));
+    }
+
+    /**
+     * BlueMap Live: the cooldown of a region between two renders while live-block-updates are on (instead of the
+     * update-cooldown if that is longer). Clamped to 1 .. 3600 seconds.
+     */
+    public Duration getLiveBlockUpdateCooldown() {
+        return Duration.ofSeconds(Math.max(1, Math.min(3600, liveBlockUpdateCooldown)));
+    }
+
+    /** BlueMap Live: the radius around the shown players in which block-changes are previewed. Clamped to 0 .. 256. */
+    public int getLiveBlockPreviewRadius() {
+        return Math.max(0, Math.min(256, liveBlockPreviewRadius));
+    }
+
+    /** if block-changes are previewed (needs live-block-updates, the previews are confirmed by the rendered tiles) */
+    public boolean isLiveBlockPreviewEnabled() {
+        return liveBlockUpdates && liveBlockPreview && getLiveBlockPreviewRadius() > 0;
+    }
+
+    /** the cooldown of a region between two renders (shorter with live-block-updates) */
+    public Duration getEffectiveUpdateCooldown() {
+        Duration cooldown = getUpdateCooldown();
+        if (liveBlockUpdates && getLiveBlockUpdateCooldown().compareTo(cooldown) < 0) return getLiveBlockUpdateCooldown();
+        return cooldown;
+    }
 
     public Duration getUpdateCooldown() {
         return Duration.ofSeconds(updateCooldown);
