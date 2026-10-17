@@ -157,7 +157,7 @@ Weitere Mobs folgen in späteren `0.3.x`-Versionen. Unbekannte Mobs erscheinen a
 
 **Stand:** umgesetzt und automatisiert getestet (`phase-13.md`), in Minecraft noch nicht geprüft (Q42–Q48). Release-Notes: `releases/v0.6.0-alpha.md`.
 
-**Inhalt:** Folgekamera (Ego, Schulter), Namensschilder und Lebensbalken, Entity-Filter, Weltuhr mit Wetter, LIVE-Anzeige, Voreinstellungen, Live-Wetter im Weltzeit-Modus (Sonne, Mond mit Phasen, Sterne, Wolken, Regen, Schnee, Blitze).
+**Inhalt:** Folgekamera (Ego, Schulter), Namensschilder und Lebensbalken, Entity-Filter, Weltuhr mit Wetter, LIVE-Anzeige, Voreinstellungen, Live-Wetter im Weltzeit-Modus (Sonne, Mond mit Phasen, Sterne, Wolken, Regen, Schnee, Blitze), alle 28 Sprachen.
 
 ---
 

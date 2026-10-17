@@ -103,22 +103,34 @@ Nur aktiv, wenn „Tag-Nacht-Zyklus der Welt“ eingeschaltet ist und die Welt e
 
 **Darstellung:** Sonne, Mond und Sterne werden nach BlueMaps Himmel mit einer eigenen Kamera gezeichnet (gleiche Drehung, Blickwinkel und Seitenverhältnis wie die Kamera der Karte; BlueMaps Himmelskamera behält ihr festes Seitenverhältnis, weil der Himmel nur eine Farbe hat). In der flachen Ansicht (orthografisch) nicht. Wolken und Tropfen liegen in der Marker-Szene; der Tropfen-Shader nutzt den logarithmischen Tiefenpuffer von BlueMaps Renderer.
 
-## 3. Gespeicherte Einstellungen
+## 3. Sprachen
+
+Alle 28 Sprachen aus `lang/settings.conf` haben die Texte von BlueMap Live: die 65 Texte von Deutsch und Englisch, dazu 46 pro weiterer Sprache. „LIVE“ bleibt in allen Sprachen gleich.
+- Die Übersetzungen der 26 weiteren Sprachen sind von mir erstellt und nicht von Muttersprachlern geprüft. Verbesserungen sind willkommen (`public/lang/<sprache>.conf`).
+- Serbisch kyrillisch ist aus dem lateinischen Serbisch transliteriert (BlueMap, Minecraft bleiben lateinisch).
+- Apostrophe als `’`: Der HOCON-Parser der Webapp (`hocon-parser`) liest `'` in Texten falsch.
+- **Fehler im Original behoben:** `id.conf` (Indonesisch) war an 161 Zeilen mit geschützten Leerzeichen (U+00A0) eingerückt. Der Parser las dadurch die Abschnitte ab `lighting` falsch (z. B. `lighting` als leeren Text), diese Texte erschienen auf Englisch. Die Einrückung besteht jetzt aus normalen Leerzeichen, die Texte sind unverändert.
+- Sprachdateien werden beim Laden beim Server neu validiert (`cache: "no-cache"`), damit nach einem Update keine alten Texte aus dem Browser-Cache erscheinen.
+- Test: `Languages.test.mjs` prüft, dass jede Sprache aus `settings.conf` alle Texte von BlueMap Live hat und alle Sprachdateien lesbar sind.
+
+## 4. Gespeicherte Einstellungen
 
 Wie in Phase 12 unter `live.<key>`: `nameTags`, `healthBars`, `followMode`, `weather`, `category.hostile`, `category.animals`, `category.other`, `category.items`, `category.vehicles`. Die Voreinstellung wird nicht gespeichert, sondern aus den Werten erkannt.
 
-## 4. Tests
+## 5. Tests
 
 **Automatisiert:**
 
 | Test | Ergebnis |
 |---|---|
-| Node `npm test` | 176/176, neu `Weather.test.mjs` (6), `QualityPresets.test.mjs` (2); in `LiveEntities.test.mjs` Kategorien, Einstellungen, Beschriftung, Folgekamera; in `WorldTime.test.mjs` Mondphase, Uhr, Wetter, Live-Anzeige |
+| Node `npm test` | 178/178, neu `Weather.test.mjs` (6), `QualityPresets.test.mjs` (2), `Languages.test.mjs` (2); in `LiveEntities.test.mjs` Kategorien, Einstellungen, Beschriftung, Folgekamera; in `WorldTime.test.mjs` Mondphase, Uhr, Wetter, Live-Anzeige |
 | JUnit lokal | 96/96, Texturfilter für Himmel und Wetter |
 | Browser `qol-e2e.mjs` (neu) | 14/14: Filter nach Kategorie, Schalter im Menü, Namensschild, Lebensbalken (Mob und Spieler, Spielername ausgeblendet), Entfernen der Beschriftung, Uhr mit Wetter und Mondphase, Live-Anzeige grün → gelb → rot → grün, Voreinstellungen, Ego- und Schulterkamera (Position, Modell aus/an), Sonne mittags senkrecht (Pixel), Mond der Phase 2 um Mitternacht (Pixel), Regen, Schnee, kein Niederschlag, Blitz hellt die Karte auf und klingt ab, Wolken von oben (Pixel), Abschalten |
 | Browser `display`, `particles`, `blocks`, `worldtime`, `entities`, `mobs`, `playback`, `animation`, `items`, `player` | 6/6, 13/13, 15/15, 9/9, 12/12, 15/15, 6/6, 19/19, 16/16, 22/22. `particles`: Die Prüfung „nichts mehr gezeichnet“ wartet jetzt auf das nächste Bild (die Gruppe wird ein Bild nach dem letzten Partikel ausgeblendet; vorher gelegentlich fehlgeschlagen). |
 | Regression gegen das Original | in dieser Phase nicht erneut ausgeführt |
 
 Die Fabric-Seite (Spawn-Gruppe, Lebenspunkte, Biom-Niederschlag, Mondphase) wird nur im CI kompiliert und ist nicht gegen ein laufendes Minecraft getestet.
+
+| Browser, Sprachen | Französisch, Japanisch, Serbisch (kyrillisch), Indonesisch: Menü, Uhr und LIVE-Anzeige übersetzt, keine unübersetzten Schlüssel, keine Fehler |
 
 **Manuell in Minecraft:** Q42–Q48 in `singleplayer-test.md`, offen.
