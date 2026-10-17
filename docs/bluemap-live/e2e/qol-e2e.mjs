@@ -169,6 +169,35 @@ await step("labels are removed with their entity", async () => {
     assert.equal(await page.evaluate(() => [...document.querySelectorAll(".bm-entity-name")].filter(e => e.textContent === "Berta").length), 0);
 });
 
+await step("world-clock: time and weather of the world in the control-bar, runs with the cycle", async () => {
+    await control({dayTime: 6000, rain: 0, thunder: 0, cycle: 1});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10, health: 15, maxHealth: 20});
+    await page.waitForFunction(() => document.querySelector(".world-clock .world-clock-time")?.textContent.startsWith("12:0"), null, {timeout: 10000});
+    assert.equal(await page.evaluate(() => document.querySelector(".world-clock-icon").classList.contains("weather-sun")), true);
+    await control({dayTime: 18000, rain: 1, thunder: 1, cycle: 0, moonPhase: 4});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10});
+    await page.waitForFunction(() => document.querySelector(".world-clock .world-clock-time")?.textContent === "00:00", null, {timeout: 10000});
+    const clock = await page.evaluate(() => ({thunder: document.querySelector(".world-clock-icon").classList.contains("weather-thunder"),
+        title: document.querySelector(".world-clock").title}));
+    assert.equal(clock.thunder, true);
+    assert.ok(clock.title.includes("Thunderstorm") && clock.title.includes("New moon"), clock.title);
+    await page.screenshot({path: `${OUT}/q04-clock.png`, clip: {x: 600, y: 0, width: 680, height: 50}});
+    await control({dayTime: "none"});
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10});
+    await page.waitForFunction(() => !document.querySelector(".world-clock"), null, {timeout: 10000});
+});
+
+await step("live-indicator: green while players.json arrives, red when the endpoint is down, green again", async () => {
+    await page.waitForFunction(() => document.querySelector(".live-indicator")?.classList.contains("live-live"), null, {timeout: 10000});
+    await control({down: 1});
+    await page.waitForFunction(() => document.querySelector(".live-indicator")?.classList.contains("live-delayed"), null, {timeout: 10000});
+    await page.waitForFunction(() => document.querySelector(".live-indicator")?.classList.contains("live-offline"), null, {timeout: 20000});
+    assert.equal(await page.evaluate(() => document.querySelector(".live-indicator").title), "No connection to the live data");
+    await page.screenshot({path: `${OUT}/q05-offline.png`, clip: {x: 600, y: 0, width: 680, height: 50}});
+    await control({down: 0});
+    await page.waitForFunction(() => document.querySelector(".live-indicator")?.classList.contains("live-live"), null, {timeout: 25000});
+});
+
 //__MORE__
 
 await step("no uncaught errors", async () => {

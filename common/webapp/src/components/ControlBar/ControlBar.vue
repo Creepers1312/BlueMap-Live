@@ -45,6 +45,9 @@
     <div class="space thin-hide greedy"></div>
     <DayNightSwitch v-if="showMapMenu" class="thin-hide" :title="$t('lighting.dayNightSwitch.tooltip')" />
     <WorldTimeSwitch v-if="showMapMenu && appState.worldTime.available" class="thin-hide" :title="$t('lighting.worldTime.tooltip')" />
+    <WorldClock v-if="showMapMenu && appState.worldTime.available && appState.worldTime.clock" class="thin-hide" />
+    <div class="space thin-hide" v-if="showMapMenu && appState.live.connection !== 'unknown'"></div>
+    <LiveIndicator v-if="showMapMenu && appState.live.connection !== 'unknown'" class="thin-hide" />
     <div class="space thin-hide"></div>
     <ControlsSwitch v-if="showMapMenu && showViewControls" class="thin-hide"></ControlsSwitch>
     <div class="space thin-hide" v-if ="showViewControls"></div>
@@ -66,6 +69,8 @@
   import Compass from "./Compass.vue";
   import DayNightSwitch from "./DayNightSwitch.vue";
   import WorldTimeSwitch from "./WorldTimeSwitch.vue";
+  import WorldClock from "./WorldClock.vue";
+  import LiveIndicator from "./LiveIndicator.vue";
   import ControlsSwitch from "./ControlsSwitch.vue";
   import MenuButton from "./MenuButton.vue";
   import SvgButton from "./SvgButton.vue";
@@ -78,6 +83,8 @@
       ControlsSwitch,
       DayNightSwitch,
       WorldTimeSwitch,
+      WorldClock,
+      LiveIndicator,
       PositionInput,
       Compass
     },

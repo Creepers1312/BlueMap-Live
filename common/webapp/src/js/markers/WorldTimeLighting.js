@@ -23,7 +23,7 @@
  * THE SOFTWARE.
  */
 
-import {currentDayTime, worldSunlight} from "./WorldTime.js";
+import {currentDayTime, isDayTime, worldClock, worldSunlight, worldWeather} from "./WorldTime.js";
 import {ENTITY_LIGHT, entityLight} from "./EntityLighting.js";
 
 /*
@@ -96,6 +96,7 @@ export class WorldTimeLighting {
 
     /** applies the world-time to the map-lighting (if enabled and available) */
     update() {
+        this.updateClock();
         if (this.state.enabled) {
             const sunlight = this.worldSunlight;
             if (sunlight !== null && Math.abs(this.uniforms.sunlightStrength.value - sunlight) >= MIN_CHANGE) {
@@ -104,6 +105,20 @@ export class WorldTimeLighting {
             }
         }
         this.updateEntityLight();
+    }
+
+    /** the world-clock and weather of the control-bar (state.clock, state.weather, state.day, state.moonPhase) */
+    updateClock() {
+        if (!this.world) {
+            this.state.clock = null;
+            return;
+        }
+        const dayTime = currentDayTime(this.world, (this.now() - this.sampleTime) / 1000);
+        const clock = worldClock(dayTime), weather = worldWeather(this.world), day = isDayTime(dayTime);
+        if (this.state.clock !== clock) this.state.clock = clock;
+        if (this.state.weather !== weather) this.state.weather = weather;
+        if (this.state.day !== day) this.state.day = day;
+        if (this.state.moonPhase !== this.world.moonPhase) this.state.moonPhase = this.world.moonPhase ?? 0;
     }
 
     /** the live entities are lit like the map (outdoors), see EntityLighting */

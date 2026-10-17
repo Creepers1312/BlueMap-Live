@@ -105,3 +105,44 @@ test("WorldTimeLighting: sets the sunlight only when enabled and available, foll
         ENTITY_LIGHT.value = 1;
     }
 });
+
+import {isDayTime, worldClock, worldWeather} from "../src/js/markers/WorldTime.js";
+import {liveConnectionState} from "../src/js/markers/LiveConnection.js";
+
+test("world-clock: the time of day like the game (0 ticks = 06:00), weather and day", () => {
+    assert.equal(worldClock(0), "06:00");
+    assert.equal(worldClock(6000), "12:00");
+    assert.equal(worldClock(18000), "00:00");
+    assert.equal(worldClock(13500), "19:30");
+    assert.equal(worldClock(23999), "05:59");
+    assert.equal(worldWeather({rain: 0.1, thunder: 0}), "clear");
+    assert.equal(worldWeather({rain: 1, thunder: 0.5}), "rain");
+    assert.equal(worldWeather({rain: 1, thunder: 1}), "thunder");
+    assert.deepEqual([0, 12999, 13000, 22999, 23000].map(isDayTime), [true, true, false, false, true]);
+});
+
+test("WorldTimeLighting: the clock of the control-bar runs with the world-time", () => {
+    const state = {enabled: false, available: false};
+    let now = 0;
+    const lighting = new WorldTimeLighting({sunlightStrength: {value: 1}, ambientLight: {value: 0}}, state, null, null, () => now);
+    try {
+        lighting.setWorld({dayTime: 13000, rain: 1, thunder: 0, cycle: true, moonPhase: 4});
+        assert.deepEqual({clock: state.clock, weather: state.weather, day: state.day, moonPhase: state.moonPhase},
+            {clock: "19:00", weather: "rain", day: false, moonPhase: 4});
+        now = 50000; // 1000 ticks
+        lighting.update();
+        assert.equal(state.clock, "20:00");
+        lighting.setWorld(null);
+        assert.equal(state.clock, null);
+    } finally {
+        lighting.dispose();
+    }
+});
+
+test("live-indicator: live, delayed and offline from the age of the last response", () => {
+    assert.equal(liveConnectionState(null, 1000), "unknown");
+    assert.equal(liveConnectionState(0, 2000, 1000), "live");
+    assert.equal(liveConnectionState(0, 5000, 1000), "delayed");
+    assert.equal(liveConnectionState(0, 16000, 1000), "offline");
+    assert.equal(liveConnectionState(0, 5000, 2000), "live", "3 slower update-intervals");
+});

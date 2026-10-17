@@ -85,3 +85,36 @@ export function currentDayTime(world, secondsSinceSample) {
     const time = world.cycle ? world.dayTime + Math.max(0, secondsSinceSample) * 20 : world.dayTime;
     return time % 24000;
 }
+
+/**
+ * The time of day as a clock like the game (0 ticks = 06:00, 1000 ticks per hour).
+ * @param dayTime {number} - ticks
+ * @returns {string} "HH:MM"
+ */
+export function worldClock(dayTime) {
+    const t = ((Math.floor(dayTime) % 24000) + 24000) % 24000;
+    const hours = (Math.floor(t / 1000) + 6) % 24;
+    const minutes = Math.floor((t % 1000) * 60 / 1000);
+    return String(hours).padStart(2, "0") + ":" + String(minutes).padStart(2, "0");
+}
+
+/**
+ * The weather of the world: vanilla World.isRaining (rain-gradient > 0.2), isThundering (thunder-gradient > 0.9,
+ * the server sends World.getThunderGradient, which already includes the rain).
+ * @param world {{rain: number, thunder: number}}
+ * @returns {"clear" | "rain" | "thunder"}
+ */
+export function worldWeather(world) {
+    if (world.rain <= 0.2) return "clear";
+    return world.thunder > 0.9 ? "thunder" : "rain";
+}
+
+/**
+ * If the sun is up (vanilla: day between 23000 and 13000 ticks, the sun rises at 23000)
+ * @param dayTime {number}
+ * @returns {boolean}
+ */
+export function isDayTime(dayTime) {
+    const t = ((dayTime % 24000) + 24000) % 24000;
+    return t < 13000 || t >= 23000;
+}

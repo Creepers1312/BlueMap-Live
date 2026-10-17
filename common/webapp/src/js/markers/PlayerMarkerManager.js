@@ -130,6 +130,8 @@ export class PlayerMarkerManager extends MarkerManager {
      */
     updateFromData(markerFileData) {
         let playerMarkerSet = this.getPlayerMarkerSet(Array.isArray(markerFileData.players));
+        // BlueMap Live: a successful response for the live-indicator (see LiveConnection)
+        if (Array.isArray(markerFileData.players) && this.onLiveData) this.onLiveData(Date.now());
         if (!playerMarkerSet) return false;
         const result = playerMarkerSet.updateFromPlayerData(markerFileData);
         // BlueMap Live: every response is a new sample of the world-time (see WorldTimeLighting)

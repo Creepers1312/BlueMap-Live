@@ -22,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+import {liveConnectionState} from "./markers/LiveConnection";
 import {LIVE_DISPLAY, LIVE_DISPLAY_KEYS, liveDisplayValue, setLiveDisplayValue} from "./markers/LiveDisplay";
 import {LiveTileUpdater, TILE_UPDATE_INTERVAL} from "./map/LiveTileUpdater";
 import "./BlueMap";
@@ -116,7 +117,12 @@ export class BlueMapApp {
             // BlueMap Live: the map-lighting follows the day-night-cycle of the world
             worldTime: {
                 enabled: false,
-                available: false
+                available: false,
+                // the world-clock of the control-bar (WorldTimeLighting.updateClock)
+                clock: null,
+                weather: "clear",
+                day: true,
+                moonPhase: 0,
             },
             // BlueMap Live: the playback-delay of the live-data and the frame-rate-limit
             live: {
@@ -132,8 +138,14 @@ export class BlueMapApp {
                 categories: {...LIVE_DISPLAY.categories},
                 // the radius around the players in which the server sends entities (live-entities-radius)
                 serverRadius: 30,
+                // the live-connection (LiveConnection): last successful players.json (client-time) and its state
+                lastData: null,
+                connection: "unknown",
             }
         });
+
+        // BlueMap Live: the live-indicator follows the age of the live-data
+        this.liveConnectionInterval = setInterval(() => this.updateLiveConnection(), 1000);
 
         // init
         this.updateControlsSettings();
@@ -451,6 +463,13 @@ export class BlueMapApp {
         this.mapViewer.redraw();
     }
 
+    /** BlueMap Live: the state of the live-indicator from the age of the last players.json (see LiveConnection) */
+    updateLiveConnection() {
+        const interval = this.playerMarkerManager ? this.playerMarkerManager.updateInterval : 1000;
+        const state = liveConnectionState(this.appState.live.lastData, Date.now(), interval);
+        if (this.appState.live.connection !== state) this.appState.live.connection = state;
+    }
+
     /** BlueMap Live: the highest frame-rate while something moves (0: unlimited) */
     setFpsLimit(limit) {
         this.mapViewer.data.fpsLimit = Math.max(0, Number(limit) || 0);
@@ -479,6 +498,10 @@ export class BlueMapApp {
             this.mapViewer.redraw,
             map.data.mapDataRoot + "/assets/items/"
         );
+        // BlueMap Live: the live-indicator of the control-bar
+        this.appState.live.lastData = null;
+        this.playerMarkerManager.onLiveData = time => this.appState.live.lastData = time;
+        this.updateLiveConnection();
         // BlueMap Live: dynamic lights of the players in the map-shader
         this.playerMarkerManager.lightUniforms = this.mapViewer.data.uniforms;
         this.playerMarkerManager.camera = this.mapViewer.camera;
