@@ -210,7 +210,10 @@ public class FabricMod implements ModInitializer, Server {
                 this.flushBlockChanges(server);
                 this.trackSwings(server);
                 this.updateSomePlayers();
-                this.sampleLiveEntities(server);
+                long sampleStart = System.nanoTime();
+                boolean sampled = this.sampleLiveEntities(server);
+                if (sampled) de.bluecolored.bluemap.common.live.LiveStats.add(
+                        de.bluecolored.bluemap.common.live.LiveStats.ENTITY_SAMPLE_NANOS, System.nanoTime() - sampleStart);
             }
         });
 
@@ -385,8 +388,9 @@ public class FabricMod implements ModInitializer, Server {
      * Samples the entities around all players, once per live-player-update-interval.
      * Only call this method on the server-thread.
      */
-    private void sampleLiveEntities(MinecraftServer server) {
-        if (++liveEntitySampleTicks < getPlayerUpdateIntervalTicks()) return;
+    /** @return if it sampled in this tick */
+    private boolean sampleLiveEntities(MinecraftServer server) {
+        if (++liveEntitySampleTicks < getPlayerUpdateIntervalTicks()) return false;
         liveEntitySampleTicks = 0;
 
         // the time and weather of the worlds with a day-night-cycle (cheap: a few field-reads per world);
@@ -407,7 +411,7 @@ public class FabricMod implements ModInitializer, Server {
         PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
         if (config == null || !config.isLiveEntities() || !config.isLivePlayerMarkers() || config.getLiveEntitiesRadius() <= 0) {
             liveEntities = Map.of();
-            return;
+            return true;
         }
 
         double radius = config.getLiveEntitiesRadius();
@@ -437,6 +441,7 @@ public class FabricMod implements ModInitializer, Server {
             if (!list.isEmpty()) opened.put(getServerWorld(world).getDimension(), list);
         }
         openContainers = opened;
+        return true;
     }
 
     private static @Nullable LiveEntityState toLiveEntity(Entity entity, long now) {

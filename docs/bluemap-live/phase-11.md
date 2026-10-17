@@ -96,21 +96,31 @@ Rendert eine Region gerade erst, kommen bis zu 10 s Abklingzeit dazu. Läuft ger
 - Ausgeblendet wird erst, wenn der eigene Deckel gezeichnet werden kann. Lädt die Textur noch oder fehlt sie, bleibt der geschlossene Kachel-Deckel sichtbar.
 - **Zeitpunkt:** Öffnen und Schließen kommen zur Wiedergabezeit (Phase 9), wie die Entities.
 
-## 4. Abweichungen und Grenzen
+## 4. Last messen: `/bluemap live-stats`
+
+Zeigt für die letzte Minute, was die Live-Funktionen auf dem Server kosten (Berechtigung `bluemap.live-stats`, ohne Berechtigungs-Mod: OP-Stufe 1 oder Konsole):
+- **Server-Thread** (ein Tick darf 50 ms dauern): Blockänderungen pro Sekunde, wie viele über dem Limit nicht als Vorschau kamen, Zeit der Auswertung pro Tick (Durchschnitt und Höchstwert); Abtasten von Entities, Truhen und Tageszeit; zusammen als Anteil des Server-Threads.
+- **Render-Threads** (neben dem Spiel): neu gerenderte Kacheln, sofort gespeicherte Lowres-Kacheln, gebackene Blockmodelle.
+- **Webserver:** wie oft und wie lange `players.json`, `entities.json` und `tiles.json` gebaut werden.
+- Die aktuellen Einstellungen (`live-block-updates`, `live-block-preview`, Abklingzeit der Regionen).
+
+Gemessen wird mit wenigen Zählern pro Ereignis (`LiveStats`, 60 Sekunden-Fächer).
+
+## 5. Abweichungen und Grenzen
 
 - **Geschwindigkeit:** Die Vorschau erscheint sofort. Die gerenderte Kachel kommt etwa 10–20 s später, unter Last später, weil Minecraft dann seltener speichert.
 - **Nicht animiert:** Shulkerkisten, Türen, Falltüren, Hebel und Knöpfe. Ihr neuer Zustand erscheint mit den Blockänderungen.
 - **Mehr als 8 offene Truhen** gleichzeitig im Bild: Bei den übrigen bleibt der geschlossene Kachel-Deckel unter dem offenen Deckel sichtbar.
 - **Versteckte Spieler:** Eine Truhe, die ein ausgeblendeter Spieler öffnet, wird angezeigt, wenn ein angezeigter Spieler in der Nähe ist. Das entspricht dem, was andere Spieler im Spiel sehen.
 
-## 5. Tests
+## 6. Tests
 
 **Automatisiert:**
 
 | Test | Ergebnis |
 |---|---|
 | Node `npm test` | 159/159, neu `LiveTiles.test.mjs` (5), `ChestLids.test.mjs` (7), `BlockPreview.test.mjs` (7: Asset-Namen, Daten, Bestätigung nach Chunk-Zeit, Verwerfen, sichtbare Flächen, Hash-Tabelle, Geometrie) |
-| JUnit lokal | 93/93, neu `LiveTileLogTest`, `LiveBlockLogTest`, `BlockModelBakerTest` (Varianten, Drehung samt Cullface, voller Würfel, Asset-Namen), Truhen und Blockänderungen im Data-Supplier |
+| JUnit lokal | 95/95, neu `LiveStatsTest`, `LiveTileLogTest`, `LiveBlockLogTest`, `BlockModelBakerTest` (Varianten, Drehung samt Cullface, voller Würfel, Asset-Namen), Truhen und Blockänderungen im Data-Supplier |
 | Browser `blocks-e2e.mjs` | 15/15: Kachel ohne Lücke neu geladen (unter 4 s), keine doppelten oder ungeladenen Anfragen, Lowres neu geladen, neuer Cache-Hash nach Kartenwechsel, keine alten Änderungen beim Öffnen, Truhen; **Vorschau:** gesetzter Block nach unter 1,5 s sichtbar (Pixel), abgebauter Block mit Loch und Nachbarfläche (Pixel), keine Bestätigung durch ältere Chunk-Daten, Bestätigung und Entfernen nach neuer Kachel, Verwerfen nach 90 s |
 | Browser übrige Suiten | `entities` 12/12, `mobs` 15/15, `playback` 6/6, `player` 21/22 (der bekannte Skin-Schritt), `animation` 19/19, `items` 16/16, `worldtime` 9/9, `particles` 13/13 (die Pixelprüfung der Explosion zählt jetzt auch dunkelgraue Wolken) |
 

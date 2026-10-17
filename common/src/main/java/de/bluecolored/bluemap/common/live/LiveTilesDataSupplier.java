@@ -44,6 +44,15 @@ public class LiveTilesDataSupplier implements Supplier<String> {
 
     @Override
     public String get() {
+        long start = System.nanoTime();
+        try {
+            return build();
+        } finally {
+            LiveStats.add(LiveStats.TILES_JSON_NANOS, System.nanoTime() - start);
+        }
+    }
+
+    private String build() {
         try (StringWriter out = new StringWriter(); JsonWriter json = new JsonWriter(out)) {
             log.write(json, System.currentTimeMillis());
             json.flush();

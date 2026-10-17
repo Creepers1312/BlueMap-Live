@@ -25,6 +25,7 @@
 package de.bluecolored.bluemap.fabric;
 
 import de.bluecolored.bluemap.common.live.LiveBlockLog;
+import de.bluecolored.bluemap.common.live.LiveStats;
 import net.minecraft.block.BlockState;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
@@ -71,14 +72,22 @@ public final class FabricBlockChanges {
         Set<Long> set = CHANGED.computeIfAbsent(world, w -> new LinkedHashSet<>());
         synchronized (set) {
             if (set.size() < MAX_PER_TICK) set.add(pos.asLong());
+            else DROPPED.incrementAndGet();
         }
     }
+
+    /** the changes that were not recorded since the last flush (more than the limit per tick) */
+    private static final java.util.concurrent.atomic.AtomicLong DROPPED = new java.util.concurrent.atomic.AtomicLong();
 
     /**
      * Once per tick (server-thread): the changes around the players become entries of the log of their world.
      * @param logs the log of a world
      */
     static void flush(List<ServerWorld> worlds, java.util.function.Function<ServerWorld, LiveBlockLog> logs, double radius, long now) {
+        long start = System.nanoTime();
+        int recorded = 0;
+        long dropped = DROPPED.getAndSet(0);
+        if (dropped > 0) LiveStats.add(LiveStats.BLOCK_CHANGES_DROPPED, dropped);
         for (ServerWorld world : worlds) {
             Set<Long> set = CHANGED.get(world);
             if (set == null) continue;
@@ -112,8 +121,11 @@ public final class FabricBlockChanges {
                 }
                 if (log == null) log = logs.apply(world);
                 log.add(pos.getX(), pos.getY(), pos.getZ(), toString(world.getBlockState(pos)), neighbors, now);
+                recorded++;
             }
         }
+        if (recorded > 0) LiveStats.add(LiveStats.BLOCK_CHANGES, recorded);
+        LiveStats.add(LiveStats.BLOCK_FLUSH_NANOS, System.nanoTime() - start);
     }
 
     /** <code>minecraft:oak_stairs[facing=east,half=bottom,...]</code> with the properties sorted like BlueMap */

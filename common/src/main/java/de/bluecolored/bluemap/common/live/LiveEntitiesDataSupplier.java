@@ -98,6 +98,15 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
 
     @Override
     public String get() {
+        long start = System.nanoTime();
+        try {
+            return build();
+        } finally {
+            LiveStats.add(LiveStats.ENTITIES_JSON_NANOS, System.nanoTime() - start);
+        }
+    }
+
+    private String build() {
         if (serverWorld == null)
             serverWorld = server.getServerWorld(world).orElse(null);
 

@@ -173,7 +173,10 @@ public class ItemAssetUpdater {
                     requestedBlocks.remove(state); // not ready yet
                     return;
                 }
+                long start = System.nanoTime();
                 byte[] json = new ItemModelBaker(resources).bakeBlock(state).getBytes(StandardCharsets.UTF_8);
+                de.bluecolored.bluemap.common.live.LiveStats.add(de.bluecolored.bluemap.common.live.LiveStats.BLOCK_ASSET_NANOS,
+                        System.nanoTime() - start);
                 for (MapStorage storage : mapStorages) {
                     try (OutputStream out = storage.asset(blockAssetName(state)).write()) {
                         out.write(json);

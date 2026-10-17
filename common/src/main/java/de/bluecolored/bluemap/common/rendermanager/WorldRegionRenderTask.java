@@ -258,7 +258,10 @@ public class WorldRegionRenderTask implements MapRenderTask {
             updatedTiles.clear();
         }
         if (LiveTileLog.isEnabled() && !updated.isEmpty() && updated.size() <= LIVE_LOWRES_SAVE_LIMIT) {
+            long start = System.nanoTime();
             map.getLowresTileManager().save();
+            de.bluecolored.bluemap.common.live.LiveStats.add(de.bluecolored.bluemap.common.live.LiveStats.LOWRES_SAVE_NANOS,
+                    System.nanoTime() - start);
             LiveTileLog log = LiveTileLog.of(map.getId());
             long now = System.currentTimeMillis();
             for (Vector2i tile : updated) log.lowres(tile.getX(), tile.getY(), now);
@@ -301,6 +304,7 @@ public class WorldRegionRenderTask implements MapRenderTask {
     private final List<Vector2i> updatedTiles = new ArrayList<>();
 
     private void updated(Vector2i tile) {
+        de.bluecolored.bluemap.common.live.LiveStats.add(de.bluecolored.bluemap.common.live.LiveStats.TILES_RENDERED, 1);
         LiveTileLog.of(map.getId()).hires(tile.getX(), tile.getY(), System.currentTimeMillis(), renderedChunkTimes(tile));
         synchronized (updatedTiles) {
             if (updatedTiles.size() <= LIVE_LOWRES_SAVE_LIMIT) updatedTiles.add(tile);
