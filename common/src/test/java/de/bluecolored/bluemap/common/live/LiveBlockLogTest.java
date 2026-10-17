@@ -58,6 +58,29 @@ public class LiveBlockLogTest {
     }
 
     @Test
+    public void testTheLightIsWrittenWhenKnown() throws IOException {
+        LiveBlockLog log = new LiveBlockLog();
+        log.add(1, 64, 1, "minecraft:torch", null, 1000, 15, 14, 14);
+        log.add(2, 64, 1, "minecraft:stone", null, 1001);
+        log.add(3, 64, 1, "minecraft:glowstone", null, 1002, 20, -5, 99);
+        StringWriter out = new StringWriter();
+        try (JsonWriter json = new JsonWriter(out)) {
+            LiveEntitiesJson.write(json, 2000, 250, List.of(), List.of(), List.of(), log.recent(2000));
+        }
+        JsonArray changes = JsonParser.parseString(out.toString()).getAsJsonObject().getAsJsonObject("blocks").getAsJsonArray("changes");
+        JsonArray torch = changes.get(0).getAsJsonArray();
+        assertEquals(15, torch.size(), "id, x, y, z, state, 6 neighbors, time, sky, block, luminance");
+        assertEquals(15, torch.get(12).getAsInt());
+        assertEquals(14, torch.get(13).getAsInt());
+        assertEquals(14, torch.get(14).getAsInt());
+        assertEquals(12, changes.get(1).getAsJsonArray().size(), "unknown light: not written");
+        assertEquals(12, changes.get(2).getAsJsonArray().size(), "a negative block-light is unknown");
+        LiveBlockLog.Change glowstone = log.recent(2000).get(2);
+        assertEquals(15, glowstone.skyLight(), "clamped");
+        assertEquals(15, glowstone.luminance(), "clamped");
+    }
+
+    @Test
     public void testBlocksAreWrittenWithAPalette() throws IOException {
         LiveBlockLog log = new LiveBlockLog();
         log.add(10, 64, -3, "minecraft:air", new String[] {"minecraft:stone", null, null, null, "minecraft:dirt", "minecraft:stone"}, 1234);

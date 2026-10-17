@@ -26,7 +26,59 @@ import {BufferGeometry, DataTexture, DoubleSide, Float32BufferAttribute, FloatTy
     NearestFilter, RGBAFormat, Texture} from "three";
 import {applyEntityShader} from "../EntityLighting.js";
 import {ASSET_VERSION, MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
-import {blockAssetName, blockTint, buildHiddenTable, previewParts, TABLE_SIZE} from "./BlockPreviewData.js";
+import {blockAssetName, blockTint, buildHiddenTable, DEFAULT_LIGHT, isAir, previewParts, TABLE_SIZE} from "./BlockPreviewData.js";
+import {MAX_DYNAMIC_LIGHTS} from "../DynamicLights.js";
+
+/**
+ * Lights a preview-material like the hires-tiles (HiresFragmentShader): the sky-light of the vertex with the
+ * sunlight-strength, the block-light raised by the dynamic lights, then mix(ambientLight, 1, light / 15).
+ * @param material {import("three").Material}
+ * @param uniforms {{sunlightStrength: {value: number}, ambientLight: {value: number},
+ *     dynamicLights: {value: Array}, dynamicLightCount: {value: number}}} - the map-uniforms
+ * @returns {import("three").Material}
+ */
+export function applyPreviewLighting(material, uniforms) {
+    material.onBeforeCompile = shader => {
+        shader.uniforms.bmSunlight = uniforms.sunlightStrength;
+        shader.uniforms.bmAmbient = uniforms.ambientLight;
+        shader.uniforms.bmLights = uniforms.dynamicLights;
+        shader.uniforms.bmLightCount = uniforms.dynamicLightCount;
+        shader.vertexShader = "attribute vec2 bmLight;\nvarying vec2 vBmLight;\nvarying vec3 vBmWorld;\n" + shader.vertexShader.replace(
+            "#include <project_vertex>",
+            "#include <project_vertex>\n\tvBmLight = bmLight;\n\tvBmWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;"
+        );
+        shader.fragmentShader = `uniform float bmSunlight;
+uniform float bmAmbient;
+uniform vec4 bmLights[${MAX_DYNAMIC_LIGHTS}];
+uniform int bmLightCount;
+varying vec2 vBmLight;
+varying vec3 vBmWorld;
+` + shader.fragmentShader.replace("#include <output_fragment>", `#include <output_fragment>
+	float bmBlock = vBmLight.y;
+	for (int i = 0; i < ${MAX_DYNAMIC_LIGHTS}; i++) {
+		if (i >= bmLightCount) break;
+		bmBlock = max(bmBlock, clamp(bmLights[i].w - length(vBmWorld - bmLights[i].xyz), 0.0, 15.0));
+	}
+	float bmLightLevel = mix(bmBlock, max(vBmLight.x, bmBlock), bmSunlight);
+	gl_FragColor.rgb *= mix(bmAmbient, 1.0, bmLightLevel / 15.0);`);
+    };
+    material.customProgramCacheKey = () => "bluemap-live-block-preview-lit";
+    return material;
+}
+
+/**
+ * The light-emitting previews (e.g. a placed torch) as dynamic lights, until the tile with the block-light is rendered.
+ * @param previews {Iterable<{x: number, y: number, z: number, state: string, light: {luminance: number} | null}>}
+ * @returns {Array<{x: number, y: number, z: number, level: number}>}
+ */
+export function previewLights(previews) {
+    const lights = [];
+    for (const preview of previews) {
+        if (!preview.light || preview.light.luminance <= 0 || isAir(preview.state)) continue;
+        lights.push({x: preview.x + 0.5, y: preview.y + 0.5, z: preview.z + 0.5, level: preview.light.luminance});
+    }
+    return lights;
+}
 
 /*
  * Draws the previews of changed blocks (BlueMap Live, see BlockPreviewData.js) and hides the old blocks in the tiles
@@ -185,7 +237,7 @@ export function onSide(quads, o, code) {
  * @returns {BufferGeometry | null}
  */
 export function buildPreviewGeometry(quads, texture, placements, tint) {
-    const positions = [], uvs = [], colors = [];
+    const positions = [], uvs = [], colors = [], lights = [];
     const tr = ((tint >> 16) & 255) / 255, tg = ((tint >> 8) & 255) / 255, tb = (tint & 255) / 255;
     const count = Math.floor(quads.length / QUAD);
     for (const placement of placements) {
@@ -207,6 +259,9 @@ export function buildPreviewGeometry(quads, texture, placements, tint) {
                 positions.push(...p(corner));
                 uvs.push(quads[o + 12 + corner * 2], 1 - quads[o + 12 + corner * 2 + 1]);
                 colors.push(s * (tinted ? tr : 1), s * (tinted ? tg : 1), s * (tinted ? tb : 1));
+                // sky- and block-light like the vertices of the hires-tiles (see previewMaterialShader)
+                const light = placement.light || DEFAULT_LIGHT;
+                lights.push(light.sky, light.block);
             }
         }
     }
@@ -215,6 +270,7 @@ export function buildPreviewGeometry(quads, texture, placements, tint) {
     geometry.setAttribute("position", new Float32BufferAttribute(positions, 3));
     geometry.setAttribute("uv", new Float32BufferAttribute(uvs, 2));
     geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
+    geometry.setAttribute("bmLight", new Float32BufferAttribute(lights, 2));
     return geometry;
 }
 
@@ -224,9 +280,13 @@ export class BlockPreviewView {
      * @param store {import("./BlockPreviewData.js").PreviewStore}
      * @param assets {BlockAssetCache}
      */
-    constructor(store, assets) {
+    constructor(store, assets, uniforms = null) {
         this.store = store;
         this.assets = assets;
+        /** @type {function(): object | null} the map-uniforms (light like the tiles), null: lit like the entities */
+        this.uniforms = typeof uniforms === "function" ? uniforms : () => uniforms;
+        /** the light-emitting previews (see previewLights) */
+        this.lights = [];
         this.group = new Group();
         this.group.name = "bm-live-block-previews";
         this.meshes = [];
@@ -274,6 +334,7 @@ export class BlockPreviewView {
         this.builtVersion = this.store.version;
         this.assetsChanged = false;
         this.clearMeshes();
+        this.lights = previewLights(this.store.previews.values());
 
         // the parts of all previews, grouped by block-state
         const byState = new Map();
@@ -310,9 +371,12 @@ export class BlockPreviewView {
         let material = this.materials.get(texture);
         if (!material) {
             // drawn a bit in front of the tile (the same faces can be in the tile, e.g. the neighbor-faces)
-            material = applyEntityShader(new MeshBasicMaterial({map: texture, vertexColors: true, alphaTest: 0.1,
-                transparent: true, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2}),
-                "", "block-preview");
+            material = new MeshBasicMaterial({map: texture, vertexColors: true, alphaTest: 0.1,
+                transparent: true, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2});
+            const uniforms = this.uniforms();
+            // lit like the tiles (sky-, block- and dynamic light), without the map-uniforms like the entities
+            if (uniforms && uniforms.dynamicLights) applyPreviewLighting(material, uniforms);
+            else applyEntityShader(material, "", "block-preview");
             this.materials.set(texture, material);
         }
         return material;

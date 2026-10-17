@@ -59,6 +59,19 @@ export function blockAssetName(state) {
  * @param value {any} - the "blocks" of live/entities.json
  * @returns {Array<{id: number, x: number, y: number, z: number, state: string, neighbors: Array<string | null>, time: number}>}
  */
+/**
+ * The light at a changed block (sky-light, block-light, luminance of the new block), null if the server sends none.
+ * @param values {any[]}
+ * @returns {{sky: number, block: number, luminance: number} | null}
+ */
+export function parseLight(values) {
+    if (values.length !== 3 || !values.every(v => Number.isInteger(v) && v >= 0 && v <= 15)) return null;
+    return {sky: values[0], block: values[1], luminance: values[2]};
+}
+
+/** the light of a part without known light: outdoors (like the entities) */
+export const DEFAULT_LIGHT = {sky: 15, block: 0, luminance: 0};
+
 export function parseBlocks(value) {
     if (!value || typeof value !== "object" || !Array.isArray(value.palette) || !Array.isArray(value.changes)) return [];
     const palette = value.palette.map(state => typeof state === "string" && state.length <= 512 && STATE_PATTERN.test(state) &&
@@ -69,7 +82,8 @@ export function parseBlocks(value) {
         if (!Array.isArray(row) || row.length < 12 || !row.slice(0, 11).every(Number.isInteger) || !Number.isFinite(row[11])) continue;
         const s = state(row[4]);
         if (s === null) continue;
-        result.push({id: row[0], x: row[1], y: row[2], z: row[3], state: s, neighbors: row.slice(5, 11).map(state), time: row[11]});
+        result.push({id: row[0], x: row[1], y: row[2], z: row[3], state: s, neighbors: row.slice(5, 11).map(state), time: row[11],
+            light: parseLight(row.slice(12, 15))});
     }
     return result;
 }
@@ -187,7 +201,8 @@ export class PreviewStore {
  * @param preview {{x: number, y: number, z: number, state: string, neighbors: Array<string | null>}}
  * @param store {PreviewStore}
  * @param isFull {function(string): boolean | null} - if a block-state is a full cube (null: unknown, its asset is loading)
- * @returns {Array<{state: string, x: number, y: number, z: number, cullface: number | null, skip: number[]}>}
+ * @returns {Array<{state: string, x: number, y: number, z: number, cullface: number | null, skip: number[],
+ *     light: {sky: number, block: number, luminance: number}}>}
  *  - cullface: only the quads with this cullface (null: all quads), skip: cullfaces that are not drawn
  */
 export function previewParts(preview, store, isFull) {
@@ -199,7 +214,7 @@ export function previewParts(preview, store, isFull) {
         neighborStates.forEach((state, i) => {
             if (!isAir(state) && isFull(state) === true) skip.push(i + 1);
         });
-        parts.push({state: preview.state, x: preview.x, y: preview.y, z: preview.z, cullface: null, skip});
+        parts.push({state: preview.state, x: preview.x, y: preview.y, z: preview.z, cullface: null, skip, light: preview.light || DEFAULT_LIGHT});
     }
     if (isAir(preview.state) || isFull(preview.state) !== true) {
         neighborStates.forEach((state, i) => {
@@ -207,7 +222,8 @@ export function previewParts(preview, store, isFull) {
             const [dx, dy, dz] = NEIGHBOR_OFFSETS[i];
             // a previewed neighbor draws itself
             if (store.previews.has(blockKey(preview.x + dx, preview.y + dy, preview.z + dz))) return;
-            parts.push({state, x: preview.x + dx, y: preview.y + dy, z: preview.z + dz, cullface: OPPOSITE[i + 1], skip: []});
+            parts.push({state, x: preview.x + dx, y: preview.y + dy, z: preview.z + dz, cullface: OPPOSITE[i + 1], skip: [],
+                light: preview.light || DEFAULT_LIGHT});
         });
     }
     return parts;

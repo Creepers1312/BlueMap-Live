@@ -323,6 +323,7 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q46 | Server/Spiel beenden, während die Karte offen ist, dann wieder starten | LIVE wird gelb, dann rot, danach wieder grün |
 | Q47 | Voreinstellungen „Leistung“, „Ausgewogen“, „Schön“ nacheinander | Auflösung, Sichtweiten, Bildrate, Partikel ändern sich; die gewählte ist markiert |
 | Q48 | Weltzeit an, „Live-Wetter“ an; nachts in Bodennähe nach oben schauen (Freiflug), dann `/weather rain`, im Schnee-Biom und in der Wüste, `/weather thunder` | Sterne und Mond in der richtigen Phase (wie im Spiel), Sonne geht im Osten auf; Wolken ziehen nach Westen; Regen bzw. Schnee bzw. nichts; bei Gewitter blitzt es gelegentlich; ohne Weltzeit nichts davon |
+| Q49 | Nachts Blöcke im Freien und in einer Höhle setzen, dann eine Fackel; später die Fackel abbauen | Vorschau so hell wie die Umgebung (Höhle dunkel); die Fackel erhellt die Umgebung sofort; nach dem Rendern übernimmt die Kachel das Licht |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

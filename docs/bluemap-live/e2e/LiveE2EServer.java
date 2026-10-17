@@ -308,7 +308,10 @@ public class LiveE2EServer {
             }
             for (String state : neighbors) if (state != null) blockAssetStates.put(ItemAssetUpdater.blockAssetName(state), state);
             blockAssetStates.put(ItemAssetUpdater.blockAssetName(q.get("state")), q.get("state"));
-            blocks.add(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]), q.get("state"), neighbors,
+            // the light at the block: &sky=0..15&blockLight=0..15&luminance=0..15 (without: unknown, like an older server)
+            if (q.containsKey("sky")) blocks.add(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]), q.get("state"),
+                    neighbors, System.currentTimeMillis(), (int) d(q, "sky"), (int) d(q, "blockLight"), (int) d(q, "luminance"));
+            else blocks.add(Integer.parseInt(p[0]), Integer.parseInt(p[1]), Integer.parseInt(p[2]), q.get("state"), neighbors,
                     System.currentTimeMillis());
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;

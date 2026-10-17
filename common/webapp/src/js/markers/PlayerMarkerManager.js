@@ -34,7 +34,7 @@ import { Sphere } from "three";
 /** the sphere around the marker (at head-height) that is tested against the view, in blocks */
 const PLAYER_VIEW_RADIUS = 2.5;
 const viewSphere = new Sphere();
-import { applyDynamicLights, playerLights } from "./DynamicLights";
+import { applyDynamicLights, combineLights, playerLights, PREVIEW_LIGHTS } from "./DynamicLights";
 
 export const PLAYER_MARKER_SET_ID = "bm-players";
 
@@ -116,7 +116,9 @@ export class PlayerMarkerManager extends MarkerManager {
         });
         // dynamic lights: players holding light-emitting items light the map (only shown players)
         if (this.lightUniforms) {
-            const lights = setVisible ? playerLights(playerMarkerSet.markers.values()) : [];
+            // BlueMap Live: with the light-emitting block-previews (placed torches before the tile is rendered)
+            const lights = combineLights(setVisible ? playerLights(playerMarkerSet.markers.values()) : [], PREVIEW_LIGHTS.lights,
+                this.camera ? this.camera.position : null);
             if (applyDynamicLights(this.lightUniforms, lights)) active = true;
         }
         if (active && this.redraw) this.redraw();

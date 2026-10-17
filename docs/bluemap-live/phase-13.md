@@ -123,6 +123,17 @@ Wunsch des Nutzers („Sidenav neu strukturieren oder ein Popup bauen, besser un
 - Umsetzung: `SettingsModal.vue` zeigt die Gruppen aus `SettingsMenu.vue` mit dem neuen Filter `section`. Jede Einstellung gibt es also nur einmal. Die Seite „settings“ der Seitenleiste besteht weiter (alle Gruppen) und wird nur nicht mehr vom Hauptmenü geöffnet. Die Menü-Bausteine (`Group`, `SimpleButton`, `Slider`, `SwitchButton`, `SwitchHandle`) haben ihre Styles zusätzlich für `.bm-settings-modal`.
 - Neue Texte `settingsTabs.*` in allen 28 Sprachen.
 
+## 3a. Licht der Block-Vorschau
+
+Nach einem Test des Nutzers in Minecraft: Gesetzte Blöcke waren nachts heller als die Umgebung, eine gesetzte Fackel leuchtete erst nach dem Rendern der Kachel.
+
+- **Ursache:** Die Vorschau wurde wie die Entities nur nach der Tageszeit abgedunkelt (Messung im Test: im Freien gleich hell wie die Karte). Die Karte nutzt aber das Licht an jeder Stelle: unter Dächern, Bäumen und in Höhlen weniger Himmelslicht, dazu das Blocklicht von Fackeln.
+- **Server:** Zu jeder Blockänderung sendet er Himmels- und Blocklicht (der hellste Wert des Blocks und seiner 6 Nachbarn, wie die Luft vor einer Fläche, die BlueMap benutzt) und die Leuchtkraft des neuen Blocks (`BlockState.getLuminance`, z. B. 14 für eine Fackel). In `entities.json` als 3 zusätzliche Werte pro Änderung, nur wenn bekannt. Das Blocklicht ist mindestens die Leuchtkraft, weil die Licht-Engine erst später aktualisiert.
+- **Webapp:** Die Vorschau rechnet wie der Hires-Shader: `light = mix(blocklight, max(skylight, blocklight), sunlightStrength)`, Farbe × `mix(ambientLight, 1, light / 15)`, mit den dynamischen Lichtern. Ohne Lichtwerte (älterer Server) wie bisher.
+- **Leuchtende Vorschau-Blöcke** sind dynamische Lichter (zusammen mit den gehaltenen Gegenständen der Spieler höchstens 8, die nächsten zur Kamera zuerst) und erhellen Karte und Vorschau, bis die gerenderte Kachel das Blocklicht enthält.
+- **Grenzen:** Eine abgebaute Fackel leuchtet in der Kachel weiter, bis sie neu gerendert ist (das Licht der Kachel lässt sich nicht abziehen). Die Entities werden von dynamischen Lichtern nicht erhellt.
+- Test: `blocks-e2e.mjs` (im Freien vs. Höhle, leuchtende Vorschau erhellt den Nachbarn, nach dem Rendern kein dynamisches Licht mehr), `LiveBlockLogTest`, `BlockPreview.test.mjs`.
+
 ## 4. Sprachen
 
 Alle 28 Sprachen aus `lang/settings.conf` haben die Texte von BlueMap Live (54 Schlüssel einschließlich der Reiter des Einstellungs-Popups). „LIVE“ bleibt in allen Sprachen gleich.
@@ -143,8 +154,8 @@ Wie in Phase 12 unter `live.<key>`: `nameTags`, `healthBars`, `followMode`, `wea
 
 | Test | Ergebnis |
 |---|---|
-| Node `npm test` | 178/178, neu `Weather.test.mjs` (6), `QualityPresets.test.mjs` (2), `Languages.test.mjs` (2); in `LiveEntities.test.mjs` Kategorien, Einstellungen, Beschriftung, Folgekamera; in `WorldTime.test.mjs` Mondphase, Uhr, Wetter, Live-Anzeige |
-| JUnit lokal | 96/96, Texturfilter für Himmel und Wetter |
+| Node `npm test` | 180/180, neu `Weather.test.mjs` (6), `QualityPresets.test.mjs` (2), `Languages.test.mjs` (2); in `LiveEntities.test.mjs` Kategorien, Einstellungen, Beschriftung, Folgekamera; in `WorldTime.test.mjs` Mondphase, Uhr, Wetter, Live-Anzeige |
+| JUnit lokal | 97/97, Texturfilter für Himmel und Wetter, Licht der Blockänderungen |
 | Browser `qol-e2e.mjs` (neu) | 15/15: Einstellungs-Popup (aus dem Menü, 6 Reiter, jede Gruppe in genau einem Reiter, Schalter wirkt, Escape), Filter nach Kategorie, Schalter im Menü, Namensschild, Lebensbalken (Mob und Spieler, Spielername ausgeblendet), Entfernen der Beschriftung, Uhr mit Wetter und Mondphase, Live-Anzeige grün → gelb → rot → grün, Voreinstellungen, Ego- und Schulterkamera (Position, Modell aus/an), Sonne mittags senkrecht (Pixel), Mond der Phase 2 um Mitternacht (Pixel), Regen, Schnee, kein Niederschlag, Blitz hellt die Karte auf und klingt ab, Wolken von oben (Pixel), Abschalten |
 | Browser `display`, `particles`, `blocks`, `worldtime`, `entities`, `mobs`, `playback`, `animation`, `items`, `player` | 6/6, 13/13, 15/15, 9/9, 12/12, 15/15, 6/6, 19/19, 16/16, 22/22. `particles`: Die Prüfung „nichts mehr gezeichnet“ wartet jetzt auf das nächste Bild (die Gruppe wird ein Bild nach dem letzten Partikel ausgeblendet; vorher gelegentlich fehlgeschlagen). |
 | Regression gegen das Original | in dieser Phase nicht erneut ausgeführt |

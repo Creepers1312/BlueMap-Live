@@ -31,6 +31,7 @@ import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.state.property.Property;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.LightType;
 import net.minecraft.world.World;
 
 import java.util.HashMap;
@@ -114,13 +115,22 @@ public final class FabricBlockChanges {
                 if (!near) continue;
                 String[] neighbors = new String[6];
                 int[][] offsets = {{0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}, {-1, 0, 0}, {1, 0, 0}};
+                // the light the faces get: the brightest of the block and its neighbors (like the light of the
+                // air in front of a face, which BlueMap uses)
+                int skyLight = world.getLightLevel(LightType.SKY, pos), blockLight = world.getLightLevel(LightType.BLOCK, pos);
                 for (int i = 0; i < 6; i++) {
                     neighbor.set(pos.getX() + offsets[i][0], pos.getY() + offsets[i][1], pos.getZ() + offsets[i][2]);
                     BlockState state = world.getBlockState(neighbor);
                     neighbors[i] = state.isAir() ? null : toString(state);
+                    skyLight = Math.max(skyLight, world.getLightLevel(LightType.SKY, neighbor));
+                    blockLight = Math.max(blockLight, world.getLightLevel(LightType.BLOCK, neighbor));
                 }
+                BlockState newState = world.getBlockState(pos);
+                // the light-engine updates later: a placed torch already lights its own block
+                int luminance = newState.getLuminance();
                 if (log == null) log = logs.apply(world);
-                log.add(pos.getX(), pos.getY(), pos.getZ(), toString(world.getBlockState(pos)), neighbors, now);
+                log.add(pos.getX(), pos.getY(), pos.getZ(), toString(newState), neighbors, now, skyLight,
+                        Math.max(blockLight, luminance), luminance);
                 recorded++;
             }
         }

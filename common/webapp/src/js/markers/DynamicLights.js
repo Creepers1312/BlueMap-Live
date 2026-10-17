@@ -69,6 +69,25 @@ export function playerLights(markers, camera = null) {
 }
 
 /**
+ * BlueMap Live: the light-emitting block-previews (e.g. a placed torch, set by the EntityMarkerManager), lighting the
+ * map until BlueMap rendered the tile with the block-light.
+ * @type {{lights: Array<{x: number, y: number, z: number, level: number}>}}
+ */
+export const PREVIEW_LIGHTS = {lights: []};
+
+/**
+ * The lights of the players and the block-previews together, the nearest to the camera first (at most MAX_DYNAMIC_LIGHTS).
+ * @param players {Array<{x: number, y: number, z: number, level: number}>}
+ * @param previews {Array<{x: number, y: number, z: number, level: number}>}
+ * @param camera {{x: number, y: number, z: number} | null}
+ */
+export function combineLights(players, previews, camera = null) {
+    const lights = players.concat(previews);
+    if (camera) lights.sort((a, b) => Math.hypot(a.x - camera.x, a.z - camera.z) - Math.hypot(b.x - camera.x, b.z - camera.z));
+    return lights.slice(0, MAX_DYNAMIC_LIGHTS);
+}
+
+/**
  * Writes the lights into the map-uniforms.
  * @param uniforms {{dynamicLights: {value: Array<{set: function}>}, dynamicLightCount: {value: number}}}
  * @param lights {Array<{x: number, y: number, z: number, level: number}>}

@@ -36,6 +36,7 @@ import {ParticleView} from "./particles/ParticleView.js";
 import {ChestLidView} from "./ChestLidView.js";
 import {entityCategory, LIVE_DISPLAY, withinPlayerRadius} from "./LiveDisplay.js";
 import {PreviewStore} from "./blocks/BlockPreviewData.js";
+import {PREVIEW_LIGHTS} from "./DynamicLights.js";
 import {ENTITY_LABELS} from "./EntityLabel.js";
 import {EntityLabel} from "./EntityLabelView.js";
 
@@ -262,7 +263,8 @@ export class EntityMarkerManager extends MarkerManager {
     initBlockPreviews(hires, blocksUrl) {
         this.blockPreviews = new PreviewStore(hires);
         this.blockAssets = new BlockAssetCache(blocksUrl, () => this.blockView && this.blockView.invalidate());
-        this.blockView = new BlockPreviewView(this.blockPreviews, this.blockAssets);
+        // lit like the tiles with the map-uniforms (set by the app, see BlockPreviewView.applyPreviewLighting)
+        this.blockView = new BlockPreviewView(this.blockPreviews, this.blockAssets, () => this.mapUniforms);
     }
 
     /**
@@ -307,6 +309,7 @@ export class EntityMarkerManager extends MarkerManager {
             this.blockPreviews.clear();
             this.blockView.update();
             this.blockView.applyHiddenBlocks(this.mapUniforms);
+            PREVIEW_LIGHTS.lights = [];
             return had;
         }
         while (this.scheduledBlocks.length > 0 && this.scheduledBlocks[0].due <= now) {
@@ -316,6 +319,7 @@ export class EntityMarkerManager extends MarkerManager {
         // the previews are part of the map (shown with a hidden entity-set as well)
         if (this.blockView.group.parent !== this.root) this.root.add(this.blockView.group);
         const changed = this.blockView.update();
+        PREVIEW_LIGHTS.lights = this.blockView.lights;
         const animated = this.blockView.animate(Date.now());
         this.blockView.applyHiddenBlocks(this.mapUniforms);
         return changed || animated;
@@ -465,6 +469,7 @@ export class EntityMarkerManager extends MarkerManager {
             this.blockPreviews.clear();
             this.blockView.update();
             this.blockView.applyHiddenBlocks(this.mapUniforms);
+            PREVIEW_LIGHTS.lights = [];
             this.blockView.dispose();
             this.blockAssets.dispose();
         }

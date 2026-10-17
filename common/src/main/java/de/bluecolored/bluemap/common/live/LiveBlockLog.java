@@ -42,8 +42,23 @@ public class LiveBlockLog {
      * @param state the new block-state, normalized (properties sorted), e.g. <code>minecraft:air</code>
      * @param neighbors the states of the 6 neighbors (down, up, north, south, west, east), null for air
      * @param time the time (epoch-millis) of the change
+     * @param skyLight the sky-light at the block (the brightest of the block and its neighbors, 0..15), -1: unknown
+     * @param blockLight the block-light at the block (like skyLight), -1: unknown
+     * @param luminance the light the new block emits (vanilla <code>BlockState.getLuminance</code>, e.g. 14 for a torch)
      */
-    public record Change(long id, int x, int y, int z, String state, @Nullable String[] neighbors, long time) {}
+    public record Change(long id, int x, int y, int z, String state, @Nullable String[] neighbors, long time,
+                         int skyLight, int blockLight, int luminance) {
+
+        public Change(long id, int x, int y, int z, String state, @Nullable String[] neighbors, long time) {
+            this(id, x, y, z, state, neighbors, time, -1, -1, 0);
+        }
+
+        /** if the light at the block is known */
+        public boolean hasLight() {
+            return skyLight >= 0 && blockLight >= 0;
+        }
+
+    }
 
     /** longer than the slowest update-interval plus the playback-delay of the webapp */
     public static final long MAX_AGE_MILLIS = 10_000;
@@ -54,8 +69,19 @@ public class LiveBlockLog {
     private long nextId = 1;
 
     public synchronized void add(int x, int y, int z, String state, @Nullable String[] neighbors, long time) {
-        changes.addLast(new Change(nextId++, x, y, z, state, neighbors, time));
+        add(x, y, z, state, neighbors, time, -1, -1, 0);
+    }
+
+    /** with the light at the block (see {@link Change}) */
+    public synchronized void add(int x, int y, int z, String state, @Nullable String[] neighbors, long time,
+                                 int skyLight, int blockLight, int luminance) {
+        changes.addLast(new Change(nextId++, x, y, z, state, neighbors, time, clampLight(skyLight), clampLight(blockLight),
+                Math.max(0, Math.min(15, luminance))));
         while (changes.size() > MAX_CHANGES) changes.removeFirst();
+    }
+
+    private static int clampLight(int light) {
+        return light < 0 ? -1 : Math.min(15, light);
     }
 
     /** the changes that are not older than {@link #MAX_AGE_MILLIS}, oldest first */

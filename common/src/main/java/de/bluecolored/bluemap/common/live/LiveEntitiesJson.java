@@ -150,7 +150,8 @@ public final class LiveEntitiesJson {
 
     /**
      * The block-changes: <code>{"palette": [states], "changes": [[id, x, y, z, state, down, up, north, south, west, east,
-     * time], ...]}</code>, the states as indices into the palette, -1 for an air-neighbor
+     * time(, skyLight, blockLight, luminance)], ...]}</code>, the states as indices into the palette, -1 for an
+     * air-neighbor; the light only if known
      */
     private static void writeBlocks(JsonWriter json, Collection<LiveBlockLog.Change> blocks) throws IOException {
         java.util.Map<String, Integer> palette = new java.util.LinkedHashMap<>();
@@ -158,7 +159,8 @@ public final class LiveEntitiesJson {
                 palette.computeIfAbsent(state, s -> palette.size());
         List<int[]> rows = new java.util.ArrayList<>();
         List<long[]> ids = new java.util.ArrayList<>();
-        for (LiveBlockLog.Change change : blocks) {
+        List<LiveBlockLog.Change> changes = new java.util.ArrayList<>(blocks);
+        for (LiveBlockLog.Change change : changes) {
             int[] row = new int[10];
             row[0] = change.x(); row[1] = change.y(); row[2] = change.z();
             row[3] = index.applyAsInt(change.state());
@@ -176,6 +178,12 @@ public final class LiveEntitiesJson {
             json.value(ids.get(i)[0]);
             for (int value : rows.get(i)) json.value(value);
             json.value(ids.get(i)[1]);
+            LiveBlockLog.Change change = changes.get(i);
+            if (change.hasLight()) {
+                json.value(change.skyLight());
+                json.value(change.blockLight());
+                json.value(change.luminance());
+            }
             json.endArray();
         }
         json.endArray();

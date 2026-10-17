@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 
-import {blockAssetName, buildHiddenTable, isHidden, MAX_HIDDEN_BLOCKS, parseBlocks, PREVIEW_TIMEOUT, PreviewStore, previewParts,
+import {blockAssetName, buildHiddenTable, DEFAULT_LIGHT, parseLight, isHidden, MAX_HIDDEN_BLOCKS, parseBlocks, PREVIEW_TIMEOUT, PreviewStore, previewParts,
     tileOf, TABLE_SLOTS, voxelHash} from "../src/js/markers/blocks/BlockPreviewData.js";
 import {buildPreviewGeometry} from "../src/js/markers/blocks/BlockPreviewView.js";
 import {parseEntitiesResponse} from "../src/js/markers/LiveEntityData.js";
@@ -19,7 +19,7 @@ test("block-preview: the changes of the entities-response (palette, neighbors, v
     const blocks = parseBlocks({palette: [STONE, "minecraft:oak_log[axis=y]", "evil:../x"],
         changes: [[7, 1, 64, -2, 0, -1, 1, -1, -1, -1, 0, 1700000000123], [8, 1, 64, -2, 2, -1, -1, -1, -1, -1, -1, 1], [9, 1, 2]]});
     assert.deepEqual(blocks, [{id: 7, x: 1, y: 64, z: -2, state: STONE, neighbors: [null, "minecraft:oak_log[axis=y]", null, null, null, STONE],
-        time: 1700000000123}]);
+        time: 1700000000123, light: null}]);
     assert.deepEqual(parseEntitiesResponse({protocol: 1, entities: []}).blocks, []);
     assert.equal(parseEntitiesResponse({protocol: 1, entities: [], blocks: {palette: [AIR], changes: [[1, 0, 0, 0, 0, -1, -1, -1, -1, -1, -1, 5]]}}).blocks.length, 1);
 });
@@ -62,16 +62,16 @@ test("block-preview: what is drawn - the new block without faces towards full ne
     // a removed block between stone (below) and air: the hole shows the top-face of the stone below
     store.apply([change(1, 0, 64, 0, AIR, 1, [STONE, null, null, null, null, null])]);
     assert.deepEqual(previewParts(store.previews.get("0,64,0"), store, full),
-        [{state: STONE, x: 0, y: 63, z: 0, cullface: 2, skip: []}]);
+        [{state: STONE, x: 0, y: 63, z: 0, cullface: 2, skip: [], light: DEFAULT_LIGHT}]);
     // a placed glass-block next to stone: all faces except the one towards the stone, the stone-face behind the glass
     store.apply([change(2, 5, 64, 0, "minecraft:glass", 1, [null, null, null, null, STONE, null])]);
     assert.deepEqual(previewParts(store.previews.get("5,64,0"), store, full), [
-        {state: "minecraft:glass", x: 5, y: 64, z: 0, cullface: null, skip: [5]},
-        {state: STONE, x: 4, y: 64, z: 0, cullface: 6, skip: []},
+        {state: "minecraft:glass", x: 5, y: 64, z: 0, cullface: null, skip: [5], light: DEFAULT_LIGHT},
+        {state: STONE, x: 4, y: 64, z: 0, cullface: 6, skip: [], light: DEFAULT_LIGHT},
     ]);
     // a placed stone-block hides the faces of its neighbors: only the block itself
     store.apply([change(3, 9, 64, 0, STONE, 1, [STONE, null, null, null, null, null])]);
-    assert.deepEqual(previewParts(store.previews.get("9,64,0"), store, full), [{state: STONE, x: 9, y: 64, z: 0, cullface: null, skip: [1]}]);
+    assert.deepEqual(previewParts(store.previews.get("9,64,0"), store, full), [{state: STONE, x: 9, y: 64, z: 0, cullface: null, skip: [1], light: DEFAULT_LIGHT}]);
     // a previewed neighbor draws itself, its newest state is used
     store.apply([change(4, 0, 63, 0, AIR)]);
     assert.deepEqual(previewParts(store.previews.get("0,64,0"), store, full), []);
@@ -120,4 +120,35 @@ test("block-preview: animated textures (fire) - frames of the strip in the order
     const slow = parseAnimation({frames: 4, frametime: 2});
     assert.deepEqual([0, 1, 2, 3, 8].map(t => animationFrame(slow, t)), [0, 0, 1, 1, 0]);
     assert.equal(parseAnimation({frames: 4, order: [9]}).order, null, "invalid order: in order");
+});
+
+import {previewLights} from "../src/js/markers/blocks/BlockPreviewView.js";
+import {combineLights, MAX_DYNAMIC_LIGHTS} from "../src/js/markers/DynamicLights.js";
+
+test("block-preview: the light at a changed block (sky, block, luminance), lit like the tiles", () => {
+    const blocks = parseBlocks({palette: ["minecraft:torch"], changes: [[1, 2, 64, 3, 0, -1, -1, -1, -1, -1, -1, 5, 15, 14, 14],
+        [2, 2, 64, 4, 0, -1, -1, -1, -1, -1, -1, 5], [3, 2, 64, 5, 0, -1, -1, -1, -1, -1, -1, 5, 16, 0, 0]]});
+    assert.deepEqual(blocks.map(b => b.light), [{sky: 15, block: 14, luminance: 14}, null, null], "unknown or invalid light: null");
+    assert.equal(parseLight([1, 2]), null);
+    // the parts get the light of their change, the vertices the sky- and block-light
+    const store = new PreviewStore(HIRES);
+    store.apply([{...change(1, 0, 64, 0, STONE), light: {sky: 7, block: 3, luminance: 0}}]);
+    assert.deepEqual(previewParts(store.previews.get("0,64,0"), store, () => true)[0].light, {sky: 7, block: 3, luminance: 0});
+    const top = [0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, -1, 2];
+    const geometry = buildPreviewGeometry(top, 0, [{x: 0, y: 0, z: 0, cullface: null, skip: [], light: {sky: 7, block: 3}}], 0);
+    assert.deepEqual([...geometry.getAttribute("bmLight").array.slice(0, 4)], [7, 3, 7, 3]);
+    const outdoors = buildPreviewGeometry(top, 0, [{x: 0, y: 0, z: 0, cullface: null, skip: []}], 0);
+    assert.deepEqual([...outdoors.getAttribute("bmLight").array.slice(0, 2)], [15, 0], "unknown light: outdoors like the entities");
+});
+
+test("block-preview: light-emitting previews are dynamic lights (with the players, the nearest first)", () => {
+    const previews = [{x: 0, y: 64, z: 0, state: "minecraft:torch", light: {sky: 15, block: 14, luminance: 14}},
+        {x: 5, y: 64, z: 0, state: STONE, light: {sky: 15, block: 0, luminance: 0}},
+        {x: 6, y: 64, z: 0, state: AIR, light: {sky: 15, block: 14, luminance: 14}},
+        {x: 7, y: 64, z: 0, state: "minecraft:glowstone", light: null}];
+    assert.deepEqual(previewLights(previews), [{x: 0.5, y: 64.5, z: 0.5, level: 14}]);
+    const many = Array.from({length: 12}, (_, i) => ({x: i * 10, y: 64, z: 0, level: 14}));
+    const lights = combineLights([{x: 100, y: 65, z: 0, level: 14}], many, {x: 100, y: 80, z: 0});
+    assert.equal(lights.length, MAX_DYNAMIC_LIGHTS);
+    assert.equal(lights[0].x, 100);
 });

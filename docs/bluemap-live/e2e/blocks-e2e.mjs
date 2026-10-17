@@ -335,6 +335,46 @@ await step("a preview that is not confirmed is discarded after 90 s", async () =
     assert.equal((await previews()).hidden, 0);
 });
 
+/** the mean brightness (r + g + b) of the top-face of a block */
+async function topBrightness(name, x, y, z) {
+    const png = decodePng(await page.screenshot({path: `${OUT}/${name}.png`}));
+    const p = await screen(x + 0.5, y + 1, z + 0.5);
+    let sum = 0, n = 0;
+    for (let py = p.y - 3; py <= p.y + 3; py++) for (let px = p.x - 3; px <= p.x + 3; px++) {
+        const [r, g, b] = png.pixel(px, py);
+        sum += r + g + b;
+        n++;
+    }
+    return sum / n;
+}
+
+await step("the previews are lit like the tiles: sky- and block-light of the server, light-emitting previews light the map", async () => {
+    await control({dayTime: 18000, cycle: 0});
+    await control({uuid: "069a79f4-44e9-4726-a5be-fca90e38aaf5", name: "Notch", x: 20, y: 64, z: 20});
+    await page.waitForFunction(() => window.bluemap.appState.worldTime.available, null, {timeout: 10000});
+    await page.evaluate(() => window.bluemap.setWorldTimeLighting(true));
+    const n = "minecraft:grass_block,-,-,-,-,-";
+    await control({block: "5,64,8", state: "minecraft:stone", n, sky: 15, blockLight: 0, luminance: 0});
+    await control({block: "8,64,8", state: "minecraft:stone", n, sky: 0, blockLight: 0, luminance: 0});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 2, null, {timeout: 5000});
+    await sleep(500);
+    const outdoors = await topBrightness("b30-outdoors", 5, 64, 8), cave = await topBrightness("b30-cave", 8, 64, 8);
+    assert.ok(outdoors > cave * 2, `outdoors ${outdoors} > cave ${cave} (only the ambient light)`);
+
+    await control({block: "11,64,8", state: "minecraft:stone", n, sky: 15, blockLight: 14, luminance: 14});
+    await page.waitForFunction(() => window.bluemap.mapViewer.data.uniforms.dynamicLightCount.value >= 1, null, {timeout: 5000});
+    await sleep(500);
+    const lit = await topBrightness("b31-torch", 8, 64, 8);
+    assert.ok(lit > cave * 2, `the cave-block 3 blocks from the light-emitting preview: ${cave} -> ${lit}`);
+
+    // rendered: the tile has the block-light, the dynamic light is removed with the previews
+    await control({tileUpdate: "0,0", chunks: "0,0,now"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 6000});
+    await sleep(300);
+    assert.equal(await page.evaluate(() => window.bluemap.mapViewer.data.uniforms.dynamicLightCount.value), 0);
+    await page.evaluate(() => window.bluemap.setWorldTimeLighting(false));
+});
+
 await step("no uncaught errors", async () => {
     assert.deepEqual(pageErrors, []);
 });
