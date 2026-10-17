@@ -101,3 +101,17 @@ Hinweis: Die Kamera wird über die normale Seitenadresse gesetzt (`#world:x:y:z:
 Blockänderung (Sofort-Vorschau): `/control?block=X,Y,Z&state=minecraft:stone[&n=unten,oben,norden,süden,westen,osten]` („-“ für Luft). Die Blockmodelle werden für die Zustände der Änderungen gebacken (Testressourcen: `minecraft:stone`, `minecraft:grass_block`, ohne Cullfaces). Bestätigung: `/control?tileUpdate=0,0&chunks=0,0,now` (Chunk-Zeit nach der Änderung) oder eine feste ältere Zeit in Sekunden.
 
 **Anzeige-Einstellungen (Phase 12):** `display-e2e.mjs` prüft die Gruppe „Entities und Effekte“ (Abstand zu den Spielern und zur Kamera, Partikel, Vorschau, Speichern). Der Testserver sendet `radius: 30`.
+
+## Phase 13: Komfort und Live-Wetter (`qol-e2e.mjs`)
+
+```bash
+PLAYWRIGHT_MODULE=/pfad/zu/node_modules/playwright E2E_OUT=e2e-out node docs/bluemap-live/e2e/qol-e2e.mjs
+```
+
+Zusätzliche Steuerparameter des Testservers:
+- Mobs: `&group=monster&health=..&maxHealth=..&mobName=..` (Spawn-Gruppe, Lebenspunkte, Name)
+- Spieler: `&health=..&maxHealth=..&precipitation=rain|snow|none`
+- Weltzeit: `&moonPhase=0..7`
+
+`E2EItemResources` liefert dazu Testtexturen für Himmel und Wetter: gelbe Sonne, eine Farbe pro Mondphase (Phase 2 blau), karierte Wolken, blaue Regenstreifen, weiße Schneeflocken.
+

@@ -316,6 +316,13 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q40 | Feuer mit dem Feuerzeug legen, Magmablock und Seelaterne setzen | Die Vorschau zeigt die Blöcke animiert (nicht gestreift), danach übernimmt die Kachel |
 | Q41 | Kartenmenü → „Entities und Effekte“: Regler „Entities um Spieler“ verkleinern, „Entities sichtbar bis“ ändern, Partikel und Sofort-Vorschau aus- und einschalten, Seite neu laden | Entities weiter weg verschwinden bzw. erscheinen wieder; ohne Partikel keine Explosionswolken; ohne Vorschau erscheinen Blockänderungen erst mit der Kachel; Einstellungen bleiben nach dem Neuladen |
 | Q39 | `/bluemap live-stats` in Ruhe, dann beim Bauen und nach einer TNT-Explosion | Werte erscheinen; Server-Thread-Anteil bleibt klein (Erwartung: unter 1 %), Blockänderungen pro Sekunde steigen beim Bauen |
+| Q42 | Spielerliste → Folgen mit „Kamera beim Folgen“ = Ego-Perspektive, dann „Über der Schulter“; im Spiel laufen, schleichen, umsehen | Die Karte zeigt die Sicht aus den Augen bzw. von hinten rechts, folgt Kopf und Schleichen; das eigene Modell ist in der Ego-Sicht unsichtbar; Maus bewegen beendet das Folgen |
+| Q43 | Einen Mob mit Namensschild benennen; Lebensbalken einschalten, einen Mob und sich selbst verletzen | Name über dem Mob; Balken und „♥“-Werte sinken mit dem Schaden, auch beim Spieler |
+| Q44 | „Entities filtern“: feindliche Mobs aus, Tiere aus, Gegenstände aus | Zombies bzw. Kühe bzw. fallengelassene Items verschwinden von der Karte und kommen beim Einschalten zurück |
+| Q45 | Weltzeit einschalten; `/time set 13000`, `/weather rain`, `/weather thunder`, `/weather clear` | Uhr zeigt 19:00, Symbol wechselt Sonne → Mond, Regenwolke, Gewitterwolke; Tooltip nennt die Mondphase |
+| Q46 | Server/Spiel beenden, während die Karte offen ist, dann wieder starten | LIVE wird gelb, dann rot, danach wieder grün |
+| Q47 | Voreinstellungen „Leistung“, „Ausgewogen“, „Schön“ nacheinander | Auflösung, Sichtweiten, Bildrate, Partikel ändern sich; die gewählte ist markiert |
+| Q48 | Weltzeit an, „Live-Wetter“ an; nachts in Bodennähe nach oben schauen (Freiflug), dann `/weather rain`, im Schnee-Biom und in der Wüste, `/weather thunder` | Sterne und Mond in der richtigen Phase (wie im Spiel), Sonne geht im Osten auf; Wolken ziehen nach Westen; Regen bzw. Schnee bzw. nichts; bei Gewitter blitzt es gelegentlich; ohne Weltzeit nichts davon |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).
 

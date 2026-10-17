@@ -153,6 +153,14 @@ Weitere Mobs folgen in späteren `0.3.x`-Versionen. Unbekannte Mobs erscheinen a
 
 ---
 
+## 0.6.0-alpha – Komfort und Live-Wetter
+
+**Stand:** umgesetzt und automatisiert getestet (`phase-13.md`), in Minecraft noch nicht geprüft (Q42–Q48). Release-Notes: `releases/v0.6.0-alpha.md`.
+
+**Inhalt:** Folgekamera (Ego, Schulter), Namensschilder und Lebensbalken, Entity-Filter, Weltuhr mit Wetter, LIVE-Anzeige, Voreinstellungen, Live-Wetter im Weltzeit-Modus (Sonne, Mond mit Phasen, Sterne, Wolken, Regen, Schnee, Blitze).
+
+---
+
 ## Danach: Stabilisierung und Veröffentlichung (1.0)
 
 - Lasttests mit vielen Spielern und Entities, Optimierung (Instancing, Datenmenge).
