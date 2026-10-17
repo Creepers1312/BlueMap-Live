@@ -32,5 +32,12 @@ package de.bluecolored.bluemap.common.live;
  * @param rain the rain-gradient (0..1)
  * @param thunder the thunder-gradient (0..1)
  * @param cycle if the time runs on (gamerule doDaylightCycle)
+ * @param moonPhase the moon-phase 0..7 (vanilla <code>DimensionType.getMoonPhase</code>: the day modulo 8)
  */
-public record LiveWorldTime(long dayTime, double rain, double thunder, boolean cycle) {}
+public record LiveWorldTime(long dayTime, double rain, double thunder, boolean cycle, int moonPhase) {
+
+    public LiveWorldTime(long dayTime, double rain, double thunder, boolean cycle) {
+        this(dayTime, rain, thunder, cycle, 0);
+    }
+
+}

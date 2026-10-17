@@ -220,6 +220,14 @@ public final class LiveEntitiesJson {
         if (mob.swingTicks() >= 0) json.name("swingTicks").value(mob.swingTicks());
         if (mob.attackTicks() > 0) json.name("attackTicks").value(mob.attackTicks());
         if (mob.bedOffset() != 0 && Double.isFinite(mob.bedOffset())) json.name("bedOffset").value(mob.bedOffset());
+        LiveMobState.Info info = mob.info();
+        if (info != null) {
+            json.name("group").value(info.group());
+            json.name("health").value(finite(info.health()));
+            json.name("maxHealth").value(finite(info.maxHealth()));
+            if (info.name() != null && !info.name().isEmpty())
+                json.name("name").value(info.name().length() > 64 ? info.name().substring(0, 64) : info.name());
+        }
         Leash leash = mob.leash();
         if (leash != null && (leash.holderEntity() != null || leash.holderPlayer() != null)) {
             json.name("leash").beginObject();

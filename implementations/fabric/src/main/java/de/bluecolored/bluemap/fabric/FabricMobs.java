@@ -112,6 +112,16 @@ final class FabricMobs {
     private static volatile boolean detailsUnavailable = false;
     private static volatile boolean attackUnavailable = false;
 
+    /** BlueMap Live: the category, health and custom name of a mob (name-tags, health-bars and filters of the webapp) */
+    static LiveMobState.Info info(LivingEntity entity) {
+        return new LiveMobState.Info(
+                entity.getType().getSpawnGroup().getName(),
+                entity.getHealth(),
+                entity.getMaxHealth(),
+                entity.hasCustomName() && entity.getCustomName() != null ? entity.getCustomName().getString() : null
+        );
+    }
+
     static LiveMobState sample(LivingEntity entity) {
         List<String> flags = new ArrayList<>();
         List<String> models = new ArrayList<>();

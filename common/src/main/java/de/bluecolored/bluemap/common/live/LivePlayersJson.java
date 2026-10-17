@@ -99,6 +99,7 @@ public final class LivePlayersJson {
             json.name("rain").value(Double.isFinite(worldTime.rain()) ? worldTime.rain() : 0);
             json.name("thunder").value(Double.isFinite(worldTime.thunder()) ? worldTime.thunder() : 0);
             json.name("cycle").value(worldTime.cycle());
+            json.name("moonPhase").value(Math.floorMod(worldTime.moonPhase(), 8));
             json.endObject();
         }
 
@@ -194,6 +195,14 @@ public final class LivePlayersJson {
             }
 
             if (state.particles() != null) LiveEntitiesJson.writeParticles(json, state.particles());
+            PlayerStatus status = state.status();
+            if (status != null) {
+                json.name("status").beginObject();
+                json.name("health").value(LiveEntitiesJson.finite(status.health()));
+                json.name("maxHealth").value(LiveEntitiesJson.finite(status.maxHealth()));
+                if (status.precipitation() != null) json.name("precipitation").value(status.precipitation());
+                json.endObject();
+            }
 
             ItemUse use = state.use();
             if (use != null) {

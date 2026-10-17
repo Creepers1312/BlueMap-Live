@@ -402,7 +402,8 @@ public class FabricMod implements ModInitializer, Server {
                     Math.floorMod(world.getTimeOfDay(), 24000L),
                     world.getRainGradient(1f),
                     world.getThunderGradient(1f),
-                    world.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE)
+                    world.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE),
+                    world.getMoonPhase()
             ));
         }
         liveWorldTimes = times;
@@ -494,7 +495,7 @@ public class FabricMod implements ModInitializer, Server {
                 now,
                 item,
                 onGround,
-                withLeash(entity instanceof LivingEntity living ? FabricMobs.sample(living) : vehicle, entity),
+                withLeash(entity instanceof LivingEntity living ? FabricMobs.sample(living).withInfo(FabricMobs.info(living)) : vehicle, entity),
                 impact,
                 FabricParticles.sample(entity)
         );

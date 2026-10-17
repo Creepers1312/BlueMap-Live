@@ -358,7 +358,8 @@ public class FabricPlayer extends Player {
                         sampleItemUse(player),
                         hurtCount,
                         vehicle,
-                        FabricParticles.sample(player)
+                        FabricParticles.sample(player),
+                        sampleStatus(player)
                 )
         );
     }
@@ -368,6 +369,23 @@ public class FabricPlayer extends Player {
      * The vehicle and the offset of the player on it (same tick), relative to the yaw the vehicle is drawn with
      * (see FabricVehicles.drawnRotation, the same yaw is sent with the vehicle).
      */
+    /** set if a method is not available in this version (e.g. Biome.getPrecipitation): the status is not sampled anymore */
+    private static volatile boolean statusUnavailable = false;
+
+    /** health and the precipitation at the player (vanilla Biome.getPrecipitation: rain, snow or none) */
+    static @Nullable de.bluecolored.bluemap.common.live.PlayerStatus sampleStatus(ServerPlayerEntity player) {
+        if (statusUnavailable) return null;
+        try {
+            net.minecraft.util.math.BlockPos pos = player.getBlockPos();
+            String precipitation = player.getWorld().getBiome(pos).value().getPrecipitation(pos).name()
+                    .toLowerCase(java.util.Locale.ROOT);
+            return new de.bluecolored.bluemap.common.live.PlayerStatus(player.getHealth(), player.getMaxHealth(), precipitation);
+        } catch (LinkageError ex) {
+            statusUnavailable = true;
+            return null;
+        }
+    }
+
     static @Nullable Vehicle sampleVehicle(Entity passenger, float bodyYaw) {
         Entity vehicle = passenger.getVehicle();
         if (vehicle == null) return null;

@@ -51,6 +51,7 @@ import java.util.List;
  * @param bedOffset lying in a bed: how far the model is moved towards the head-end (vanilla
  *                  <code>getEyeHeight(STANDING) - 0.1</code>), 0 otherwise
  * @param leash the leash of the entity, or null if it is not leashed
+ * @param info the category, health and name of the mob (name-tags, health-bars, filters of the webapp), null if unknown
  */
 public record LiveMobState(
         double bodyYaw,
@@ -68,8 +69,32 @@ public record LiveMobState(
         int swingTicks,
         int attackTicks,
         double bedOffset,
-        @Nullable Leash leash
+        @Nullable Leash leash,
+        @Nullable Info info
 ) {
+
+    /**
+     * @param group the spawn-group of the entity-type (vanilla <code>SpawnGroup</code>, e.g. <code>monster</code>,
+     *              <code>creature</code>, <code>misc</code>)
+     * @param health the health (half hearts)
+     * @param maxHealth the maximum health
+     * @param name the custom name (name-tag), null if none
+     */
+    public record Info(String group, float health, float maxHealth, @Nullable String name) {}
+
+    public LiveMobState(double bodyYaw, double headYaw, int hurtTime, int deathTime, boolean baby,
+                        @Nullable Equipment equipment, @Nullable String variant, int size, double width, double height,
+                        List<String> models, List<String> flags, int swingTicks, int attackTicks, double bedOffset,
+                        @Nullable Leash leash) {
+        this(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height, models, flags,
+                swingTicks, attackTicks, bedOffset, leash, null);
+    }
+
+    /** this state with the given info */
+    public LiveMobState withInfo(@Nullable Info info) {
+        return new LiveMobState(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height,
+                models, flags, swingTicks, attackTicks, bedOffset, leash, info);
+    }
 
     public LiveMobState(double bodyYaw, double headYaw, int hurtTime, int deathTime, boolean baby,
                         @Nullable Equipment equipment, @Nullable String variant, int size, double width, double height,
@@ -81,7 +106,7 @@ public record LiveMobState(
     /** this state with the given leash */
     public LiveMobState withLeash(@Nullable Leash leash) {
         return new LiveMobState(bodyYaw, headYaw, hurtTime, deathTime, baby, equipment, variant, size, width, height,
-                models, flags, swingTicks, attackTicks, bedOffset, leash);
+                models, flags, swingTicks, attackTicks, bedOffset, leash, info);
     }
 
     public LiveMobState {
