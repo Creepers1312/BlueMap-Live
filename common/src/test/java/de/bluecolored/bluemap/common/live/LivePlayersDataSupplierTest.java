@@ -196,6 +196,7 @@ public class LivePlayersDataSupplierTest {
         List<String> requested = new ArrayList<>();
         JsonObject root = root(supplyEntities(new PluginConfig(), server, requested));
         assertEquals(1, root.get("protocol").getAsInt());
+        assertEquals(30, root.get("radius").getAsInt(), "the radius the viewer can choose at most");
         JsonArray list = root.getAsJsonArray("entities");
         assertEquals(2, list.size());
         assertEquals(2, list.get(0).getAsJsonObject().get("id").getAsInt(), "the nearest entity first");

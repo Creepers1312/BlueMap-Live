@@ -99,3 +99,5 @@ Hinweis: Die Kamera wird über die normale Seitenadresse gesetzt (`#world:x:y:z:
 
 **Blockänderungen und Truhen (Phase 11):** `blocks-e2e.mjs`. Neu gerenderte Kachel: `/control?tileUpdate=X,Z[&lowres=1][&pillar=HÖHE]` (die Testkachel bekommt eine Säule dieser Höhe). Lowres-Testkacheln (leere Bilder) nur nach `/control?lowresTiles=1`. Offene Truhe: `/control?container=X,Y,Z&texture=minecraft:entity/chest/normal&facing=south&part=single|left|right`, schließen mit `/control?closeContainer=X,Y,Z`.
 Blockänderung (Sofort-Vorschau): `/control?block=X,Y,Z&state=minecraft:stone[&n=unten,oben,norden,süden,westen,osten]` („-“ für Luft). Die Blockmodelle werden für die Zustände der Änderungen gebacken (Testressourcen: `minecraft:stone`, `minecraft:grass_block`, ohne Cullfaces). Bestätigung: `/control?tileUpdate=0,0&chunks=0,0,now` (Chunk-Zeit nach der Änderung) oder eine feste ältere Zeit in Sekunden.
+
+**Anzeige-Einstellungen (Phase 12):** `display-e2e.mjs` prüft die Gruppe „Entities und Effekte“ (Abstand zu den Spielern und zur Kamera, Partikel, Vorschau, Speichern). Der Testserver sendet `radius: 30`.

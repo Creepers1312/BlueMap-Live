@@ -202,7 +202,8 @@ public class LiveEntitiesDataSupplier implements Supplier<String> {
 
         try (StringWriter jsonString = new StringWriter();
              JsonWriter json = new JsonWriter(jsonString)) {
-            LiveEntitiesJson.write(json, System.currentTimeMillis(), updateIntervalMillis, result, effects, containers, blocks);
+            LiveEntitiesJson.write(json, System.currentTimeMillis(), updateIntervalMillis, result, effects, containers, blocks,
+                    config.getLiveEntitiesRadius());
             json.flush();
             return jsonString.toString();
         } catch (IOException ex) {

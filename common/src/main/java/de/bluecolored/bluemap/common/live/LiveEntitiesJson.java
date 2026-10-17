@@ -57,10 +57,21 @@ public final class LiveEntitiesJson {
     public static void write(JsonWriter json, long serverTime, int updateInterval, Collection<LiveEntityState> entities,
                              Collection<LiveEffect> effects, Collection<OpenContainer> containers,
                              Collection<LiveBlockLog.Change> blocks) throws IOException {
+        write(json, serverTime, updateInterval, entities, effects, containers, blocks, 0);
+    }
+
+    /**
+     * @param radius the radius around the shown players in which entities are sent (the maximum of the
+     *               entity-radius the viewer can choose in the webapp), 0: not written
+     */
+    public static void write(JsonWriter json, long serverTime, int updateInterval, Collection<LiveEntityState> entities,
+                             Collection<LiveEffect> effects, Collection<OpenContainer> containers,
+                             Collection<LiveBlockLog.Change> blocks, int radius) throws IOException {
         json.beginObject();
         json.name("protocol").value(PROTOCOL_VERSION);
         json.name("serverTime").value(serverTime);
         json.name("updateInterval").value(updateInterval);
+        if (radius > 0) json.name("radius").value(radius);
 
         json.name("entities").beginArray();
         for (LiveEntityState entity : entities) {

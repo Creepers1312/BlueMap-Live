@@ -251,6 +251,7 @@ export function parseEntitiesResponse(data) {
         entities,
         invalid,
         effects: supported ? parseEffects(data.effects) : [],
+        radius: isFiniteNumber(data.radius) && data.radius > 0 ? data.radius : null,
         containers: supported ? parseContainers(data.containers) : [],
         blocks: supported ? parseBlocks(data.blocks) : [],
     };

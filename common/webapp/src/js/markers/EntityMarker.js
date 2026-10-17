@@ -34,9 +34,8 @@ import {CREEPER_FUSE_TICKS, limbTarget, MOB_TYPES} from "./mob/MobTypes.js";
 import {LeashView, leashSpan} from "./LeashView.js";
 import {LIVE_PLAYBACK, PlaybackQueue} from "./LivePlayback.js";
 import {PlaceholderModel} from "./mob/PlaceholderModel.js";
+import {LIVE_DISPLAY} from "./LiveDisplay.js";
 
-/** beyond this camera-distance (blocks) entities are not shown */
-const ENTITY_MAX_DISTANCE = 300;
 
 /** the radius of the sphere around an entity that is tested against the view (blocks, big mobs included) */
 const VIEW_RADIUS = 4;
@@ -480,7 +479,8 @@ export class EntityMarker extends Marker {
         const body = this.body;
         if (camera) {
             const distance = Marker.calculateDistanceToCameraPlane(this.position, camera);
-            body.visible = distance <= ENTITY_MAX_DISTANCE;
+            // the camera-distance and the radius around the players chosen in the settings (LiveDisplay)
+            body.visible = distance <= LIVE_DISPLAY.entityDistance && !this.outsideRadius;
         }
         const inView = body.visible && this.visible !== false && (!frustum || frustum.containsPoint(this.position) ||
             frustum.intersectsSphere(tempSphere.set(this.position, VIEW_RADIUS)));

@@ -239,3 +239,16 @@ test("projectile-physics like vanilla", () => {
     assert.deepEqual(projectilePhysics("minecraft:snowball"), {gravity: 0.03, drag: 0.99});
     assert.deepEqual(projectilePhysics("minecraft:fireball"), {gravity: 0, drag: 1});
 });
+
+import {withinPlayerRadius} from "../src/js/markers/LiveDisplay.js";
+
+test("live-display: entities within the chosen radius around the shown players", () => {
+    const players = [{x: 0, y: 64, z: 0}, {x: 100, y: 64, z: 0}];
+    assert.equal(withinPlayerRadius({x: 5, y: 64, z: 0}, players, null), true, "null: all");
+    assert.equal(withinPlayerRadius({x: 5, y: 64, z: 0}, players, 10), true);
+    assert.equal(withinPlayerRadius({x: 50, y: 64, z: 0}, players, 10), false);
+    assert.equal(withinPlayerRadius({x: 95, y: 64, z: 0}, players, 10), true, "the nearest player counts");
+    assert.equal(withinPlayerRadius({x: 0, y: 64, z: 0}, [], 10), false, "no shown player: nothing");
+    assert.equal(parseEntitiesResponse({protocol: 1, entities: [], radius: 64}).radius, 64);
+    assert.equal(parseEntitiesResponse({protocol: 1, entities: []}).radius, null);
+});

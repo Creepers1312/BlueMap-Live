@@ -34,6 +34,7 @@ import {LIVE_CLOCK, LIVE_PLAYBACK} from "./LivePlayback.js";
 import {ParticleSystem} from "./particles/LiveParticles.js";
 import {ParticleView} from "./particles/ParticleView.js";
 import {ChestLidView} from "./ChestLidView.js";
+import {LIVE_DISPLAY, withinPlayerRadius} from "./LiveDisplay.js";
 import {PreviewStore} from "./blocks/BlockPreviewData.js";
 import {BlockAssetCache, BlockPreviewView} from "./blocks/BlockPreviewView.js";
 
@@ -146,6 +147,11 @@ export class EntityMarkerManager extends MarkerManager {
             return false;
         }
         if (isStaleResponse(this.lastServerTime, response.serverTime)) return true;
+        /** the radius around the players in which the server sends entities (the maximum of the setting) */
+        if (response.radius !== null && response.radius !== this.serverRadius) {
+            this.serverRadius = response.radius;
+            if (this.onServerRadius) this.onServerRadius(response.radius);
+        }
         if (response.serverTime !== null) this.lastServerTime = response.serverTime;
         this.updateInterval = response.updateInterval;
 
@@ -290,6 +296,15 @@ export class EntityMarkerManager extends MarkerManager {
     animateBlocks(set) {
         if (!this.blockPreviews) return false;
         const now = Date.now();
+        if (!LIVE_DISPLAY.blockPreview) {
+            // switched off in the settings: no previews, the tiles show everything (again)
+            this.scheduledBlocks = [];
+            const had = this.blockPreviews.previews.size > 0;
+            this.blockPreviews.clear();
+            this.blockView.update();
+            this.blockView.applyHiddenBlocks(this.mapUniforms);
+            return had;
+        }
         while (this.scheduledBlocks.length > 0 && this.scheduledBlocks[0].due <= now) {
             this.blockPreviews.apply(this.scheduledBlocks.shift().blocks);
         }
@@ -316,6 +331,18 @@ export class EntityMarkerManager extends MarkerManager {
         });
     }
 
+    /** the drawn positions of the shown players (feet) */
+    playerPositions() {
+        const positions = [];
+        const players = this.root.markerSets.get("bm-players");
+        if (players && players.visible) {
+            players.markers.forEach(marker => {
+                if (marker.visible !== false && marker.anchor) positions.push(marker.anchor.position);
+            });
+        }
+        return positions;
+    }
+
     /**
      * The drawn entities and players that emit particles.
      * @private
@@ -324,7 +351,7 @@ export class EntityMarkerManager extends MarkerManager {
     particleSources(set) {
         const sources = [];
         set.markers.forEach(marker => {
-            if (!marker.isEntityMarker || marker.visible === false) return;
+            if (!marker.isEntityMarker || marker.visible === false || marker.outsideRadius) return;
             const source = marker.particleSource;
             if (source) sources.push(source);
         });
@@ -348,7 +375,7 @@ export class EntityMarkerManager extends MarkerManager {
      * @returns {boolean} if something is drawn (needs high-fps rendering)
      */
     animateParticles(set, dt) {
-        const visible = set.visible;
+        const visible = set.visible && LIVE_DISPLAY.particles;
         this.releaseEffects(visible);
         if (!visible) {
             this.particleSystem.clear();
@@ -381,6 +408,12 @@ export class EntityMarkerManager extends MarkerManager {
         let moving = false;
         // the view of the camera: entities outside of it are not animated and need no high frame-rate
         const frustum = this.camera ? viewFrustum(this.camera) : null;
+        // the radius around the shown players chosen in the settings
+        const radius = LIVE_DISPLAY.entityRadius;
+        const players = radius === null ? [] : this.playerPositions();
+        set.markers.forEach(marker => {
+            if (marker.isEntityMarker) marker.outsideRadius = !withinPlayerRadius(marker.position, players, radius);
+        });
         set.markers.forEach(marker => {
             if (marker.isEntityMarker && marker.step(dt, this.camera, frustum) && marker.visible) moving = true;
             if (marker.isEntityMarker && marker.removed) this.removeMarker(set, marker);

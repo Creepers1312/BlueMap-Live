@@ -314,6 +314,7 @@ Ergebnis vom 2026-10-16 (Rückmeldung des Nutzers, Einzelspieler):
 | Q37 | `live-block-preview: false` in `plugin.conf`, `/bluemap reload` | Keine Sofort-Vorschau mehr, Änderungen kommen wie in Q32 nach 10–20 s |
 | Q38 | Fackel in der Hand halten und Feuer anschauen (brennender Zombie) | Flammen sind animiert (vorher nur ein Standbild) |
 | Q40 | Feuer mit dem Feuerzeug legen, Magmablock und Seelaterne setzen | Die Vorschau zeigt die Blöcke animiert (nicht gestreift), danach übernimmt die Kachel |
+| Q41 | Kartenmenü → „Entities und Effekte“: Regler „Entities um Spieler“ verkleinern, „Entities sichtbar bis“ ändern, Partikel und Sofort-Vorschau aus- und einschalten, Seite neu laden | Entities weiter weg verschwinden bzw. erscheinen wieder; ohne Partikel keine Explosionswolken; ohne Vorschau erscheinen Blockänderungen erst mit der Kachel; Einstellungen bleiben nach dem Neuladen |
 | Q39 | `/bluemap live-stats` in Ruhe, dann beim Bauen und nach einer TNT-Explosion | Werte erscheinen; Server-Thread-Anteil bleibt klein (Erwartung: unter 1 %), Blockänderungen pro Sekunde steigen beim Bauen |
 
 Diese Liste ergänzt die Server-Tests M1–M16 (`phase-2.md`) und S1–S5 (`phase-3.md`).

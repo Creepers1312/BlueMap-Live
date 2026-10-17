@@ -22,6 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+import {ENTITY_DISTANCE_MAX, ENTITY_DISTANCE_MIN, LIVE_DISPLAY} from "./markers/LiveDisplay";
 import {LiveTileUpdater, TILE_UPDATE_INTERVAL} from "./map/LiveTileUpdater";
 import "./BlueMap";
 import {MapViewer} from "./MapViewer";
@@ -120,7 +121,14 @@ export class BlueMapApp {
             // BlueMap Live: the playback-delay of the live-data and the frame-rate-limit
             live: {
                 delay: LIVE_PLAYBACK.delay,
-                fpsLimit: 0
+                fpsLimit: 0,
+                // the display-settings of the live-data (LiveDisplay)
+                entityRadius: LIVE_DISPLAY.entityRadius,
+                entityDistance: LIVE_DISPLAY.entityDistance,
+                particles: LIVE_DISPLAY.particles,
+                blockPreview: LIVE_DISPLAY.blockPreview,
+                // the radius around the players in which the server sends entities (live-entities-radius)
+                serverRadius: 30,
             }
         });
 
@@ -429,6 +437,21 @@ export class BlueMapApp {
         this.appState.live.delay = LIVE_PLAYBACK.delay;
     }
 
+    /**
+     * BlueMap Live: a display-setting of the live-data (see LiveDisplay): entityRadius (blocks or null: all),
+     * entityDistance (blocks), particles, blockPreview (booleans)
+     */
+    setLiveDisplay(key, value) {
+        if (key === "entityRadius") LIVE_DISPLAY.entityRadius = value === null || value === undefined || !Number.isFinite(Number(value)) ?
+            null : Math.max(0, Math.min(256, Number(value)));
+        else if (key === "entityDistance") LIVE_DISPLAY.entityDistance =
+            Math.max(ENTITY_DISTANCE_MIN, Math.min(ENTITY_DISTANCE_MAX, Number(value) || 300));
+        else if (key === "particles" || key === "blockPreview") LIVE_DISPLAY[key] = value !== false;
+        else return;
+        this.appState.live[key] = LIVE_DISPLAY[key];
+        this.mapViewer.redraw();
+    }
+
     /** BlueMap Live: the highest frame-rate while something moves (0: unlimited) */
     setFpsLimit(limit) {
         this.mapViewer.data.fpsLimit = Math.max(0, Number(limit) || 0);
@@ -493,6 +516,7 @@ export class BlueMapApp {
         // BlueMap Live: the hidden lids of opened chests and the changed blocks in the map-shader
         manager.mapUniforms = this.mapViewer.data.uniforms;
         manager.initBlockPreviews(map.data.hires, map.data.mapDataRoot + "/assets/blocks/");
+        manager.onServerRadius = radius => this.appState.live.serverRadius = radius;
         manager.setAutoUpdateInterval(0);
         return manager.update()
             .then(success => {
@@ -756,6 +780,9 @@ export class BlueMapApp {
         this.worldTimeLighting.setEnabled(this.loadUserSetting("worldTime", this.appState.worldTime.enabled));
         this.setLivePlaybackDelay(this.loadUserSetting("livePlaybackDelay", this.appState.live.delay));
         this.setFpsLimit(this.loadUserSetting("fpsLimit", this.appState.live.fpsLimit));
+        for (const key of ["entityRadius", "entityDistance", "particles", "blockPreview"]) {
+            this.setLiveDisplay(key, this.loadUserSetting("live." + key, this.appState.live[key]));
+        }
 
         alert(this.events, "Settings loaded!", "info");
     }
@@ -781,6 +808,9 @@ export class BlueMapApp {
         this.saveUserSetting("worldTime", this.appState.worldTime.enabled);
         this.saveUserSetting("livePlaybackDelay", this.appState.live.delay);
         this.saveUserSetting("fpsLimit", this.appState.live.fpsLimit);
+        for (const key of ["entityRadius", "entityDistance", "particles", "blockPreview"]) {
+            this.saveUserSetting("live." + key, this.appState.live[key]);
+        }
 
         alert(this.events, "Settings saved!", "info");
     }

@@ -27,6 +27,18 @@
       >{{ limit === 0 ? $t("live.fpsUnlimited") : limit + " FPS" }}</SimpleButton>
     </Group>
 
+    <Group :title="$t('live.displayTitle')">
+      <Slider :value="appState.live.entityRadius === null ? appState.live.serverRadius : Math.min(appState.live.entityRadius, appState.live.serverRadius)"
+              :min="0" :max="appState.live.serverRadius" :step="1" :formatter="blocksFormatter"
+              @update="$bluemap.setLiveDisplay('entityRadius', $event >= appState.live.serverRadius ? null : $event)"
+              @lazy="$bluemap.saveUserSettings()">{{ $t("live.entityRadius") }}</Slider>
+      <Slider :value="appState.live.entityDistance" :min="entityDistanceMin" :max="entityDistanceMax" :step="50" :formatter="blocksFormatter"
+              @update="$bluemap.setLiveDisplay('entityDistance', $event)"
+              @lazy="$bluemap.saveUserSettings()">{{ $t("live.entityDistance") }}</Slider>
+      <SwitchButton :on="appState.live.particles" @action="$bluemap.setLiveDisplay('particles', !appState.live.particles); $bluemap.saveUserSettings()">{{ $t("live.particles") }}</SwitchButton>
+      <SwitchButton :on="appState.live.blockPreview" @action="$bluemap.setLiveDisplay('blockPreview', !appState.live.blockPreview); $bluemap.saveUserSettings()">{{ $t("live.blockPreview") }}</SwitchButton>
+    </Group>
+
     <Group :title="$t('resolution.title')">
       <SimpleButton v-for="stage of qualityStages" :key="stage.name"
                     :active="mapViewer.superSampling === stage.value"
@@ -85,6 +97,7 @@ import Slider from "./Slider.vue";
 import SwitchButton from "./SwitchButton.vue";
 import {i18n, setLanguage} from "../../i18n";
 import {PLAYBACK_DELAYS} from "../../js/markers/LivePlayback";
+import {ENTITY_DISTANCE_MAX, ENTITY_DISTANCE_MIN} from "../../js/markers/LiveDisplay";
 
 const themes = [
   {get name(){ return i18n.t("theme.default")}, value: null},
@@ -121,6 +134,8 @@ name: "SettingsMenu",
       themes: themes,
       playbackDelays: PLAYBACK_DELAYS,
       fpsLimits: [0, 60, 30],
+      entityDistanceMin: ENTITY_DISTANCE_MIN,
+      entityDistanceMax: ENTITY_DISTANCE_MAX,
     }
   },
   computed: {
@@ -135,6 +150,9 @@ name: "SettingsMenu",
     },
     switchDebug() {
       this.$bluemap.setDebug(!this.appState.debug);
+    },
+    blocksFormatter(value) {
+      return Math.round(parseFloat(value)) + " " + this.$t("live.blocks");
     },
     renderDistanceFormatter(value) {
       let f = parseFloat(value);

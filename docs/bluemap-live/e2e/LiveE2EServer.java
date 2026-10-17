@@ -543,7 +543,7 @@ public class LiveE2EServer {
                     mapId.equals("world") ? List.copyOf(entities.values()) : List.of(),
                     mapId.equals("world") ? effects.recent(System.currentTimeMillis()) : List.of(),
                     mapId.equals("world") ? List.copyOf(containers.values()) : List.of(),
-                    mapId.equals("world") ? blocks.recent(System.currentTimeMillis()) : List.of());
+                    mapId.equals("world") ? blocks.recent(System.currentTimeMillis()) : List.of(), 30);
         }
         send(ex, 200, "application/json", out.toString().getBytes(StandardCharsets.UTF_8));
     }
