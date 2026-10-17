@@ -5,12 +5,14 @@
     <ControlBar />
     <div v-if="mapViewer.mapState !== 'loaded'" class="map-state-message">{{ $t("map." + mapViewer.mapState) }}</div>
     <MainMenu :menu="appState.menu" />
+    <SettingsModal />
   </div>
 </template>
 
 <script>
 import ControlBar from "./components/ControlBar/ControlBar.vue";
 import MainMenu from "./components/Menu/MainMenu.vue";
+import SettingsModal from "./components/Menu/SettingsModal.vue";
 import FreeFlightMobileControls from "./components/Controls/FreeFlightMobileControls.vue";
 import ZoomButtons from "./components/Controls/ZoomButtons.vue";
 
@@ -19,6 +21,7 @@ export default {
   components: {
     FreeFlightMobileControls,
     MainMenu,
+    SettingsModal,
     ControlBar,
     ZoomButtons
   },

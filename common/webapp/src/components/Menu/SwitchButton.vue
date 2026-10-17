@@ -18,7 +18,7 @@ export default {
 
 <style lang="scss">
 
-.side-menu .switch-button {
+.side-menu .switch-button, .bm-settings-modal .switch-button {
   cursor: pointer;
   user-select: none;
   display: flex;

@@ -17,7 +17,7 @@ export default {
 </script>
 
 <style lang="scss">
-.side-menu .group {
+.side-menu .group, .bm-settings-modal .group {
   position: relative;
   margin: 2em 0 1em;
   padding-top: 1em;

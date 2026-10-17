@@ -103,9 +103,29 @@ Nur aktiv, wenn „Tag-Nacht-Zyklus der Welt“ eingeschaltet ist und die Welt e
 
 **Darstellung:** Sonne, Mond und Sterne werden nach BlueMaps Himmel mit einer eigenen Kamera gezeichnet (gleiche Drehung, Blickwinkel und Seitenverhältnis wie die Kamera der Karte; BlueMaps Himmelskamera behält ihr festes Seitenverhältnis, weil der Himmel nur eine Farbe hat). In der flachen Ansicht (orthografisch) nicht. Wolken und Tropfen liegen in der Marker-Szene; der Tropfen-Shader nutzt den logarithmischen Tiefenpuffer von BlueMaps Renderer.
 
-## 3. Sprachen
+## 3. Einstellungen als Popup mit Reitern
 
-Alle 28 Sprachen aus `lang/settings.conf` haben die Texte von BlueMap Live: die 65 Texte von Deutsch und Englisch, dazu 46 pro weiterer Sprache. „LIVE“ bleibt in allen Sprachen gleich.
+Wunsch des Nutzers („Sidenav neu strukturieren oder ein Popup bauen, besser und übersichtlicher“), gewählt: Popup mit Reitern.
+
+- „Einstellungen“ im Hauptmenü öffnet jetzt ein Fenster in der Bildmitte; die Seitenleiste schließt sich, die Karte bleibt dahinter sichtbar (Änderungen sind sofort zu sehen). Schließen mit ✕, Escape oder Klick daneben.
+- Sechs Reiter statt einer langen Liste mit 15 Gruppen:
+
+| Reiter | Gruppen |
+|---|---|
+| Ansicht | Ansicht/Steuerung (Perspektive, flach, frei), Voreinstellung, Auflösung, Renderdistanz |
+| Live | Live-Anzeige (Glättung, Bildrate), Kamera beim Folgen |
+| Entities | Entities und Effekte, Entities filtern |
+| Licht & Wetter | Beleuchtung (Sonnenlicht, Umgebungslicht, Weltzeit, Live-Wetter) |
+| Steuerung | Kartensteuerung, Freie Kamera |
+| Allgemein | Farbmodus, Screenshot, Sprache, Chunkgrenzen, Debug, Zurücksetzen |
+
+- Breite Fenster zeigen die Gruppen nebeneinander, ohne die Höhenbegrenzung der Seitenleiste. Auf dem Handy füllt das Popup den Bildschirm, die Reiter stehen als scrollbare Zeile oben.
+- Umsetzung: `SettingsModal.vue` zeigt die Gruppen aus `SettingsMenu.vue` mit dem neuen Filter `section`. Jede Einstellung gibt es also nur einmal. Die Seite „settings“ der Seitenleiste besteht weiter (alle Gruppen) und wird nur nicht mehr vom Hauptmenü geöffnet. Die Menü-Bausteine (`Group`, `SimpleButton`, `Slider`, `SwitchButton`, `SwitchHandle`) haben ihre Styles zusätzlich für `.bm-settings-modal`.
+- Neue Texte `settingsTabs.*` in allen 28 Sprachen.
+
+## 4. Sprachen
+
+Alle 28 Sprachen aus `lang/settings.conf` haben die Texte von BlueMap Live (54 Schlüssel einschließlich der Reiter des Einstellungs-Popups). „LIVE“ bleibt in allen Sprachen gleich.
 - Die Übersetzungen der 26 weiteren Sprachen sind von mir erstellt und nicht von Muttersprachlern geprüft. Verbesserungen sind willkommen (`public/lang/<sprache>.conf`).
 - Serbisch kyrillisch ist aus dem lateinischen Serbisch transliteriert (BlueMap, Minecraft bleiben lateinisch).
 - Apostrophe als `’`: Der HOCON-Parser der Webapp (`hocon-parser`) liest `'` in Texten falsch.
@@ -113,11 +133,11 @@ Alle 28 Sprachen aus `lang/settings.conf` haben die Texte von BlueMap Live: die 
 - Sprachdateien werden beim Laden beim Server neu validiert (`cache: "no-cache"`), damit nach einem Update keine alten Texte aus dem Browser-Cache erscheinen.
 - Test: `Languages.test.mjs` prüft, dass jede Sprache aus `settings.conf` alle Texte von BlueMap Live hat und alle Sprachdateien lesbar sind.
 
-## 4. Gespeicherte Einstellungen
+## 5. Gespeicherte Einstellungen
 
 Wie in Phase 12 unter `live.<key>`: `nameTags`, `healthBars`, `followMode`, `weather`, `category.hostile`, `category.animals`, `category.other`, `category.items`, `category.vehicles`. Die Voreinstellung wird nicht gespeichert, sondern aus den Werten erkannt.
 
-## 5. Tests
+## 6. Tests
 
 **Automatisiert:**
 
@@ -125,7 +145,7 @@ Wie in Phase 12 unter `live.<key>`: `nameTags`, `healthBars`, `followMode`, `wea
 |---|---|
 | Node `npm test` | 178/178, neu `Weather.test.mjs` (6), `QualityPresets.test.mjs` (2), `Languages.test.mjs` (2); in `LiveEntities.test.mjs` Kategorien, Einstellungen, Beschriftung, Folgekamera; in `WorldTime.test.mjs` Mondphase, Uhr, Wetter, Live-Anzeige |
 | JUnit lokal | 96/96, Texturfilter für Himmel und Wetter |
-| Browser `qol-e2e.mjs` (neu) | 14/14: Filter nach Kategorie, Schalter im Menü, Namensschild, Lebensbalken (Mob und Spieler, Spielername ausgeblendet), Entfernen der Beschriftung, Uhr mit Wetter und Mondphase, Live-Anzeige grün → gelb → rot → grün, Voreinstellungen, Ego- und Schulterkamera (Position, Modell aus/an), Sonne mittags senkrecht (Pixel), Mond der Phase 2 um Mitternacht (Pixel), Regen, Schnee, kein Niederschlag, Blitz hellt die Karte auf und klingt ab, Wolken von oben (Pixel), Abschalten |
+| Browser `qol-e2e.mjs` (neu) | 15/15: Einstellungs-Popup (aus dem Menü, 6 Reiter, jede Gruppe in genau einem Reiter, Schalter wirkt, Escape), Filter nach Kategorie, Schalter im Menü, Namensschild, Lebensbalken (Mob und Spieler, Spielername ausgeblendet), Entfernen der Beschriftung, Uhr mit Wetter und Mondphase, Live-Anzeige grün → gelb → rot → grün, Voreinstellungen, Ego- und Schulterkamera (Position, Modell aus/an), Sonne mittags senkrecht (Pixel), Mond der Phase 2 um Mitternacht (Pixel), Regen, Schnee, kein Niederschlag, Blitz hellt die Karte auf und klingt ab, Wolken von oben (Pixel), Abschalten |
 | Browser `display`, `particles`, `blocks`, `worldtime`, `entities`, `mobs`, `playback`, `animation`, `items`, `player` | 6/6, 13/13, 15/15, 9/9, 12/12, 15/15, 6/6, 19/19, 16/16, 22/22. `particles`: Die Prüfung „nichts mehr gezeichnet“ wartet jetzt auf das nächste Bild (die Gruppe wird ein Bild nach dem letzten Partikel ausgeblendet; vorher gelegentlich fehlgeschlagen). |
 | Regression gegen das Original | in dieser Phase nicht erneut ausgeführt |
 

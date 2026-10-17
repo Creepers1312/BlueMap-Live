@@ -411,6 +411,37 @@ await step("live weather: clouds see-through from above, switched off in the set
     assert.equal((await weather()).active, false);
 });
 
+await step("settings-popup: opened from the menu, 6 tabs with the groups, settings work there, closed with Escape", async () => {
+    await page.evaluate(() => document.querySelector(".control-bar .menu-button")?.click());
+    await sleep(400);
+    await page.evaluate(() => [...document.querySelectorAll(".side-menu .simple-button")].find(b => b.innerText.trim() === "Settings")?.click());
+    await page.waitForSelector(".bm-settings-modal", {timeout: 5000});
+    await sleep(500); // the side-menu fades out (0.3 s)
+    assert.equal(await page.evaluate(() => !!document.querySelector(".side-menu")), false, "the side-menu is closed");
+    const tabs = await page.evaluate(() => [...document.querySelectorAll(".bm-settings-modal-tab")].map(t => t.innerText.trim()));
+    assert.deepEqual(tabs, ["View", "Live", "Entities", "Light & weather", "Controls", "General"]);
+    const groupsOf = async i => {
+        await page.evaluate(i => document.querySelectorAll(".bm-settings-modal-tab")[i].click(), i);
+        await sleep(200);
+        return page.evaluate(() => [...document.querySelectorAll(".bm-settings-modal .group > .title")].map(t => t.innerText));
+    };
+    const all = [];
+    for (let i = 0; i < tabs.length; i++) all.push(...await groupsOf(i));
+    // every group of the settings is in exactly one tab
+    assert.equal(new Set(all).size, all.length);
+    assert.ok(all.length >= 14, all.join(", "));
+    assert.ok((await groupsOf(2)).includes("Filter entities"));
+    // a switch in the popup changes the setting
+    await page.evaluate(() => [...document.querySelectorAll(".bm-settings-modal .switch-button")].find(b => b.innerText.includes("Hostile mobs")).click());
+    await sleep(200);
+    assert.equal(await page.evaluate(() => window.bluemap.appState.live.categories.hostile), false);
+    await page.evaluate(() => [...document.querySelectorAll(".bm-settings-modal .switch-button")].find(b => b.innerText.includes("Hostile mobs")).click());
+    await page.screenshot({path: `${OUT}/q14-settings-popup.png`});
+    await page.keyboard.press("Escape");
+    await sleep(400);
+    assert.equal(await page.evaluate(() => !!document.querySelector(".bm-settings-modal")), false);
+});
+
 //__MORE__
 
 await step("no uncaught errors", async () => {

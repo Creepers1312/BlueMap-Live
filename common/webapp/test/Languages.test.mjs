@@ -15,13 +15,13 @@ const flat = (object, prefix = "", out = {}) => {
 };
 
 // the texts of BlueMap Live (the original BlueMap has the other keys)
-const LIVE_ROOTS = ["live.", "worldClock.", "liveIndicator.", "qualityPreset.", "lighting.worldTime."];
+const LIVE_ROOTS = ["live.", "worldClock.", "liveIndicator.", "qualityPreset.", "settingsTabs.", "lighting.worldTime."];
 const english = flat(read("en.conf"));
 const liveKeys = Object.keys(english).filter(key => LIVE_ROOTS.some(root => key.startsWith(root)));
 
 test("languages: every language of settings.conf has all texts of BlueMap Live", () => {
     const settings = read("settings.conf");
-    assert.ok(liveKeys.length >= 47, "live-keys: " + liveKeys.length);
+    assert.ok(liveKeys.length >= 54, "live-keys: " + liveKeys.length);
     for (const {locale} of settings.languages) {
         const texts = flat(read(locale + ".conf"));
         const missing = liveKeys.filter(key => typeof texts[key] !== "string" || texts[key].trim() === "");

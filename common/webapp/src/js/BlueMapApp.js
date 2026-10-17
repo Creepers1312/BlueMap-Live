@@ -121,6 +121,11 @@ export class BlueMapApp {
                 clipboard: true
             },
             debug: false,
+            // BlueMap Live: the settings-popup (SettingsModal) and its selected tab
+            settingsModal: {
+                open: false,
+                tab: "view",
+            },
             // BlueMap Live: the map-lighting follows the day-night-cycle of the world
             worldTime: {
                 enabled: false,
@@ -586,6 +591,16 @@ export class BlueMapApp {
             this.mapViewer.data.uniforms.sunlightStrength.value = base + (1 - base) * view.flash * 0.7;
         }
         if (moving) this.mapViewer.redraw();
+    }
+
+    /**
+     * BlueMap Live: opens the settings-popup (the side-menu is closed, the map stays visible behind it)
+     * @param tab {string | undefined} - see SettingsModal.SETTINGS_TABS
+     */
+    openSettings(tab = undefined) {
+        this.mainMenu.closeAll();
+        if (tab) this.appState.settingsModal.tab = tab;
+        this.appState.settingsModal.open = true;
     }
 
     /** BlueMap Live: the state of the live-indicator from the age of the last players.json (see LiveConnection) */
