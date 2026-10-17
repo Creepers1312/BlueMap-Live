@@ -35,6 +35,7 @@ import {LeashView, leashSpan} from "./LeashView.js";
 import {LIVE_PLAYBACK, PlaybackQueue} from "./LivePlayback.js";
 import {PlaceholderModel} from "./mob/PlaceholderModel.js";
 import {LIVE_DISPLAY} from "./LiveDisplay.js";
+import {ENTITY_LABELS, LABEL_DISTANCE, labelContent} from "./EntityLabel.js";
 
 
 /** the radius of the sphere around an entity that is tested against the view (blocks, big mobs included) */
@@ -126,6 +127,8 @@ export class EntityMarker extends Marker {
         this.motionOffset = 0;
         this.age = 0;
         this.lastData = null;
+        /** @type {import("./EntityLabelView.js").EntityLabel | null} */
+        this.label = null;
 
         // interpolation (dropped items, resting projectiles)
         this.from = new Vector3();
@@ -481,6 +484,7 @@ export class EntityMarker extends Marker {
             const distance = Marker.calculateDistanceToCameraPlane(this.position, camera);
             // the camera-distance and the radius around the players chosen in the settings (LiveDisplay)
             body.visible = distance <= LIVE_DISPLAY.entityDistance && !this.outsideRadius;
+            this.updateLabel(body.visible && distance <= LABEL_DISTANCE);
         }
         const inView = body.visible && this.visible !== false && (!frustum || frustum.containsPoint(this.position) ||
             frustum.intersectsSphere(tempSphere.set(this.position, VIEW_RADIUS)));
@@ -662,8 +666,35 @@ export class EntityMarker extends Marker {
         this.simVelocity.y -= this.physics.gravity;
     }
 
+    /**
+     * The name-tag (named mobs) and the health-bar (see EntityLabel), created only while it is shown.
+     * @private
+     * @param near {boolean} - shown and near the camera
+     */
+    updateLabel(near) {
+        const mob = this.lastData && this.lastData.mob;
+        const content = near && mob && !this.removed && this.deathTicks === 0 ? labelContent(mob.name, mob.health, mob.maxHealth) : null;
+        if (!content) {
+            if (this.label) {
+                this.remove(this.label);
+                this.label = null;
+            }
+            return;
+        }
+        if (!this.label) {
+            if (!ENTITY_LABELS.create) return;
+            this.label = ENTITY_LABELS.create();
+            this.add(this.label);
+        }
+        // above the head like the vanilla name-tag (height + 0.5)
+        this.label.position.set(0, mob.height + 0.5, 0);
+        this.label.setContent(content);
+    }
+
     dispose() {
         super.dispose();
+        if (this.label) this.remove(this.label);
+        this.label = null;
         if (this.view) this.view.dispose();
         this.view = null;
         if (this.leashView) this.leashView.dispose();

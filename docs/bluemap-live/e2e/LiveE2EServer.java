@@ -282,6 +282,10 @@ public class LiveE2EServer {
                         q.containsKey("leash") ? Integer.valueOf(q.get("leash")) : null,
                         q.containsKey("leashPlayer") ? java.util.UUID.fromString(q.get("leashPlayer")) : null,
                         new Vector3d(d(q, "lsx"), d(q, "lsy"), d(q, "lsz")), new Vector3d(d(q, "lex"), d(q, "ley"), d(q, "lez"))));
+                // spawn-group, health and custom name: &group=monster&health=..&maxHealth=..&mobName=..
+                if (q.containsKey("group") || q.containsKey("health")) mob = mob.withInfo(new LiveMobState.Info(
+                        q.getOrDefault("group", "misc"), (float) d(q, "health"),
+                        q.containsKey("maxHealth") ? (float) d(q, "maxHealth") : 20f, q.get("mobName")));
             }
             entities.put(id, new LiveEntityState(id, q.getOrDefault("type", "minecraft:item"),
                     new Vector3d(d(q, "x"), d(q, "y"), d(q, "z")), d(q, "yaw"), d(q, "pitch"),
@@ -354,10 +358,10 @@ public class LiveE2EServer {
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }
-        // the time of the map-world: /control?dayTime=TICKS&rain=0..1&thunder=0..1&cycle=0|1, /control?dayTime=none
+        // the time of the map-world: /control?dayTime=TICKS&rain=0..1&thunder=0..1&cycle=0|1&moonPhase=0..7, /control?dayTime=none
         if (q.containsKey("dayTime")) {
             worldTime = q.get("dayTime").equals("none") ? null : new LiveWorldTime((long) d(q, "dayTime"), d(q, "rain"), d(q, "thunder"),
-                    !"0".equals(q.get("cycle")));
+                    !"0".equals(q.get("cycle")), (int) d(q, "moonPhase"));
             send(ex, 200, "application/json", "{}".getBytes(StandardCharsets.UTF_8));
             return;
         }
@@ -422,7 +426,10 @@ public class LiveE2EServer {
                     p.hurtCount,
                     q.containsKey("vehicle") ? new Vehicle(Integer.parseInt(q.get("vehicle")),
                             new Vector3d(d(q, "vox"), d(q, "voy"), d(q, "voz")), (float) d(q, "vbody"), (float) d(q, "vhead")) : null,
-                    particles(q)
+                    particles(q),
+                    // health and precipitation: &health=..&maxHealth=..&precipitation=rain|snow|none
+                    q.containsKey("health") ? new de.bluecolored.bluemap.common.live.PlayerStatus((float) d(q, "health"),
+                            q.containsKey("maxHealth") ? (float) d(q, "maxHealth") : 20f, q.get("precipitation")) : null
             );
         }
 

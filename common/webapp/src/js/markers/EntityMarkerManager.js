@@ -36,6 +36,10 @@ import {ParticleView} from "./particles/ParticleView.js";
 import {ChestLidView} from "./ChestLidView.js";
 import {entityCategory, LIVE_DISPLAY, withinPlayerRadius} from "./LiveDisplay.js";
 import {PreviewStore} from "./blocks/BlockPreviewData.js";
+import {ENTITY_LABELS} from "./EntityLabel.js";
+import {EntityLabel} from "./EntityLabelView.js";
+
+ENTITY_LABELS.create = () => new EntityLabel();
 import {BlockAssetCache, BlockPreviewView} from "./blocks/BlockPreviewView.js";
 
 /** effects that would be shown later than this (ms) after their playback-time are skipped (e.g. after a reload) */

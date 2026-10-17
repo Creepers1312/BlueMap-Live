@@ -25,6 +25,7 @@
 import {Marker} from "./Marker";
 import {CSS2DObject} from "../util/CSS2DRenderer";
 import {animate, htmlToElement} from "../util/Utils";
+import {healthColor, labelContent} from "./EntityLabel.js";
 import {MathUtils, Quaternion, Vector3} from "three";
 import {angleDelta, bedTransform, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse, riderOnVehicle} from "./LivePlayerData";
 import {PlayerModel} from "./player/PlayerModel";
@@ -77,12 +78,17 @@ export class PlayerMarker extends Marker {
 <div id="bm-marker-${this.data.id}" class="bm-marker-${this.data.type}">
     <img src="${this.data.playerHead}" alt="playerhead" draggable="false">
     <div class="bm-player-name"></div>
+    <div class="bm-player-health"><div class="bm-health-fill"></div></div>
 </div>
         `));
         this.elementObject.onBeforeRender = (renderer, scene, camera) => this.onBeforeRender(renderer, scene, camera);
 
         this.playerHeadElement = this.element.getElementsByTagName("img")[0];
         this.playerNameElement = this.element.getElementsByTagName("div")[0];
+        // BlueMap Live: the health-bar (setting healthBars, see EntityLabel)
+        this.playerHealthElement = this.element.getElementsByClassName("bm-player-health")[0];
+        this.playerHealthFill = this.playerHealthElement.firstElementChild;
+        this.shownLabel = null;
 
         this.addEventListener( 'removed', () => {
             if (this.element.parentNode) this.element.parentNode.removeChild(this.element);
@@ -142,10 +148,33 @@ export class PlayerMarker extends Marker {
 
         this.model.visible = this.model.hasSkin && distance <= MODEL_MAX_DISTANCE;
 
+        this.updateLabel();
+
         const modelNear = this.model.visible && distance <= HEAD_ICON_HIDE_DISTANCE;
         if (modelNear !== this.modelNear) {
             this.modelNear = modelNear;
             this.element.setAttribute("model-data", modelNear ? "near" : "none");
+        }
+    }
+
+    /**
+     * BlueMap Live: the name and the health-bar with the settings nameTags and healthBars (LiveDisplay)
+     * @private
+     */
+    updateLabel() {
+        const status = this.lastPlayerData && this.lastPlayerData.status;
+        const content = labelContent("name", status ? status.health : null, status ? status.maxHealth : null);
+        const key = content ? `${content.name !== null}|${content.fraction}` : "";
+        if (key === this.shownLabel) return;
+        this.shownLabel = key;
+        this.element.setAttribute("name-data", content && content.name !== null ? "shown" : "hidden");
+        this.element.setAttribute("health-data", content && content.fraction !== null ? "shown" : "hidden");
+        if (content && content.fraction !== null) {
+            this.playerHealthElement.style.display = "";
+            this.playerHealthFill.style.width = (content.fraction * 100).toFixed(1) + "%";
+            this.playerHealthFill.style.backgroundColor = healthColor(content.fraction);
+        } else {
+            this.playerHealthElement.style.display = "none";
         }
     }
 

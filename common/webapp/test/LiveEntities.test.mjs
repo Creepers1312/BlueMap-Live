@@ -286,3 +286,20 @@ test("live-display: settings are validated, categories and switches are saved un
     assert.equal(LIVE_DISPLAY.entityDistance, 1000);
     setLiveDisplayValue("entityDistance", 300);
 });
+
+import {formatHearts, healthColor, healthFraction, labelContent} from "../src/js/markers/EntityLabel.js";
+
+test("entity-label: name-tags and health-bars follow the settings", () => {
+    const on = {nameTags: true, healthBars: true}, names = {nameTags: true, healthBars: false};
+    assert.equal(labelContent(null, 10, 20, names), null, "an unnamed mob without health-bars has no label");
+    assert.deepEqual(labelContent("Bob", 10, 20, names), {name: "Bob", health: null, maxHealth: null, fraction: null});
+    assert.deepEqual(labelContent("Bob", 10, 20, on), {name: "Bob", health: 10, maxHealth: 20, fraction: 0.5});
+    assert.deepEqual(labelContent("Bob", 10, 20, {nameTags: false, healthBars: true}), {name: null, health: 10, maxHealth: 20, fraction: 0.5});
+    assert.equal(labelContent(null, null, null, on), null, "an older server without health");
+    assert.equal(healthFraction(30, 20), 1);
+    assert.equal(healthFraction(5, 0), null);
+    assert.equal(formatHearts(15), "7.5");
+    assert.equal(formatHearts(20), "10");
+    assert.equal(healthColor(1), "hsl(120, 80%, 45%)");
+    assert.equal(healthColor(0), "hsl(0, 80%, 45%)");
+});
