@@ -148,8 +148,19 @@ export function precipitationAt(players, position) {
  * @returns {{radius: number, height: number, dropSize: number}}
  */
 export function precipitationBox(distance) {
-    const radius = Math.min(160, Math.max(10, distance * 0.5));
+    const radius = Math.min(400, Math.max(10, distance));
     return {radius, height: radius * 2, dropSize: radius / 10};
+}
+
+/**
+ * The drops directly around the camera (like vanilla, which draws the rain only around the camera): they fill the
+ * whole view, only while the camera is below the clouds.
+ * @param cameraY {number}
+ * @returns {{radius: number, height: number, dropSize: number} | null} null: above the clouds, no drops around it
+ */
+export function cameraPrecipitationBox(cameraY) {
+    if (cameraY > CLOUD_HEIGHT) return null;
+    return {radius: 16, height: 32, dropSize: 2};
 }
 
 /** vanilla: rain falls with ~ 0.5 blocks per tick (fast), snow slowly */

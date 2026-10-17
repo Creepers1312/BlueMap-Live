@@ -89,7 +89,7 @@ Nur aktiv, wenn „Tag-Nacht-Zyklus der Welt“ eingeschaltet ist und die Welt e
 | Sonne, Mond | Texturen des Ressourcenpakets, additiv, 100 Blöcke entfernt, halbe Größe 30 bzw. 20; gedreht um −90° (y) und den Himmelswinkel (x): Aufgang im Osten, mittags senkrecht. Mondphase aus `moonPhase` (4 × 2 Felder). Bei Regen ausgeblendet (Deckkraft 1 − Regen). | `WorldRenderer.renderSky` |
 | Sterne | 1500 Versuche zufälliger Punkte, 100 Blöcke entfernt, drehen mit dem Himmel; Helligkeit wie `getStarBrightness` (nachts 0,5), bei Regen weniger. Die Positionen sind nicht die von Vanilla (andere Zufallszahlen). | `buildStarsBuffer`, `getStarBrightness` |
 | Wolken | flache Schicht („schnelle Wolken“) aus `clouds.png` in Höhe 192, 12 Blöcke pro Pixel, ziehen mit 0,03 Blöcken pro Tick nach Westen. Nachts und im Sturm dunkler. Von unten Deckkraft 0,8, von oben durchsichtig (0,3), damit die Karte sichtbar bleibt. | `renderClouds` (nicht die 3D-Wolken) |
-| Regen, Schnee | 3000 Tropfen aus `rain.png`/`snow.png` um den Punkt, auf den die Kamera schaut: nah 10 Blöcke Umkreis wie Vanilla, bei weiter entfernter Kamera bis 160. Menge = Regenstärke. Schnee fällt langsam und pendelt. Ob Regen, Schnee oder nichts: Niederschlag im Biom des nächsten Spielers, sonst Regen. | `renderWeather` |
+| Regen, Schnee | Tropfen aus `rain.png`/`snow.png` in zwei Schichten: 1200 direkt um die Kamera (16 Blöcke, nur unterhalb der Wolken; füllt das ganze Bild wie in Vanilla, wo der Regen nur um die Kamera gezeichnet wird) und 4000 um den Punkt, auf den die Kamera schaut (Umkreis = Kameraabstand, 10 bis 400 Blöcke; sichtbar auch aus der Kartenansicht). Menge = Regenstärke. Schnee fällt langsam und pendelt. Ob Regen, Schnee oder nichts: Niederschlag im Biom des nächsten Spielers, sonst Regen. | `renderWeather` |
 | Gewitter | Die Karte wird bereits über die Weltzeit dunkler. Zusätzlich alle 4–16 s ein Blitz, der die Karte kurz aufhellt und flackert. | `lightningTicksLeft` |
 
 **Abweichungen (bewusst):**
@@ -98,6 +98,8 @@ Nur aktiv, wenn „Tag-Nacht-Zyklus der Welt“ eingeschaltet ist und die Welt e
 - Wolken und Sterne stehen nicht an derselben Stelle wie im Spiel (Vanilla nutzt die Ticks des Clients bzw. Java-Zufallszahlen).
 - Die Farbe des Sonnenauf- und -untergangs und die Himmelsfarbe bei Regen fehlen; der Himmel wird wie bisher nur über die Sonnenlichtstärke dunkler.
 - Die 3D-Wolken („Fancy“) fehlen.
+
+**Nach dem ersten Test in Minecraft (Nutzer):** Der Regen war nur in einem Feld um den Blickpunkt zu sehen, nicht in der ganzen Ansicht. Deshalb gibt es jetzt die zweite Schicht um die Kamera. Außerdem stand `liveIndicator.label` statt „LIVE“ da: Der Browser hatte die alte Sprachdatei zwischengespeichert. Die Sprachdateien werden jetzt beim Server neu validiert (`fetch` mit `cache: "no-cache"`).
 
 **Darstellung:** Sonne, Mond und Sterne werden nach BlueMaps Himmel mit einer eigenen Kamera gezeichnet (gleiche Drehung, Blickwinkel und Seitenverhältnis wie die Kamera der Karte; BlueMaps Himmelskamera behält ihr festes Seitenverhältnis, weil der Himmel nur eine Farbe hat). In der flachen Ansicht (orthografisch) nicht. Wolken und Tropfen liegen in der Marker-Szene; der Tropfen-Shader nutzt den logarithmischen Tiefenpuffer von BlueMaps Renderer.
 

@@ -32,7 +32,8 @@ export const round = (value, precision) => {
 }
 
 export const fetchHocon = async (url) => {
-    return fetch(url)
+    // BlueMap Live: revalidated with the server, an updated web-app brings new texts (no stale language-files)
+    return fetch(url, {cache: "no-cache"})
         .then((res) => res.text())
         .then((value) => parseHocon(value));
 }

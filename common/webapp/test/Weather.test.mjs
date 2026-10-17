@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import {
     cloudBrightness, cloudOffset, cloudOpacity, generateStars, lightningFlash, moonUv, nextLightningDelay,
-    precipitationAt, precipitationBox, starBrightness, sunDirection
+    precipitationAt, precipitationBox, cameraPrecipitationBox, starBrightness, sunDirection
 } from "../src/js/weather/WeatherData.js";
 
 const close = (a, b, eps = 1e-6) => assert.ok(Math.abs(a - b) < eps, `${a} != ${b}`);
@@ -49,7 +49,11 @@ test("weather: precipitation of the nearest player with a status, rain if unknow
     assert.equal(precipitationAt(players, {x: 90, z: 0}), "none");
     assert.equal(precipitationAt([], {x: 0, z: 0}), "rain");
     assert.deepEqual(precipitationBox(0), {radius: 10, height: 20, dropSize: 1});
-    assert.equal(precipitationBox(1500).radius, 160);
+    assert.equal(precipitationBox(200).radius, 200);
+    assert.equal(precipitationBox(1500).radius, 400);
+    // around the camera: only below the clouds
+    assert.deepEqual(cameraPrecipitationBox(100), {radius: 16, height: 32, dropSize: 2});
+    assert.equal(cameraPrecipitationBox(300), null);
 });
 
 test("weather: lightning-flashes every 4..16 seconds, a short flicker", () => {

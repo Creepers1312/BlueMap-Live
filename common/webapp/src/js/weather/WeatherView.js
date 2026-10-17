@@ -30,13 +30,14 @@ import {
 import {TextureAssetCache} from "../markers/mob/TextureAssetCache.js";
 import {
     CLOUD_HEIGHT, CLOUD_SCALE, cloudBrightness, cloudOffset, cloudOpacity, FALL_SPEED, generateStars, lightningFlash,
-    MOON_SIZE, moonUv, nextLightningDelay, precipitationAt, precipitationBox, SKY_DISTANCE, starBrightness, SUN_SIZE,
+    MOON_SIZE, moonUv, nextLightningDelay, precipitationAt, precipitationBox, cameraPrecipitationBox, SKY_DISTANCE, starBrightness, SUN_SIZE,
     WEATHER_TEXTURES
 } from "./WeatherData.js";
 import {skyAngle} from "../markers/WorldTime.js";
 
-/** the drops of the rain and snow (at most, fewer while it starts or stops raining) */
-const DROP_COUNT = 3000;
+/** the drops of the rain and snow around the point the camera looks at and around the camera (at most, fewer while it starts or stops raining) */
+const DROP_COUNT = 4000;
+const CAMERA_DROP_COUNT = 1200;
 /** the clouds are drawn this far around the camera (blocks, at least) */
 const CLOUD_RADIUS = 1536;
 
@@ -151,7 +152,7 @@ export class WeatherView {
         this.cloudTexture = null;
         this.group.add(this.clouds);
 
-        this.drops = new Mesh(createDropGeometry(DROP_COUNT), new ShaderMaterial({
+        const dropMaterial = () => new ShaderMaterial({
             uniforms: {
                 map: {value: null}, center: {value: new Vector3()}, cameraPos: {value: new Vector3()},
                 radius: {value: 10}, height: {value: 20}, time: {value: 0}, speed: {value: 10}, size: {value: 1},
@@ -160,10 +161,15 @@ export class WeatherView {
             vertexShader: DROP_VERTEX_SHADER,
             fragmentShader: DROP_FRAGMENT_SHADER,
             transparent: true, depthWrite: false, side: DoubleSide,
-        }));
-        this.drops.frustumCulled = false;
-        this.drops.visible = false;
-        this.group.add(this.drops);
+        });
+        // around the point the camera looks at (seen from far away) and around the camera (fills the view)
+        this.drops = new Mesh(createDropGeometry(DROP_COUNT), dropMaterial());
+        this.cameraDrops = new Mesh(createDropGeometry(CAMERA_DROP_COUNT), dropMaterial());
+        for (const drops of [this.drops, this.cameraDrops]) {
+            drops.frustumCulled = false;
+            drops.visible = false;
+            this.group.add(drops);
+        }
 
         this.time = 0;
         this.nextFlash = nextLightningDelay();
@@ -245,27 +251,13 @@ export class WeatherView {
         this.precipitation = world.rain > 0 ? precipitationAt(params.players, params.target) : "none";
         let moving = false;
         const dropEntry = this.precipitation === "none" ? null : this.entries[this.precipitation];
-        if (dropEntry && dropEntry.state === "loaded") {
-            const uniforms = this.drops.material.uniforms;
-            const box = precipitationBox(params.distance);
-            uniforms.map.value = dropEntry.texture;
-            uniforms.center.value.set(params.target.x, params.target.y + box.height * 0.25, params.target.z);
-            uniforms.cameraPos.value.copy(params.camera.position);
-            uniforms.radius.value = box.radius;
-            uniforms.height.value = box.height;
-            uniforms.time.value = this.time;
-            uniforms.speed.value = FALL_SPEED[this.precipitation] * Math.max(1, box.radius / 20);
-            uniforms.size.value = box.dropSize * (this.precipitation === "snow" ? 0.6 : 0.25);
-            uniforms.stretch.value = this.precipitation === "snow" ? 1 : 6;
-            uniforms.drift.value = this.precipitation === "snow" ? box.dropSize * 0.5 : 0;
-            uniforms.amount.value = world.rain;
-            uniforms.opacity.value = this.precipitation === "snow" ? 0.9 : 0.6;
-            uniforms.brightness.value = cloudBrightness(world.dayTime, 0, world.thunder) * 0.8 + 0.2;
-            this.drops.visible = true;
-            moving = true;
-        } else {
-            this.drops.visible = false;
-        }
+        const loaded = dropEntry && dropEntry.state === "loaded";
+        const box = precipitationBox(params.distance);
+        const cameraBox = cameraPrecipitationBox(params.camera.position.y);
+        const cam = params.camera.position;
+        this.updateDrops(this.drops, loaded ? box : null, params.target.x, params.target.y + box.height * 0.25, params.target.z, dropEntry, world, cam);
+        this.updateDrops(this.cameraDrops, loaded ? cameraBox : null, cam.x, cam.y, cam.z, dropEntry, world, cam);
+        if (this.drops.visible || this.cameraDrops.visible) moving = true;
 
         // lightning-flashes in a thunderstorm (vanilla isThundering: thunder-gradient > 0.9)
         this.flash = 0;
@@ -285,6 +277,28 @@ export class WeatherView {
         return moving;
     }
 
+    /** @private one layer of drops in a box (null: hidden) */
+    updateDrops(drops, box, x, y, z, entry, world, camera) {
+        drops.visible = !!box;
+        if (!box) return;
+        const snow = this.precipitation === "snow";
+        const uniforms = drops.material.uniforms;
+        uniforms.map.value = entry.texture;
+        uniforms.center.value.set(x, y, z);
+        uniforms.cameraPos.value.copy(camera);
+        uniforms.radius.value = box.radius;
+        uniforms.height.value = box.height;
+        uniforms.time.value = this.time;
+        uniforms.speed.value = FALL_SPEED[this.precipitation] * Math.max(1, box.radius / 20);
+        uniforms.size.value = box.dropSize * (snow ? 0.6 : 0.25);
+        uniforms.stretch.value = snow ? 1 : 6;
+        uniforms.drift.value = snow ? box.dropSize * 0.5 : 0;
+        uniforms.amount.value = world.rain;
+        // the drops around the camera are close and large: lighter
+        uniforms.opacity.value = (snow ? 0.9 : 0.6) * (drops === this.cameraDrops ? 0.6 : 1);
+        uniforms.brightness.value = cloudBrightness(world.dayTime, 0, world.thunder) * 0.8 + 0.2;
+    }
+
     /** @private */
     setMap(mesh, entry) {
         const map = entry.state === "loaded" ? entry.texture : null;
@@ -298,7 +312,7 @@ export class WeatherView {
         Object.values(this.entries).forEach(entry => this.textures.release(entry));
         this.textures.dispose();
         if (this.cloudTexture) this.cloudTexture.dispose();
-        [this.sun, this.moon, this.stars, this.clouds, this.drops].forEach(object => {
+        [this.sun, this.moon, this.stars, this.clouds, this.drops, this.cameraDrops].forEach(object => {
             object.geometry.dispose();
             object.material.dispose();
         });
