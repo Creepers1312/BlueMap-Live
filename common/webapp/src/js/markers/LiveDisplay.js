@@ -43,7 +43,11 @@ export const LIVE_DISPLAY = {
     nameTags: true,
     /** health-bars over players and mobs */
     healthBars: false,
+    /** the camera while following a player: "map" (BlueMaps own), "firstPerson", "shoulder" (see FollowCamera) */
+    followMode: "map",
 };
+
+const FOLLOW_MODES = ["map", "firstPerson", "shoulder"];
 
 /** the entity-categories of the filter */
 export const ENTITY_CATEGORIES = ["hostile", "animals", "other", "items", "vehicles"];
@@ -76,7 +80,7 @@ export const ENTITY_DISTANCE_MIN = 50;
 export const ENTITY_DISTANCE_MAX = 1000;
 
 /** the keys of setLiveDisplay (saved as user-settings "live.<key>") */
-export const LIVE_DISPLAY_KEYS = ["entityRadius", "entityDistance", "particles", "blockPreview", "nameTags", "healthBars",
+export const LIVE_DISPLAY_KEYS = ["entityRadius", "entityDistance", "particles", "blockPreview", "nameTags", "healthBars", "followMode",
     ...ENTITY_CATEGORIES.map(category => "category." + category)];
 
 const BOOLEAN_KEYS = new Set(["particles", "blockPreview", "nameTags", "healthBars"]);
@@ -93,6 +97,7 @@ export function setLiveDisplayValue(key, value) {
     else if (key === "entityDistance") LIVE_DISPLAY.entityDistance =
         Math.max(ENTITY_DISTANCE_MIN, Math.min(ENTITY_DISTANCE_MAX, Number(value) || 300));
     else if (key === "healthBars") LIVE_DISPLAY.healthBars = value === true;
+    else if (key === "followMode") LIVE_DISPLAY.followMode = FOLLOW_MODES.includes(value) ? value : "map";
     else if (BOOLEAN_KEYS.has(key)) LIVE_DISPLAY[key] = value !== false;
     else if (key.startsWith("category.") && ENTITY_CATEGORIES.includes(key.substring(9))) LIVE_DISPLAY.categories[key.substring(9)] = value !== false;
     else return false;

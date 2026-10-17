@@ -226,6 +226,45 @@ await step("quality-presets: set resolution, render-distances, frame-rate, entit
     await page.evaluate(() => window.bluemap.appState.menu.isOpen = false);
 });
 
+await step("follow-camera: first-person at the eyes (own model hidden), shoulder behind the head, back to normal", async () => {
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 12, yaw: 180, pitch: 0, skin: "classic"});
+    await sleep(1500);
+    await page.evaluate(() => window.bluemap.setLiveDisplay("followMode", "firstPerson"));
+    await page.evaluate(uuid => window.bluemap.followPlayer(window.bluemap.playerMarkerManager.getPlayerMarker(uuid)), PLAYER);
+    await sleep(800);
+    const cam = () => page.evaluate(uuid => {
+        const c = window.bluemap.mapViewer.camera.position;
+        const m = window.bluemap.playerMarkerManager.getPlayerMarker(uuid);
+        return {x: c.x, y: c.y, z: c.z, state: window.bluemap.appState.controls.state, model: m.model.visible, hidden: m.firstPersonHidden};
+    }, PLAYER);
+    let c = await cam();
+    assert.equal(c.state, "free");
+    assert.ok(Math.abs(c.x - 8.5) < 0.05 && Math.abs(c.y - 65.62) < 0.05 && Math.abs(c.z - 12) < 0.05, JSON.stringify(c));
+    assert.equal(c.hidden, true);
+    assert.equal(c.model, false, "the own model is not drawn around the camera");
+    await page.screenshot({path: `${OUT}/q07-firstperson.png`});
+    // the player walks: the camera goes along
+    await control({uuid: PLAYER, name: "Notch", x: 8.5, y: 64, z: 10, yaw: 180, pitch: 0, skin: "classic"});
+    await page.waitForFunction(() => Math.abs(window.bluemap.mapViewer.camera.position.z - 10) < 0.05, null, {timeout: 5000});
+
+    // shoulder: facing north (yaw 180), behind is south (+z), right is east (+x)
+    await page.evaluate(() => window.bluemap.setLiveDisplay("followMode", "shoulder"));
+    await sleep(500);
+    c = await cam();
+    assert.ok(Math.abs(c.x - 9.25) < 0.05 && Math.abs(c.y - 65.97) < 0.05 && Math.abs(c.z - 13.5) < 0.05, JSON.stringify(c));
+    assert.equal(c.hidden, false);
+    assert.equal(c.model, true, "the model is in front of the camera");
+    await page.screenshot({path: `${OUT}/q08-shoulder.png`});
+
+    await page.evaluate(() => window.bluemap.setLiveDisplay("followMode", "firstPerson"));
+    await sleep(300);
+    await page.evaluate(() => window.bluemap.freeFlightControls.stopFollowingPlayerMarker());
+    await sleep(300);
+    c = await cam();
+    assert.equal(c.hidden, false, "shown again when the camera stops following");
+    await page.evaluate(() => window.bluemap.setLiveDisplay("followMode", "map"));
+});
+
 //__MORE__
 
 await step("no uncaught errors", async () => {

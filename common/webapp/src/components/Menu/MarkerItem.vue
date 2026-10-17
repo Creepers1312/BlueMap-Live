@@ -83,8 +83,9 @@ export default {
           await this.$bluemap.switchMap(matchingMap.data.id);
         }
 
-        if (follow && cm.controls && cm.controls.followPlayerMarker && this.marker.visible) {
-          cm.controls.followPlayerMarker(this.marker);
+        // BlueMap Live: with the chosen camera (first-person, shoulder or BlueMaps own)
+        if (follow && this.marker.visible) {
+          await this.$bluemap.followPlayer(this.marker);
         }
 
       } else if (!this.marker.visible) {

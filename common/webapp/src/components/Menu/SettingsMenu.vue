@@ -39,6 +39,13 @@
       <SwitchButton :on="appState.live.blockPreview" @action="$bluemap.setLiveDisplay('blockPreview', !appState.live.blockPreview); $bluemap.saveUserSettings()">{{ $t("live.blockPreview") }}</SwitchButton>
     </Group>
 
+    <Group :title="$t('live.followTitle')">
+      <SimpleButton v-for="mode of followModes" :key="mode"
+                    :active="appState.live.followMode === mode"
+                    @action="$bluemap.setLiveDisplay('followMode', mode); $bluemap.saveUserSettings()"
+      >{{ $t("live.follow." + mode) }}</SimpleButton>
+    </Group>
+
     <Group :title="$t('live.filterTitle')">
       <SwitchButton v-for="category of entityCategories" :key="category" :on="appState.live.categories[category]"
                     @action="$bluemap.setLiveDisplay('category.' + category, !appState.live.categories[category]); $bluemap.saveUserSettings()"
@@ -113,6 +120,7 @@ import SwitchButton from "./SwitchButton.vue";
 import {i18n, setLanguage} from "../../i18n";
 import {PLAYBACK_DELAYS} from "../../js/markers/LivePlayback";
 import {currentQualityPreset, QUALITY_PRESET_NAMES} from "../../js/QualityPresets";
+import {FOLLOW_MODES} from "../../js/controls/FollowCamera";
 import {ENTITY_CATEGORIES, ENTITY_DISTANCE_MAX, ENTITY_DISTANCE_MIN} from "../../js/markers/LiveDisplay";
 
 const themes = [
@@ -154,6 +162,7 @@ name: "SettingsMenu",
       entityDistanceMax: ENTITY_DISTANCE_MAX,
       entityCategories: ENTITY_CATEGORIES,
       qualityPresets: QUALITY_PRESET_NAMES,
+      followModes: FOLLOW_MODES,
     }
   },
   computed: {

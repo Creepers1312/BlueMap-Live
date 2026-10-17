@@ -303,3 +303,22 @@ test("entity-label: name-tags and health-bars follow the settings", () => {
     assert.equal(healthColor(1), "hsl(120, 80%, 45%)");
     assert.equal(healthColor(0), "hsl(0, 80%, 45%)");
 });
+
+import {eyeHeight, followCameraPose, viewDirection} from "../src/js/controls/FollowCamera.js";
+
+test("follow-camera: eye-height, first-person at the eyes, shoulder behind and right of the head", () => {
+    assert.equal(eyeHeight(null), 1.62);
+    assert.equal(eyeHeight({sneaking: true}), 1.27);
+    assert.equal(eyeHeight({swimming: true, sneaking: true}), 0.4);
+    const d = viewDirection(0, 0);
+    assert.deepEqual([d.x, d.y, d.z].map(v => Math.abs(+v.toFixed(9))), [0, 0, 1], "yaw 0 looks south (+z)");
+    const eye = {x: 10, y: 65.62, z: 0};
+    const first = followCameraPose("firstPerson", eye, 0, 0);
+    assert.deepEqual(first.position, eye);
+    assert.ok(Math.abs(first.rotation + Math.PI) < 1e-9 && Math.abs(first.angle - Math.PI / 2) < 1e-9, "like FreeFlightControls");
+    // facing south: behind is north (-z), right is west (-x)
+    const shoulder = followCameraPose("shoulder", eye, 0, 0).position;
+    assert.deepEqual([shoulder.x, shoulder.y, shoulder.z].map(v => +v.toFixed(6)), [9.25, 65.97, -3.5]);
+    // looking down: the camera is above
+    assert.ok(followCameraPose("shoulder", eye, 0, 60).position.y > eye.y + 2);
+});

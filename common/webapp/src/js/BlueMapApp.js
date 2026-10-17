@@ -24,6 +24,7 @@
  */
 import {liveConnectionState} from "./markers/LiveConnection";
 import {qualityPreset} from "./QualityPresets";
+import {eyeHeight, followCameraPose} from "./controls/FollowCamera";
 import {LIVE_DISPLAY, LIVE_DISPLAY_KEYS, liveDisplayValue, setLiveDisplayValue} from "./markers/LiveDisplay";
 import {LiveTileUpdater, TILE_UPDATE_INTERVAL} from "./map/LiveTileUpdater";
 import "./BlueMap";
@@ -57,6 +58,9 @@ export class BlueMapApp {
 
         this.mapControls = new MapControls(this.mapViewer.renderer.domElement, rootElement);
         this.freeFlightControls = new FreeFlightControls(this.mapViewer.renderer.domElement);
+        // BlueMap Live: first-person and shoulder camera while following a player (see FollowCamera)
+        this.freeFlightControls.followPose = player => this.followPose(player);
+        this.firstPersonMarker = null;
 
         /** @type {PlayerMarkerManager} */
         this.playerMarkerManager = null;
@@ -135,6 +139,7 @@ export class BlueMapApp {
                 particles: LIVE_DISPLAY.particles,
                 blockPreview: LIVE_DISPLAY.blockPreview,
                 nameTags: LIVE_DISPLAY.nameTags,
+                followMode: LIVE_DISPLAY.followMode,
                 healthBars: LIVE_DISPLAY.healthBars,
                 categories: {...LIVE_DISPLAY.categories},
                 // the radius around the players in which the server sends entities (live-entities-radius)
@@ -143,6 +148,12 @@ export class BlueMapApp {
                 lastData: null,
                 connection: "unknown",
             }
+        });
+
+        // BlueMap Live: the hidden first-person model is shown again when the camera stops following
+        this.events.addEventListener("bluemapRenderFrame", () => {
+            if (this.firstPersonMarker && (this.mapViewer.controlsManager.controls !== this.freeFlightControls ||
+                !this.freeFlightControls.data.followingPlayer)) this.setFirstPersonMarker(null);
         });
 
         // BlueMap Live: the live-indicator follows the age of the live-data
@@ -481,6 +492,49 @@ export class BlueMapApp {
         this.setLiveDisplay("particles", preset.particles);
         this.saveUserSettings();
         this.mapViewer.redraw();
+    }
+
+    /**
+     * BlueMap Live: the camera-pose of the free-flight view while following a player in the modes first-person and
+     * shoulder (setting followMode), null: BlueMaps own following
+     * @param player {object} - the data of the followed player-marker
+     */
+    followPose(player) {
+        const mode = LIVE_DISPLAY.followMode;
+        const marker = mode !== "map" && this.playerMarkerManager && player.playerUuid ?
+            this.playerMarkerManager.getPlayerMarker(player.playerUuid) : null;
+        this.setFirstPersonMarker(marker && mode === "firstPerson" ? marker : null);
+        if (!marker) return null;
+        const feet = marker.anchor.position;
+        const state = marker.lastPlayerData ? marker.lastPlayerData.state : null;
+        const eye = {x: feet.x, y: feet.y + eyeHeight(state), z: feet.z};
+        // the followed player moves smoothly: every frame is drawn
+        this.mapViewer.redraw();
+        return followCameraPose(mode, eye, player.rotation.yaw, player.rotation.pitch);
+    }
+
+    /** @private the player whose model is hidden because the camera is in its head */
+    setFirstPersonMarker(marker) {
+        if (this.firstPersonMarker === marker) return;
+        if (this.firstPersonMarker) this.firstPersonMarker.firstPersonHidden = false;
+        this.firstPersonMarker = marker;
+        if (marker) marker.firstPersonHidden = true;
+    }
+
+    /**
+     * BlueMap Live: follows a player with the chosen camera (followMode): first-person and shoulder switch to the
+     * free-flight view, "map" follows with the current controls like before
+     * @param marker {object} - the player-marker or its data
+     */
+    async followPlayer(marker) {
+        const cm = this.mapViewer.controlsManager;
+        if (LIVE_DISPLAY.followMode !== "map" && this.mapViewer.map && this.mapViewer.map.data.freeFlightView &&
+            cm.controls !== this.freeFlightControls) {
+            this.setFreeFlight(0);
+            // the controls are set when the (instant) transition is finished
+            for (let i = 0; i < 60 && cm.controls !== this.freeFlightControls; i++) await new Promise(r => requestAnimationFrame(r));
+        }
+        if (cm.controls && cm.controls.followPlayerMarker) cm.controls.followPlayerMarker(marker);
     }
 
     /** BlueMap Live: the state of the live-indicator from the age of the last players.json (see LiveConnection) */

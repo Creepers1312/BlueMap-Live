@@ -116,6 +116,8 @@ export class PlayerMarker extends Marker {
         /** riding: the position and yaws on the drawn vehicle (see attachTo), null if not attached */
         this.attached = null;
         this.movementAnimation = null;
+        /** BlueMap Live: hidden while the camera follows this player in first-person */
+        this.firstPersonHidden = false;
 
         // limb-animations, stepped by the PlayerMarkerManager in the render-loop of the map-viewer
         this.animator = new PlayerAnimator();
@@ -146,7 +148,9 @@ export class PlayerMarker extends Marker {
 
         this.element.setAttribute("distance-data", value);
 
-        this.model.visible = this.model.hasSkin && distance <= MODEL_MAX_DISTANCE;
+        // BlueMap Live: the camera is in the head of this player (first-person, see FollowCamera)
+        this.model.visible = this.model.hasSkin && distance <= MODEL_MAX_DISTANCE && !this.firstPersonHidden;
+        this.elementObject.visible = !this.firstPersonHidden;
 
         this.updateLabel();
 
