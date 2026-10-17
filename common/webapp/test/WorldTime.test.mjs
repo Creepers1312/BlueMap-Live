@@ -33,8 +33,10 @@ test("parseWorldTime validates and normalizes the world-object", () => {
     assert.equal(parseWorldTime({}), null);
     assert.equal(parseWorldTime({dayTime: "x"}), null);
     assert.deepEqual(parseWorldTime({dayTime: 25000, rain: 2, thunder: -1, cycle: false}),
-        {dayTime: 1000, rain: 1, thunder: 0, cycle: false});
-    assert.deepEqual(parseWorldTime({dayTime: -1000}), {dayTime: 23000, rain: 0, thunder: 0, cycle: true});
+        {dayTime: 1000, rain: 1, thunder: 0, cycle: false, moonPhase: 0});
+    assert.deepEqual(parseWorldTime({dayTime: -1000}), {dayTime: 23000, rain: 0, thunder: 0, cycle: true, moonPhase: 0});
+    assert.equal(parseWorldTime({dayTime: 0, moonPhase: 11}).moonPhase, 3);
+    assert.equal(parseWorldTime({dayTime: 0, moonPhase: -1}).moonPhase, 7);
 });
 
 test("currentDayTime runs on with 20 ticks per second, stands still without the cycle", () => {
@@ -44,7 +46,7 @@ test("currentDayTime runs on with 20 ticks per second, stands still without the 
 });
 
 test("players.json: the world-time is parsed (only for supported protocols)", () => {
-    const world = {dayTime: 13000, rain: 0.5, thunder: 0, cycle: true};
+    const world = {dayTime: 13000, rain: 0.5, thunder: 0, cycle: true, moonPhase: 4};
     assert.deepEqual(parsePlayersResponse({protocol: 1, players: [], world}).world, world);
     assert.equal(parsePlayersResponse({protocol: 1, players: []}).world, null);
     assert.equal(parsePlayersResponse({protocol: 99, players: [], world}).world, null);

@@ -34,7 +34,7 @@ import {LIVE_CLOCK, LIVE_PLAYBACK} from "./LivePlayback.js";
 import {ParticleSystem} from "./particles/LiveParticles.js";
 import {ParticleView} from "./particles/ParticleView.js";
 import {ChestLidView} from "./ChestLidView.js";
-import {LIVE_DISPLAY, withinPlayerRadius} from "./LiveDisplay.js";
+import {entityCategory, LIVE_DISPLAY, withinPlayerRadius} from "./LiveDisplay.js";
 import {PreviewStore} from "./blocks/BlockPreviewData.js";
 import {BlockAssetCache, BlockPreviewView} from "./blocks/BlockPreviewView.js";
 
@@ -412,7 +412,10 @@ export class EntityMarkerManager extends MarkerManager {
         const radius = LIVE_DISPLAY.entityRadius;
         const players = radius === null ? [] : this.playerPositions();
         set.markers.forEach(marker => {
-            if (marker.isEntityMarker) marker.outsideRadius = !withinPlayerRadius(marker.position, players, radius);
+            if (!marker.isEntityMarker) return;
+            // hidden: outside of the chosen radius around the players, or a category that is switched off
+            const category = entityCategory(marker.entityType || "", marker.kind, marker.lastData && marker.lastData.mob ? marker.lastData.mob.group : null);
+            marker.outsideRadius = !withinPlayerRadius(marker.position, players, radius) || (category !== null && LIVE_DISPLAY.categories[category] === false);
         });
         set.markers.forEach(marker => {
             if (marker.isEntityMarker && marker.step(dt, this.camera, frustum) && marker.visible) moving = true;

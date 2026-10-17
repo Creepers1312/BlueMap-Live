@@ -39,6 +39,14 @@
       <SwitchButton :on="appState.live.blockPreview" @action="$bluemap.setLiveDisplay('blockPreview', !appState.live.blockPreview); $bluemap.saveUserSettings()">{{ $t("live.blockPreview") }}</SwitchButton>
     </Group>
 
+    <Group :title="$t('live.filterTitle')">
+      <SwitchButton v-for="category of entityCategories" :key="category" :on="appState.live.categories[category]"
+                    @action="$bluemap.setLiveDisplay('category.' + category, !appState.live.categories[category]); $bluemap.saveUserSettings()"
+      >{{ $t("live.category." + category) }}</SwitchButton>
+      <SwitchButton :on="appState.live.nameTags" @action="$bluemap.setLiveDisplay('nameTags', !appState.live.nameTags); $bluemap.saveUserSettings()">{{ $t("live.nameTags") }}</SwitchButton>
+      <SwitchButton :on="appState.live.healthBars" @action="$bluemap.setLiveDisplay('healthBars', !appState.live.healthBars); $bluemap.saveUserSettings()">{{ $t("live.healthBars") }}</SwitchButton>
+    </Group>
+
     <Group :title="$t('resolution.title')">
       <SimpleButton v-for="stage of qualityStages" :key="stage.name"
                     :active="mapViewer.superSampling === stage.value"
@@ -97,7 +105,7 @@ import Slider from "./Slider.vue";
 import SwitchButton from "./SwitchButton.vue";
 import {i18n, setLanguage} from "../../i18n";
 import {PLAYBACK_DELAYS} from "../../js/markers/LivePlayback";
-import {ENTITY_DISTANCE_MAX, ENTITY_DISTANCE_MIN} from "../../js/markers/LiveDisplay";
+import {ENTITY_CATEGORIES, ENTITY_DISTANCE_MAX, ENTITY_DISTANCE_MIN} from "../../js/markers/LiveDisplay";
 
 const themes = [
   {get name(){ return i18n.t("theme.default")}, value: null},
@@ -136,6 +144,7 @@ name: "SettingsMenu",
       fpsLimits: [0, 60, 30],
       entityDistanceMin: ENTITY_DISTANCE_MIN,
       entityDistanceMax: ENTITY_DISTANCE_MAX,
+      entityCategories: ENTITY_CATEGORIES,
     }
   },
   computed: {

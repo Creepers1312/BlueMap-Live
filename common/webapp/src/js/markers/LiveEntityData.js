@@ -174,6 +174,11 @@ export function parseMob(value) {
             value.models.slice(0, 4).filter(model => typeof model === "string" && TYPE_PATTERN.test(model) && !model.includes("..")) : [],
         equipment: parseEquipment(value.equipment),
         leash: parseLeash(value.leash),
+        // the spawn-group (vanilla SpawnGroup, e.g. "monster"), health and custom name (null if unknown)
+        group: typeof value.group === "string" && /^[a-z_]{1,32}$/.test(value.group) ? value.group : null,
+        health: isFiniteNumber(value.health) && value.health >= 0 ? Math.min(value.health, 2048) : null,
+        maxHealth: isFiniteNumber(value.maxHealth) && value.maxHealth > 0 ? Math.min(value.maxHealth, 2048) : null,
+        name: typeof value.name === "string" && value.name.length > 0 ? value.name.slice(0, 64) : null,
     };
 }
 

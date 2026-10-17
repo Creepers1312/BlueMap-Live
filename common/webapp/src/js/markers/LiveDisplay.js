@@ -37,10 +37,76 @@ export const LIVE_DISPLAY = {
     particles: true,
     /** the previews of changed blocks */
     blockPreview: true,
+    /** the shown entity-categories (see entityCategory) */
+    categories: {hostile: true, animals: true, other: true, items: true, vehicles: true},
+    /** name-tags over players and named mobs */
+    nameTags: true,
+    /** health-bars over players and mobs */
+    healthBars: false,
 };
+
+/** the entity-categories of the filter */
+export const ENTITY_CATEGORIES = ["hostile", "animals", "other", "items", "vehicles"];
+
+const ANIMAL_GROUPS = new Set(["creature", "ambient", "axolotls", "water_creature", "water_ambient", "underground_water_creature"]);
+const VEHICLE_TYPES = /^minecraft:(.*_)?(boat|raft|minecart)$|^minecraft:leash_knot$/;
+
+/**
+ * The category of an entity for the filter: hostile (vanilla spawn-group monster), animals (creatures, fish, bats,
+ * axolotls), other (other mobs: villagers, golems, ...), items (dropped and thrown items, arrows), vehicles (boats,
+ * minecarts, leash-knots).
+ * @param type {string}
+ * @param kind {string | null} - see entityKind
+ * @param group {string | null} - the spawn-group of a mob
+ * @returns {string | null} null: always shown
+ */
+export function entityCategory(type, kind, group) {
+    // the cloud of a lingering potion is an effect (see particles)
+    if (kind === "particles") return null;
+    if (VEHICLE_TYPES.test(type)) return "vehicles";
+    if (kind === "mob" || kind === "placeholder") {
+        if (group === "monster") return "hostile";
+        if (group && ANIMAL_GROUPS.has(group)) return "animals";
+        return "other";
+    }
+    return "items";
+}
 
 export const ENTITY_DISTANCE_MIN = 50;
 export const ENTITY_DISTANCE_MAX = 1000;
+
+/** the keys of setLiveDisplay (saved as user-settings "live.<key>") */
+export const LIVE_DISPLAY_KEYS = ["entityRadius", "entityDistance", "particles", "blockPreview", "nameTags", "healthBars",
+    ...ENTITY_CATEGORIES.map(category => "category." + category)];
+
+const BOOLEAN_KEYS = new Set(["particles", "blockPreview", "nameTags", "healthBars"]);
+
+/**
+ * Sets a display-setting, invalid values are replaced by the default.
+ * @param key {string} - see LIVE_DISPLAY_KEYS
+ * @param value {any}
+ * @returns {boolean} if the key is known
+ */
+export function setLiveDisplayValue(key, value) {
+    if (key === "entityRadius") LIVE_DISPLAY.entityRadius = value === null || value === undefined || !Number.isFinite(Number(value)) ?
+        null : Math.max(0, Math.min(256, Number(value)));
+    else if (key === "entityDistance") LIVE_DISPLAY.entityDistance =
+        Math.max(ENTITY_DISTANCE_MIN, Math.min(ENTITY_DISTANCE_MAX, Number(value) || 300));
+    else if (key === "healthBars") LIVE_DISPLAY.healthBars = value === true;
+    else if (BOOLEAN_KEYS.has(key)) LIVE_DISPLAY[key] = value !== false;
+    else if (key.startsWith("category.") && ENTITY_CATEGORIES.includes(key.substring(9))) LIVE_DISPLAY.categories[key.substring(9)] = value !== false;
+    else return false;
+    return true;
+}
+
+/**
+ * @param key {string} - see LIVE_DISPLAY_KEYS
+ * @returns {any}
+ */
+export function liveDisplayValue(key) {
+    if (key.startsWith("category.")) return LIVE_DISPLAY.categories[key.substring(9)];
+    return LIVE_DISPLAY[key];
+}
 
 /**
  * If an entity is within the chosen radius around the shown players.

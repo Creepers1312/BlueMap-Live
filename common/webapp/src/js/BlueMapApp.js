@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {ENTITY_DISTANCE_MAX, ENTITY_DISTANCE_MIN, LIVE_DISPLAY} from "./markers/LiveDisplay";
+import {LIVE_DISPLAY, LIVE_DISPLAY_KEYS, liveDisplayValue, setLiveDisplayValue} from "./markers/LiveDisplay";
 import {LiveTileUpdater, TILE_UPDATE_INTERVAL} from "./map/LiveTileUpdater";
 import "./BlueMap";
 import {MapViewer} from "./MapViewer";
@@ -127,6 +127,9 @@ export class BlueMapApp {
                 entityDistance: LIVE_DISPLAY.entityDistance,
                 particles: LIVE_DISPLAY.particles,
                 blockPreview: LIVE_DISPLAY.blockPreview,
+                nameTags: LIVE_DISPLAY.nameTags,
+                healthBars: LIVE_DISPLAY.healthBars,
+                categories: {...LIVE_DISPLAY.categories},
                 // the radius around the players in which the server sends entities (live-entities-radius)
                 serverRadius: 30,
             }
@@ -438,17 +441,13 @@ export class BlueMapApp {
     }
 
     /**
-     * BlueMap Live: a display-setting of the live-data (see LiveDisplay): entityRadius (blocks or null: all),
-     * entityDistance (blocks), particles, blockPreview (booleans)
+     * BlueMap Live: a display-setting of the live-data (see LiveDisplay.LIVE_DISPLAY_KEYS): entityRadius (blocks or
+     * null: all), entityDistance (blocks), particles, blockPreview, nameTags, healthBars, category.<name> (booleans)
      */
     setLiveDisplay(key, value) {
-        if (key === "entityRadius") LIVE_DISPLAY.entityRadius = value === null || value === undefined || !Number.isFinite(Number(value)) ?
-            null : Math.max(0, Math.min(256, Number(value)));
-        else if (key === "entityDistance") LIVE_DISPLAY.entityDistance =
-            Math.max(ENTITY_DISTANCE_MIN, Math.min(ENTITY_DISTANCE_MAX, Number(value) || 300));
-        else if (key === "particles" || key === "blockPreview") LIVE_DISPLAY[key] = value !== false;
-        else return;
-        this.appState.live[key] = LIVE_DISPLAY[key];
+        if (!setLiveDisplayValue(key, value)) return;
+        if (key.startsWith("category.")) this.appState.live.categories[key.substring(9)] = liveDisplayValue(key);
+        else this.appState.live[key] = liveDisplayValue(key);
         this.mapViewer.redraw();
     }
 
@@ -780,8 +779,8 @@ export class BlueMapApp {
         this.worldTimeLighting.setEnabled(this.loadUserSetting("worldTime", this.appState.worldTime.enabled));
         this.setLivePlaybackDelay(this.loadUserSetting("livePlaybackDelay", this.appState.live.delay));
         this.setFpsLimit(this.loadUserSetting("fpsLimit", this.appState.live.fpsLimit));
-        for (const key of ["entityRadius", "entityDistance", "particles", "blockPreview"]) {
-            this.setLiveDisplay(key, this.loadUserSetting("live." + key, this.appState.live[key]));
+        for (const key of LIVE_DISPLAY_KEYS) {
+            this.setLiveDisplay(key, this.loadUserSetting("live." + key, liveDisplayValue(key)));
         }
 
         alert(this.events, "Settings loaded!", "info");
@@ -808,8 +807,8 @@ export class BlueMapApp {
         this.saveUserSetting("worldTime", this.appState.worldTime.enabled);
         this.saveUserSetting("livePlaybackDelay", this.appState.live.delay);
         this.saveUserSetting("fpsLimit", this.appState.live.fpsLimit);
-        for (const key of ["entityRadius", "entityDistance", "particles", "blockPreview"]) {
-            this.saveUserSetting("live." + key, this.appState.live[key]);
+        for (const key of LIVE_DISPLAY_KEYS) {
+            this.saveUserSetting("live." + key, liveDisplayValue(key));
         }
 
         alert(this.events, "Settings saved!", "info");

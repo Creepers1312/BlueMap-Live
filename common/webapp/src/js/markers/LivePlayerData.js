@@ -303,6 +303,20 @@ export function parsePlayer(raw) {
         hurt: raw.hurt && Number.isInteger(raw.hurt.count) && raw.hurt.count >= 0 ? {count: raw.hurt.count} : null,
         vehicle: parseVehicle(raw.vehicle),
         particles: parseParticles(raw.particles),
+        status: parseStatus(raw.status),
+    };
+}
+
+/**
+ * @param value {any}
+ * @returns {{health: number, maxHealth: number, precipitation: "rain" | "snow" | "none" | null} | null}
+ */
+export function parseStatus(value) {
+    if (!value || typeof value !== "object" || !isFiniteNumber(value.health) || !isFiniteNumber(value.maxHealth) || value.maxHealth <= 0) return null;
+    return {
+        health: Math.max(0, Math.min(value.health, 2048)),
+        maxHealth: Math.min(value.maxHealth, 2048),
+        precipitation: ["rain", "snow", "none"].includes(value.precipitation) ? value.precipitation : null,
     };
 }
 

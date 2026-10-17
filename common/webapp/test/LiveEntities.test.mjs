@@ -252,3 +252,37 @@ test("live-display: entities within the chosen radius around the shown players",
     assert.equal(parseEntitiesResponse({protocol: 1, entities: [], radius: 64}).radius, 64);
     assert.equal(parseEntitiesResponse({protocol: 1, entities: []}).radius, null);
 });
+
+import {entityCategory, LIVE_DISPLAY, LIVE_DISPLAY_KEYS, liveDisplayValue, setLiveDisplayValue} from "../src/js/markers/LiveDisplay.js";
+
+test("live-display: the entity-categories of the filter", () => {
+    assert.equal(entityCategory("minecraft:zombie", "mob", "monster"), "hostile");
+    assert.equal(entityCategory("minecraft:cow", "mob", "creature"), "animals");
+    assert.equal(entityCategory("minecraft:cod", "mob", "water_ambient"), "animals");
+    assert.equal(entityCategory("minecraft:villager", "mob", "misc"), "other");
+    assert.equal(entityCategory("minecraft:zombie", "mob", null), "other", "an older server without groups");
+    assert.equal(entityCategory("minecraft:item", "item", null), "items");
+    assert.equal(entityCategory("minecraft:arrow", "arrow", null), "items");
+    assert.equal(entityCategory("minecraft:oak_boat", null, null), "vehicles");
+    assert.equal(entityCategory("minecraft:chest_minecart", null, null), "vehicles");
+    assert.equal(entityCategory("minecraft:bamboo_raft", null, null), "vehicles");
+    assert.equal(entityCategory("minecraft:area_effect_cloud", "particles", null), null, "clouds belong to the particles");
+});
+
+test("live-display: settings are validated, categories and switches are saved under their keys", () => {
+    assert.ok(LIVE_DISPLAY_KEYS.includes("category.hostile") && LIVE_DISPLAY_KEYS.includes("healthBars"));
+    assert.equal(setLiveDisplayValue("category.hostile", false), true);
+    assert.equal(LIVE_DISPLAY.categories.hostile, false);
+    assert.equal(liveDisplayValue("category.hostile"), false);
+    setLiveDisplayValue("category.hostile", "garbage");
+    assert.equal(LIVE_DISPLAY.categories.hostile, true);
+    assert.equal(setLiveDisplayValue("category.evil", false), false);
+    assert.equal(setLiveDisplayValue("unknown", 1), false);
+    setLiveDisplayValue("healthBars", "yes");
+    assert.equal(LIVE_DISPLAY.healthBars, false, "off unless true");
+    setLiveDisplayValue("nameTags", undefined);
+    assert.equal(LIVE_DISPLAY.nameTags, true, "on unless false");
+    setLiveDisplayValue("entityDistance", 5000);
+    assert.equal(LIVE_DISPLAY.entityDistance, 1000);
+    setLiveDisplayValue("entityDistance", 300);
+});

@@ -42,6 +42,7 @@ export function parseWorldTime(value) {
         rain: isFiniteNumber(value.rain) ? clamp01(value.rain) : 0,
         thunder: isFiniteNumber(value.thunder) ? clamp01(value.thunder) : 0,
         cycle: value.cycle !== false,
+        moonPhase: Number.isInteger(value.moonPhase) ? ((value.moonPhase % 8) + 8) % 8 : 0,
     };
 }
 
