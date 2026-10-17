@@ -198,6 +198,34 @@ await step("live-indicator: green while players.json arrives, red when the endpo
     await page.waitForFunction(() => document.querySelector(".live-indicator")?.classList.contains("live-live"), null, {timeout: 25000});
 });
 
+await step("quality-presets: set resolution, render-distances, frame-rate, entity-distance and particles together", async () => {
+    const state = () => page.evaluate(() => ({ss: window.bluemap.mapViewer.data.superSampling, fps: window.bluemap.appState.live.fpsLimit,
+        dist: window.bluemap.appState.live.entityDistance, particles: window.bluemap.appState.live.particles,
+        hires: window.bluemap.mapViewer.data.loadedHiresViewDistance}));
+    await openSettings();
+    const clickPreset = name => page.evaluate(name => [...document.querySelectorAll(".simple-button")].find(b => b.innerText.trim() === name).click(), name);
+    await clickPreset("Performance");
+    await sleep(300);
+    assert.deepEqual(await state(), {ss: 0.5, fps: 30, dist: 150, particles: false, hires: 60});
+    const active = () => page.evaluate(() => [...document.querySelectorAll(".simple-button.active")].map(b => b.innerText.trim()));
+    assert.ok((await active()).includes("Performance"));
+    await page.evaluate(() => [...document.querySelectorAll(".group")].find(g => g.innerText.includes("Preset"))?.scrollIntoView());
+    await sleep(300);
+    await page.screenshot({path: `${OUT}/q06-presets.png`});
+    await clickPreset("Beautiful");
+    await sleep(300);
+    const beautiful = await state();
+    assert.deepEqual({...beautiful, hires: undefined}, {ss: 2, fps: 0, dist: 600, particles: true, hires: undefined});
+    // changed by hand: no preset is active
+    await page.evaluate(() => window.bluemap.setFpsLimit(60));
+    await sleep(300);
+    assert.ok(!(await active()).includes("Beautiful"));
+    await clickPreset("Balanced");
+    await sleep(300);
+    assert.deepEqual({...(await state()), hires: undefined}, {ss: 1, fps: 60, dist: 300, particles: true, hires: undefined});
+    await page.evaluate(() => window.bluemap.appState.menu.isOpen = false);
+});
+
 //__MORE__
 
 await step("no uncaught errors", async () => {

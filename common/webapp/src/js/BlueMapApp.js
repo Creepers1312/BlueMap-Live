@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 import {liveConnectionState} from "./markers/LiveConnection";
+import {qualityPreset} from "./QualityPresets";
 import {LIVE_DISPLAY, LIVE_DISPLAY_KEYS, liveDisplayValue, setLiveDisplayValue} from "./markers/LiveDisplay";
 import {LiveTileUpdater, TILE_UPDATE_INTERVAL} from "./map/LiveTileUpdater";
 import "./BlueMap";
@@ -460,6 +461,25 @@ export class BlueMapApp {
         if (!setLiveDisplayValue(key, value)) return;
         if (key.startsWith("category.")) this.appState.live.categories[key.substring(9)] = liveDisplayValue(key);
         else this.appState.live[key] = liveDisplayValue(key);
+        this.mapViewer.redraw();
+    }
+
+    /**
+     * BlueMap Live: a quality-preset (see QualityPresets): resolution, render-distances, frame-rate-limit,
+     * entity-distance and particles together
+     * @param name {string}
+     */
+    applyQualityPreset(name) {
+        const preset = qualityPreset(name, this.settings);
+        if (!preset) return;
+        this.mapViewer.superSampling = preset.superSampling;
+        this.mapViewer.data.loadedHiresViewDistance = preset.hires;
+        this.mapViewer.data.loadedLowresViewDistance = preset.lowres;
+        this.mapViewer.updateLoadedMapArea();
+        this.setFpsLimit(preset.fpsLimit);
+        this.setLiveDisplay("entityDistance", preset.entityDistance);
+        this.setLiveDisplay("particles", preset.particles);
+        this.saveUserSettings();
         this.mapViewer.redraw();
     }
 

@@ -47,6 +47,13 @@
       <SwitchButton :on="appState.live.healthBars" @action="$bluemap.setLiveDisplay('healthBars', !appState.live.healthBars); $bluemap.saveUserSettings()">{{ $t("live.healthBars") }}</SwitchButton>
     </Group>
 
+    <Group :title="$t('qualityPreset.title')">
+      <SimpleButton v-for="preset of qualityPresets" :key="preset"
+                    :active="activeQualityPreset === preset"
+                    @action="$bluemap.applyQualityPreset(preset)"
+      >{{ $t("qualityPreset." + preset) }}</SimpleButton>
+    </Group>
+
     <Group :title="$t('resolution.title')">
       <SimpleButton v-for="stage of qualityStages" :key="stage.name"
                     :active="mapViewer.superSampling === stage.value"
@@ -105,6 +112,7 @@ import Slider from "./Slider.vue";
 import SwitchButton from "./SwitchButton.vue";
 import {i18n, setLanguage} from "../../i18n";
 import {PLAYBACK_DELAYS} from "../../js/markers/LivePlayback";
+import {currentQualityPreset, QUALITY_PRESET_NAMES} from "../../js/QualityPresets";
 import {ENTITY_CATEGORIES, ENTITY_DISTANCE_MAX, ENTITY_DISTANCE_MIN} from "../../js/markers/LiveDisplay";
 
 const themes = [
@@ -145,9 +153,21 @@ name: "SettingsMenu",
       entityDistanceMin: ENTITY_DISTANCE_MIN,
       entityDistanceMax: ENTITY_DISTANCE_MAX,
       entityCategories: ENTITY_CATEGORIES,
+      qualityPresets: QUALITY_PRESET_NAMES,
     }
   },
   computed: {
+    // BlueMap Live: the quality-preset the current settings match (none if changed by hand)
+    activeQualityPreset() {
+      return currentQualityPreset({
+        superSampling: this.mapViewer.superSampling,
+        hires: this.mapViewer.loadedHiresViewDistance,
+        lowres: this.mapViewer.loadedLowresViewDistance,
+        fpsLimit: this.appState.live.fpsLimit,
+        entityDistance: this.appState.live.entityDistance,
+        particles: this.appState.live.particles,
+      }, this.settings);
+    },
     showViewControls() {
       if (!this.mapViewer.map) return false;
       return this.mapViewer.map.views.length > 1;
