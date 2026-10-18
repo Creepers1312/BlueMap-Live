@@ -22,7 +22,10 @@ Die originale Karte wird ergänzt, nicht ersetzt. Karte, Texturen, Webclient, Na
 | **Bedienung** | Einstellungen als Popup mit Reitern, Voreinstellungen, Entity-Filter, Namensschilder, Lebensbalken, einem Spieler folgen (Ego-Perspektive oder über der Schulter), LIVE-Anzeige, 28 Sprachen |
 | **Server** | `/bluemap live-stats` zeigt, was die Live-Daten kosten; die Metrik-Berichte des Original-BlueMap sind standardmäßig aus (`metrics` in `core.conf`) |
 
-![Ein Spielermodell mit Skin und Rüstung in einem Raum mit Lesepulten](docs/images/player.webp)
+<p>
+  <img src="docs/images/player.webp" alt="Ein Spielermodell mit Skin und Rüstung in einem Raum mit Lesepulten" width="49%">
+  <img src="docs/images/chest-shield.webp" alt="Eine geöffnete Truhe, ein Spieler blockt mit dem Schild, ein Creeper mit Lebensbalken" width="49%">
+</p>
 
 <p>
   <img src="docs/images/settings-entities.png" alt="Einstellungen: Entities und Filter" width="49%">

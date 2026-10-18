@@ -22,7 +22,10 @@ It extends the original map and does not replace it. The map, its textures, the 
 | **Map controls** | settings in a popup with tabs, quality presets, entity filter, name tags, health bars, following a player in first person or over the shoulder, a LIVE indicator, 28 languages |
 | **Server** | `/bluemap live-stats` shows what the live data costs; the metrics reports of the original BlueMap are off by default (`metrics` in `core.conf`) |
 
-![A player model with skin and armor in a room with lecterns](docs/images/player.webp)
+<p>
+  <img src="docs/images/player.webp" alt="A player model with skin and armor in a room with lecterns" width="49%">
+  <img src="docs/images/chest-shield.webp" alt="An opened chest, a player blocking with a shield and a creeper with its health bar" width="49%">
+</p>
 
 <p>
   <img src="docs/images/settings-entities.png" alt="Settings: entities and filter" width="49%">
