@@ -8,6 +8,7 @@ Alles aus 0.1–0.6. Auf GitHub veröffentlicht sind bisher nur `v0.1.0-alpha` u
 
 | Bereich | Funktionen |
 |---|---|
+| Plattformen | Fabric, Forge, NeoForge (Minecraft 1.21.1) |
 | Spieler | 3D-Modelle mit Skin, Animationen, gehaltene Items, Rüstung, Reiten, dynamische Lichter |
 | Entities | Gegenstände, Geschosse, Vanilla-Mobs mit Animationen, Fahrzeuge, Leinen, Platzhalter für andere Lebewesen |
 | Effekte | Explosionen, Tränke, Feuer, Rauch |
@@ -20,15 +21,16 @@ Alles aus 0.1–0.6. Auf GitHub veröffentlicht sind bisher nur `v0.1.0-alpha` u
 
 | # | Punkt | Warum | Wer |
 |---|---|---|---|
-| F1 | `README.md` neu schreiben | völlig veraltet (Phasen 7/8 „geplant“, Version 0.1.0, „nicht für den produktiven Einsatz“) | Claude |
-| F2 | `fabric.mod.json`: Beschreibung | nennt nur „live 3d player-models“ | Claude |
-| F3 | `fabric.mod.json`: Minecraft-Version | `>=1.21` ohne Obergrenze, getestet ist nur 1.21.1; neuere Versionen können abstürzen oder still Funktionen verlieren | **Entscheidung**, dann Claude |
-| F4 | Name der JAR | `bluemap-<version>-fabric.jar`, leicht mit dem Original-BlueMap zu verwechseln (beide gleichzeitig im `mods`-Ordner wären ein Problem) | **Entscheidung**, dann Claude |
-| F5 | `fabric.mod.json`: Autoren | nur der Autor des Originals; der Fork-Maintainer fehlt | **Entscheidung** (Name), dann Claude |
-| F6 | Release-Workflow | legt fehlende Releases als *Pre-Release* an; für 1.0 ein normaler Release (entweder Release vor dem Tag selbst anlegen oder den Workflow für Tags ohne `-` anpassen) | Claude (Workflow), Nutzer (Release) |
-| F7 | Release-Notes 1.0 und `CHANGELOG.md` | 0.4–0.6 zusammenführen, „Alpha“-Hinweise entfernen, bekannte Einschränkungen gesammelt | Claude |
-| F8 | Konfigurations-Referenz | alle `live-*`-Einstellungen aus `plugin.conf` und die Browser-Einstellungen an einer Stelle, mit Standardwerten und Server-Kosten | Claude |
-| F9 | Doku-Index | `docs/bluemap-live/README.md`: was für Nutzer ist (Installation, Konfiguration, FAQ) und was Entwickler-Doku (Phasen) | Claude |
+| F1 | `README.md` neu schreiben | völlig veraltet (Phasen 7/8 „geplant“, Version 0.1.0, „nicht für den produktiven Einsatz“) | ✅ `README.md` (Englisch) und `README.de.md`; Bilder fehlen noch (Platzhalter als Kommentar, Nutzer liefert sie) |
+| F2 | `fabric.mod.json`: Beschreibung | nennt nur „live 3d player-models“ | ✅ auch in `mods.toml`/`neoforge.mods.toml` (Name „BlueMap Live“) |
+| F3 | `fabric.mod.json`: Minecraft-Version | `>=1.21` ohne Obergrenze, getestet ist nur 1.21.1; neuere Versionen können abstürzen oder still Funktionen verlieren | ✅ `>=1.21 <1.21.2` (Forge/NeoForge `[1.21,1.21.2)`) |
+| F4 | Name der JAR | `bluemap-<version>-fabric.jar`, leicht mit dem Original-BlueMap zu verwechseln (beide gleichzeitig im `mods`-Ordner wären ein Problem) | ✅ `bluemap-live-<version>-<plattform>.jar`; Fabric: `breaks: bluemap` |
+| F5 | `fabric.mod.json`: Autoren | nur der Autor des Originals; der Fork-Maintainer fehlt | offen: Name des Nutzers |
+| F6 | Release-Workflow | legt fehlende Releases als *Pre-Release* an; für 1.0 ein normaler Release (entweder Release vor dem Tag selbst anlegen oder den Workflow für Tags ohne `-` anpassen) | ✅ Pre-Release nur bei Tags mit `-`; hängt Fabric, Forge und NeoForge an |
+| F7 | Release-Notes 1.0 und `CHANGELOG.md` | 0.4–0.6 zusammenführen, „Alpha“-Hinweise entfernen, bekannte Einschränkungen gesammelt | ✅ `releases/v1.0.0.md`, `CHANGELOG.md` |
+| F8 | Konfigurations-Referenz | alle `live-*`-Einstellungen aus `plugin.conf` und die Browser-Einstellungen an einer Stelle, mit Standardwerten und Server-Kosten | ✅ `configuration.md` |
+| F9 | Doku-Index | `docs/bluemap-live/README.md`: was für Nutzer ist (Installation, Konfiguration, FAQ) und was Entwickler-Doku (Phasen) | ✅ |
+| F11 | Forge und NeoForge | Entscheidung des Nutzers: Live-Funktionen vor 1.0 | ✅ kompiliert (CI), Test in Minecraft durch den Nutzer: FN1–FN12 in `phase-14.md` |
 | F10 | Temporärer Branch `bluemap-live-model-dump` | nur für den einmaligen Vanilla-Dump angelegt | Nutzer (löschen, falls gewünscht) |
 
 ### Bereits erledigt
@@ -61,5 +63,6 @@ Alles aus 0.1–0.6. Auf GitHub veröffentlicht sind bisher nur `v0.1.0-alpha` u
 ## 5. Nach 1.0
 
 - **1.1 Mod-Support** (Analyse siehe Gespräch vom 2026-10-18): `/bluemap live-mods` (Bestandsaufnahme der Entity-Arten), texturierter Platzhalter, Mitschnitt der Mod-Modelle aus dem echten Renderer (Einzelspieler automatisch, dedizierte Server per Export), GeckoLib-Dateien optional. In der Mod-Liste des Nutzers betrifft das vor allem Alex's Mobs (Citadel), Twilight Forest, Mowzie's Mobs, Naturalist, Critters and Companions, Enderscape, Better Nether, Guard Villagers, Illager Invasion und Adorable Hamster Pets.
-- Weitere Minecraft-Versionen und Plattformen (bisher nur Fabric 1.21.1).
+- Weitere Minecraft-Versionen.
+- Fabric auf Mojang-Namen umstellen, damit es die Live-Logik nur noch einmal gibt (siehe `phase-14.md` §3).
 - Entscheidung über die Veröffentlichung außerhalb von GitHub (Modrinth/CurseForge unter eigenem Projekt).
