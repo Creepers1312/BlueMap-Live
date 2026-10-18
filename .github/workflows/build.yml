@@ -42,6 +42,47 @@ jobs:
       - name: Part b
         run: sed -n "$(( ${{ matrix.part }} * 50 + 31 )),$(( ${{ matrix.part }} * 50 + 50 ))p" implementations/fabric/build/vanilla-animation-dump.txt 2>/dev/null || true
 
+  # BlueMap Live: one-time conversion of the fabric-sources from yarn- to mojang-names (shared live-code for
+  # fabric, forge and neoforge); only for a push with "[migrate-mappings]" in the commit-message,
+  # the result goes to the branch bluemap-live-mojmap
+  migrate-mappings:
+    name: "Migrate fabric to mojang mappings"
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[migrate-mappings]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          cache: 'gradle'
+      - name: Migrate
+        run: |
+          ./gradlew :fabric:migrateMappings --mappings "net.minecraft:mappings:1.21" --stacktrace
+          ./gradlew :fabric:migrateMappings --mappings "net.minecraft:mappings:1.21" \
+            --input src/test/java --output remappedTest --stacktrace
+      - name: Push
+        run: |
+          cd implementations/fabric
+          rm -rf src/main/java src/test/java
+          cp -r remappedSrc src/main/java
+          cp -r remappedTest src/test/java
+          rm -rf remappedSrc remappedTest
+          cd ../..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b bluemap-live-mojmap
+          git add -A implementations/fabric/src
+          git commit -m "Fabric: sources migrated to mojang mappings (loom migrateMappings) [skip ci]"
+          git push -f origin bluemap-live-mojmap
+
   test:
     name: "Tests"
     runs-on: ubuntu-latest
