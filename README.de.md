@@ -29,7 +29,7 @@ Die originale Karte wird ergänzt, nicht ersetzt. Karte, Texturen, Webclient, Na
   <img src="docs/images/settings-live.png" alt="Einstellungen: Glättung, Bildrate und Folgekamera" width="49%">
 </p>
 
-<!-- Bild: docs/images/weather.webp (Regen oder Gewitter) -->
+![Regen in der Nacht über einem Leuchtturm, mit Wolken und Weltuhr](docs/images/weather.webp)
 
 ## Download
 

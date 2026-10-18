@@ -29,7 +29,7 @@ It extends the original map and does not replace it. The map, its textures, the 
   <img src="docs/images/settings-live.png" alt="Settings: smoothing, frame rate and follow camera" width="49%">
 </p>
 
-<!-- screenshot: docs/images/weather.webp (rain or a thunderstorm) -->
+![Rain at night over a lighthouse, with clouds and the world clock](docs/images/weather.webp)
 
 ## Download
 
