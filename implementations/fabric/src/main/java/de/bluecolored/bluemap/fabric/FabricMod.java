@@ -61,25 +61,24 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.minecraft.SharedConstants;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.FlyingItemEntity;
-import net.minecraft.entity.ItemEntity;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.projectile.PersistentProjectileEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.TypedActionResult;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameRules;
-import net.minecraft.world.World;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.projectile.AbstractArrow;
+import net.minecraft.world.entity.projectile.ItemSupplier;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.GameRules;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.Vec3;
 import org.apache.logging.log4j.LogManager;
 import org.jetbrains.annotations.Nullable;
 
@@ -95,7 +94,7 @@ public class FabricMod implements ModInitializer, Server {
 
     private final FabricEventForwarder eventForwarder;
 
-    private final LoadingCache<net.minecraft.server.world.ServerWorld, ServerWorld> worlds;
+    private final LoadingCache<net.minecraft.server.level.ServerLevel, ServerWorld> worlds;
 
     private int playerUpdateIndex = 0;
     private final Map<UUID, Player> onlinePlayerMap;
@@ -137,7 +136,7 @@ public class FabricMod implements ModInitializer, Server {
                 BrigadierBridge.createCommandNodes(
                         Commands.create(pluginInstance),
                         new BrigadierExecutionHandler(pluginInstance),
-                        (ServerCommandSource fabricSource) -> new FabricCommandSource(this, fabricSource)
+                        (CommandSourceStack fabricSource) -> new FabricCommandSource(this, fabricSource)
                 ).forEach(dispatcher.getRoot()::addChild)
         );
 
@@ -181,24 +180,24 @@ public class FabricMod implements ModInitializer, Server {
 
         // actions that cause an arm-swing, only observed (always PASS), so the swing can be classified
         AttackEntityCallback.EVENT.register((player, world, hand, entity, hitResult) -> {
-            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.ATTACK);
-            return ActionResult.PASS;
+            if (!world.isClientSide()) this.onPlayerAction(player, SwingState.Kind.ATTACK);
+            return InteractionResult.PASS;
         });
 
         AttackBlockCallback.EVENT.register((player, world, hand, pos, direction) -> {
-            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.MINE);
-            return ActionResult.PASS;
+            if (!world.isClientSide()) this.onPlayerAction(player, SwingState.Kind.MINE);
+            return InteractionResult.PASS;
         });
 
         UseBlockCallback.EVENT.register((player, world, hand, hitResult) -> {
-            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.USE);
-            if (!world.isClient()) this.containers.onUseBlock(player, world, hitResult.getBlockPos());
-            return ActionResult.PASS;
+            if (!world.isClientSide()) this.onPlayerAction(player, SwingState.Kind.USE);
+            if (!world.isClientSide()) this.containers.onUseBlock(player, world, hitResult.getBlockPos());
+            return InteractionResult.PASS;
         });
 
         UseItemCallback.EVENT.register((player, world, hand) -> {
-            if (!world.isClient()) this.onPlayerAction(player, SwingState.Kind.USE);
-            return TypedActionResult.pass(ItemStack.EMPTY);
+            if (!world.isClientSide()) this.onPlayerAction(player, SwingState.Kind.USE);
+            return InteractionResultHolder.pass(ItemStack.EMPTY);
         });
 
         ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
@@ -223,13 +222,13 @@ public class FabricMod implements ModInitializer, Server {
 
     @Override
     public String getMinecraftVersion() {
-        return SharedConstants.getGameVersion().getId();
+        return SharedConstants.getCurrentVersion().getId();
     }
 
     @Override
     public boolean isIntegratedServer() {
         MinecraftServer server = this.serverInstance;
-        return server != null && !server.isDedicated();
+        return server != null && !server.isDedicatedServer();
     }
 
     @Override
@@ -245,7 +244,7 @@ public class FabricMod implements ModInitializer, Server {
     @Override
     public Collection<ServerWorld> getLoadedServerWorlds() {
         Collection<ServerWorld> loadedWorlds = new ArrayList<>(3);
-        for (net.minecraft.server.world.ServerWorld serverWorld : serverInstance.getWorlds()) {
+        for (net.minecraft.server.level.ServerLevel serverWorld : serverInstance.getAllLevels()) {
             loadedWorlds.add(worlds.get(serverWorld));
         }
         return loadedWorlds;
@@ -256,23 +255,23 @@ public class FabricMod implements ModInitializer, Server {
     public Optional<ServerWorld> getServerWorld(Object world) {
 
         if (world instanceof String) {
-            Identifier identifier = Identifier.tryParse((String) world);
-            if (identifier != null) world = serverInstance.getWorld(RegistryKey.of(RegistryKeys.WORLD, identifier));
+            ResourceLocation identifier = ResourceLocation.tryParse((String) world);
+            if (identifier != null) world = serverInstance.getLevel(ResourceKey.create(Registries.DIMENSION, identifier));
         }
 
-        if (world instanceof RegistryKey) {
+        if (world instanceof ResourceKey) {
             try {
-                world = serverInstance.getWorld((RegistryKey<World>) world);
+                world = serverInstance.getLevel((ResourceKey<Level>) world);
             } catch (ClassCastException ignored) {}
         }
 
-        if (world instanceof net.minecraft.server.world.ServerWorld)
-            return Optional.of(getServerWorld((net.minecraft.server.world.ServerWorld) world));
+        if (world instanceof net.minecraft.server.level.ServerLevel)
+            return Optional.of(getServerWorld((net.minecraft.server.level.ServerLevel) world));
 
         return Optional.empty();
     }
 
-    public ServerWorld getServerWorld(net.minecraft.server.world.ServerWorld serverWorld) {
+    public ServerWorld getServerWorld(net.minecraft.server.level.ServerLevel serverWorld) {
         return worlds.get(Objects.requireNonNull(serverWorld));
     }
 
@@ -286,7 +285,7 @@ public class FabricMod implements ModInitializer, Server {
         return Optional.of(Path.of("mods"));
     }
 
-    public void onPlayerJoin(MinecraftServer server, ServerPlayerEntity playerInstance) {
+    public void onPlayerJoin(MinecraftServer server, ServerPlayer playerInstance) {
         if (this.serverInstance != server) return;
 
         FabricPlayer player = new FabricPlayer(playerInstance, this);
@@ -294,10 +293,10 @@ public class FabricMod implements ModInitializer, Server {
         onlinePlayerList.add(player);
     }
 
-    public void onPlayerLeave(MinecraftServer server, ServerPlayerEntity player) {
+    public void onPlayerLeave(MinecraftServer server, ServerPlayer player) {
         if (this.serverInstance != server) return;
 
-        UUID playerUUID = player.getUuid();
+        UUID playerUUID = player.getUUID();
         onlinePlayerMap.remove(playerUUID);
         containers.onLeave(playerUUID);
         synchronized (onlinePlayerList) {
@@ -308,10 +307,10 @@ public class FabricMod implements ModInitializer, Server {
     /**
      * Called (on the server-thread) when a players position changed discontinuously, e.g. on respawn or world-change.
      */
-    public void onPlayerDiscontinuity(ServerPlayerEntity playerInstance) {
+    public void onPlayerDiscontinuity(ServerPlayer playerInstance) {
         if (this.serverInstance != playerInstance.getServer()) return;
 
-        if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+        if (onlinePlayerMap.get(playerInstance.getUUID()) instanceof FabricPlayer player) {
             player.markDiscontinuity();
             player.update(playerInstance);
         }
@@ -356,8 +355,8 @@ public class FabricMod implements ModInitializer, Server {
     /**
      * Only call this method on the server-thread.
      */
-    private void onPlayerAction(PlayerEntity playerInstance, SwingState.Kind action) {
-        if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+    private void onPlayerAction(net.minecraft.world.entity.player.Player playerInstance, SwingState.Kind action) {
+        if (onlinePlayerMap.get(playerInstance.getUUID()) instanceof FabricPlayer player) {
             player.noteAction(action);
         }
     }
@@ -368,8 +367,8 @@ public class FabricMod implements ModInitializer, Server {
      * Only call this method on the server-thread.
      */
     private void trackSwings(MinecraftServer server) {
-        for (ServerPlayerEntity playerInstance : server.getPlayerManager().getPlayerList()) {
-            if (onlinePlayerMap.get(playerInstance.getUuid()) instanceof FabricPlayer player) {
+        for (ServerPlayer playerInstance : server.getPlayerList().getPlayers()) {
+            if (onlinePlayerMap.get(playerInstance.getUUID()) instanceof FabricPlayer player) {
                 player.trackSwing(playerInstance);
             }
         }
@@ -377,7 +376,7 @@ public class FabricMod implements ModInitializer, Server {
 
     /** the entity-types that are shown on the map (dropped items, thrown items, arrows, tridents and mobs) */
     private static boolean isLiveEntity(Entity entity) {
-        return entity instanceof ItemEntity || entity instanceof FlyingItemEntity || entity instanceof PersistentProjectileEntity ||
+        return entity instanceof ItemEntity || entity instanceof ItemSupplier || entity instanceof AbstractArrow ||
                 FabricMobs.isLiveMob(entity) || FabricVehicles.isVehicle(entity) || FabricParticles.isParticleEntity(entity);
     }
 
@@ -396,13 +395,13 @@ public class FabricMod implements ModInitializer, Server {
         // the time and weather of the worlds with a day-night-cycle (cheap: a few field-reads per world);
         // the nether and the end have a fixed time
         Map<Key, LiveWorldTime> times = new HashMap<>();
-        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
-            if (world.getDimension().hasFixedTime()) continue;
+        for (net.minecraft.server.level.ServerLevel world : server.getAllLevels()) {
+            if (world.dimensionType().hasFixedTime()) continue;
             times.put(getServerWorld(world).getDimension(), new LiveWorldTime(
-                    Math.floorMod(world.getTimeOfDay(), 24000L),
-                    world.getRainGradient(1f),
-                    world.getThunderGradient(1f),
-                    world.getGameRules().getBoolean(GameRules.DO_DAYLIGHT_CYCLE),
+                    Math.floorMod(world.getDayTime(), 24000L),
+                    world.getRainLevel(1f),
+                    world.getThunderLevel(1f),
+                    world.getGameRules().getBoolean(GameRules.RULE_DAYLIGHT),
                     world.getMoonPhase()
             ));
         }
@@ -418,14 +417,14 @@ public class FabricMod implements ModInitializer, Server {
         double radius = config.getLiveEntitiesRadius();
         long now = System.currentTimeMillis();
         Map<Key, List<LiveEntityState>> result = new HashMap<>();
-        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
-            List<ServerPlayerEntity> players = world.getPlayers();
+        for (net.minecraft.server.level.ServerLevel world : server.getAllLevels()) {
+            List<ServerPlayer> players = world.players();
             if (players.isEmpty()) continue;
 
             Map<Integer, LiveEntityState> entities = new LinkedHashMap<>();
-            for (ServerPlayerEntity player : players) {
-                Box box = player.getBoundingBox().expand(radius);
-                for (Entity entity : world.getOtherEntities(player, box, FabricMod::isLiveEntity)) {
+            for (ServerPlayer player : players) {
+                AABB box = player.getBoundingBox().inflate(radius);
+                for (Entity entity : world.getEntities(player, box, FabricMod::isLiveEntity)) {
                     if (entities.size() >= MAX_SAMPLED_ENTITIES_PER_WORLD) break;
                     if (entities.containsKey(entity.getId())) continue;
                     LiveEntityState state = toLiveEntity(entity, now);
@@ -437,7 +436,7 @@ public class FabricMod implements ModInitializer, Server {
         liveEntities = result;
 
         Map<Key, List<OpenContainer>> opened = new HashMap<>();
-        for (net.minecraft.server.world.ServerWorld world : server.getWorlds()) {
+        for (net.minecraft.server.level.ServerLevel world : server.getAllLevels()) {
             List<OpenContainer> list = containers.sample(world, now);
             if (!list.isEmpty()) opened.put(getServerWorld(world).getDimension(), list);
         }
@@ -446,37 +445,37 @@ public class FabricMod implements ModInitializer, Server {
     }
 
     private static @Nullable LiveEntityState toLiveEntity(Entity entity, long now) {
-        String type = entity.getType().getRegistryEntry().getKey().map(key -> key.getValue().toString()).orElse(null);
+        String type = entity.getType().builtInRegistryHolder().unwrapKey().map(key -> key.location().toString()).orElse(null);
         if (type == null) return null;
 
         HeldItem item = null;
-        if (entity instanceof ItemEntity itemEntity) item = FabricPlayer.toHeldItem(itemEntity.getStack());
-        else if (entity instanceof FlyingItemEntity flyingItem) item = FabricPlayer.toHeldItem(flyingItem.getStack());
-        else if (entity instanceof PersistentProjectileEntity projectile) item = FabricPlayer.toHeldItem(projectile.getItemStack());
+        if (entity instanceof ItemEntity itemEntity) item = FabricPlayer.toHeldItem(itemEntity.getItem());
+        else if (entity instanceof ItemSupplier flyingItem) item = FabricPlayer.toHeldItem(flyingItem.getItem());
+        else if (entity instanceof AbstractArrow projectile) item = FabricPlayer.toHeldItem(projectile.getPickupItemStackOrigin());
 
-        Vec3d pos = entity.getPos();
-        Vec3d velocity = entity.getVelocity();
-        boolean onGround = entity.isOnGround();
+        Vec3 pos = entity.position();
+        Vec3 velocity = entity.getDeltaMovement();
+        boolean onGround = entity.onGround();
 
         // a projectile stuck in a block does not move anymore (its velocity is not reset in vanilla):
         // it is sent as resting (onGround) without velocity, so the webapp does not predict a flight
-        if (entity instanceof PersistentProjectileEntity) {
-            double dx = pos.x - entity.prevX, dy = pos.y - entity.prevY, dz = pos.z - entity.prevZ;
+        if (entity instanceof AbstractArrow) {
+            double dx = pos.x - entity.xo, dy = pos.y - entity.yo, dz = pos.z - entity.zo;
             if (dx * dx + dy * dy + dz * dz < 1e-8) {
                 onGround = true;
-                velocity = Vec3d.ZERO;
+                velocity = Vec3.ZERO;
             }
         }
 
         // flying projectiles: where they will hit a block, so the webapp-prediction does not fly through it
         LiveEntityState.Impact impact = null;
-        if (!onGround && (entity instanceof PersistentProjectileEntity || entity instanceof FlyingItemEntity) &&
-                velocity.lengthSquared() > 1e-6) {
+        if (!onGround && (entity instanceof AbstractArrow || entity instanceof ItemSupplier) &&
+                velocity.lengthSqr() > 1e-6) {
             impact = FabricProjectiles.predictImpact(entity, type, pos, velocity);
         }
 
         // boats and minecarts: the yaw and pitch the vanilla renderer draws them with
-        float yaw = entity.getYaw(), pitch = entity.getPitch();
+        float yaw = entity.getYRot(), pitch = entity.getXRot();
         LiveMobState vehicle = null;
         if (FabricVehicles.isVehicle(entity)) {
             float[] rotation = FabricVehicles.drawnRotation(entity);
@@ -514,7 +513,7 @@ public class FabricMod implements ModInitializer, Server {
     }
 
     /** the effect an entity caused when it was removed (explosions, splash-potions), only while live-entities are shown */
-    private void onEntityRemoved(Entity entity, net.minecraft.server.world.ServerWorld world) {
+    private void onEntityRemoved(Entity entity, net.minecraft.server.level.ServerLevel world) {
         if (entity.getRemovalReason() == null || entity.getRemovalReason() == Entity.RemovalReason.UNLOADED_TO_CHUNK ||
                 entity.getRemovalReason() == Entity.RemovalReason.UNLOADED_WITH_PLAYER) return;
         BlueMapService blueMap = pluginInstance.getBlueMap();
@@ -529,11 +528,11 @@ public class FabricMod implements ModInitializer, Server {
         BlueMapService blueMap = pluginInstance.getBlueMap();
         PluginConfig config = blueMap != null ? blueMap.getConfig().getPluginConfig() : null;
         boolean enabled = config != null && config.isLiveBlockPreviewEnabled() && config.isLivePlayerMarkers() &&
-                !server.getPlayerManager().getPlayerList().isEmpty();
+                !server.getPlayerList().getPlayers().isEmpty();
         if (enabled != FabricBlockChanges.isListening()) FabricBlockChanges.setListening(enabled);
         if (!enabled) return;
-        List<net.minecraft.server.world.ServerWorld> worlds = new ArrayList<>();
-        server.getWorlds().forEach(worlds::add);
+        List<net.minecraft.server.level.ServerLevel> worlds = new ArrayList<>();
+        server.getAllLevels().forEach(worlds::add);
         FabricBlockChanges.flush(worlds, world -> liveBlockChanges.computeIfAbsent(getServerWorld(world).getDimension(),
                 key -> new LiveBlockLog()), config.getLiveBlockPreviewRadius(), System.currentTimeMillis());
     }

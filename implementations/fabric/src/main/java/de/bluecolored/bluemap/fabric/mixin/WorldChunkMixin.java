@@ -25,10 +25,10 @@
 package de.bluecolored.bluemap.fabric.mixin;
 
 import de.bluecolored.bluemap.fabric.FabricBlockChanges;
-import net.minecraft.block.BlockState;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
-import net.minecraft.world.chunk.WorldChunk;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.chunk.LevelChunk;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -39,14 +39,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * previews it until BlueMap rendered the tile again. Vanilla WorldChunk.setBlockState returns the previous state if
  * the block changed, null otherwise. Only records the position (cheap); the rest is done once per tick.
  */
-@Mixin(WorldChunk.class)
+@Mixin(LevelChunk.class)
 public abstract class WorldChunkMixin {
 
     @Inject(method = "setBlockState", at = @At("RETURN"), require = 0)
     private void bluemapLive$onSetBlockState(BlockPos pos, BlockState state, boolean moved, CallbackInfoReturnable<BlockState> cir) {
         if (cir.getReturnValue() == null || !FabricBlockChanges.isListening()) return;
-        World world = ((WorldChunk) (Object) this).getWorld();
-        if (world == null || world.isClient()) return;
+        Level world = ((LevelChunk) (Object) this).getLevel();
+        if (world == null || world.isClientSide()) return;
         FabricBlockChanges.changed(world, pos);
     }
 

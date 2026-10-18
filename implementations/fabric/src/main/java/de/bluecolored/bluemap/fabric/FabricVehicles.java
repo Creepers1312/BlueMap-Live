@@ -27,19 +27,18 @@ package de.bluecolored.bluemap.fabric;
 import de.bluecolored.bluemap.common.live.Leash;
 import de.bluecolored.bluemap.common.live.LiveMobState;
 import de.bluecolored.bluemap.common.live.Vehicle;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.Leashable;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.decoration.LeashKnotEntity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.vehicle.AbstractMinecartEntity;
-import net.minecraft.entity.vehicle.BoatEntity;
-import net.minecraft.util.math.Vec3d;
-
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.Leashable;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.decoration.LeashFenceKnotEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.vehicle.AbstractMinecart;
+import net.minecraft.world.entity.vehicle.Boat;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Boats, rafts and minecarts (not living, drawn with their own renderers): sampled with a mob-state, so the webapp
@@ -54,7 +53,7 @@ final class FabricVehicles {
 
     /** boats, minecarts and the knots of leashes on fences (vanilla LeashKnotEntityRenderer) */
     static boolean isVehicle(Entity entity) {
-        return (entity instanceof BoatEntity || entity instanceof AbstractMinecartEntity || entity instanceof LeashKnotEntity) &&
+        return (entity instanceof Boat || entity instanceof AbstractMinecart || entity instanceof LeashFenceKnotEntity) &&
                 !entity.isInvisible();
     }
 
@@ -71,14 +70,14 @@ final class FabricVehicles {
         try {
             Entity holder = leashable.getLeashHolder();
             if (holder == null) return null;
-            double yaw = entity.lerpYaw(1f) * Math.PI / 180 + Math.PI / 2;
-            Vec3d offset = entity.getLeashOffset(1f);
+            double yaw = entity.getPreciseBodyRotation(1f) * Math.PI / 180 + Math.PI / 2;
+            Vec3 offset = entity.getLeashOffset(1f);
             double dx = Math.cos(yaw) * offset.z + Math.sin(yaw) * offset.x;
             double dz = Math.sin(yaw) * offset.z - Math.cos(yaw) * offset.x;
-            Vec3d end = holder.getLeashPos(1f), holderPos = holder.getPos();
+            Vec3 end = holder.getRopeHoldPosition(1f), holderPos = holder.position();
             return new Leash(
-                    holder instanceof PlayerEntity ? null : holder.getId(),
-                    holder instanceof PlayerEntity ? holder.getUuid() : null,
+                    holder instanceof Player ? null : holder.getId(),
+                    holder instanceof Player ? holder.getUUID() : null,
                     Vehicle.toLocal(dx, offset.y, dz, drawnRotation(entity)[0]),
                     Vehicle.toLocal(end.x - holderPos.x, end.y - holderPos.y, end.z - holderPos.z, drawnRotation(holder)[0])
             );
@@ -95,18 +94,18 @@ final class FabricVehicles {
      * @return {yaw, pitch} in degrees
      */
     static float[] drawnRotation(Entity entity) {
-        if (entity instanceof LivingEntity living) return new float[] {living.bodyYaw, living.getPitch()};
-        float yaw = entity.getYaw(), pitch = entity.getPitch();
-        if (entity instanceof AbstractMinecartEntity cart && !detailsUnavailable) {
+        if (entity instanceof LivingEntity living) return new float[] {living.yBodyRot, living.getXRot()};
+        float yaw = entity.getYRot(), pitch = entity.getXRot();
+        if (entity instanceof AbstractMinecart cart && !detailsUnavailable) {
             try {
                 double x = cart.getX(), y = cart.getY(), z = cart.getZ();
-                Vec3d snapped = cart.snapPositionToRail(x, y, z);
+                Vec3 snapped = cart.getPos(x, y, z);
                 if (snapped != null) {
-                    Vec3d front = cart.snapPositionToRailWithOffset(x, y, z, 0.3f);
-                    Vec3d back = cart.snapPositionToRailWithOffset(x, y, z, -0.3f);
+                    Vec3 front = cart.getPosOffs(x, y, z, 0.3f);
+                    Vec3 back = cart.getPosOffs(x, y, z, -0.3f);
                     if (front == null) front = snapped;
                     if (back == null) back = snapped;
-                    Vec3d direction = back.add(-front.x, -front.y, -front.z);
+                    Vec3 direction = back.add(-front.x, -front.y, -front.z);
                     if (direction.length() != 0) {
                         direction = direction.normalize();
                         yaw = (float) (Math.atan2(direction.z, direction.x) * 180 / Math.PI);
@@ -124,18 +123,18 @@ final class FabricVehicles {
     static LiveMobState sample(Entity entity, float yaw) {
         List<String> flags = new ArrayList<>();
         String variant = null;
-        if (entity instanceof BoatEntity boat && !detailsUnavailable) {
+        if (entity instanceof Boat boat && !detailsUnavailable) {
             try {
                 variant = boat.getVariant().getName();
                 // vanilla BoatEntity.isPaddleMoving: the paddles turn while the driver rows (tracked data)
-                if (boat.isPaddleMoving(0)) flags.add("paddle_left");
-                if (boat.isPaddleMoving(1)) flags.add("paddle_right");
+                if (boat.getPaddleState(0)) flags.add("paddle_left");
+                if (boat.getPaddleState(1)) flags.add("paddle_right");
             } catch (LinkageError e) {
                 detailsUnavailable = true;
             }
         }
         return new LiveMobState(yaw, yaw, 0, 0, false, null, variant, 0,
-                entity.getWidth(), entity.getHeight(), List.of(), flags);
+                entity.getBbWidth(), entity.getBbHeight(), List.of(), flags);
     }
 
 }

@@ -26,20 +26,19 @@ package de.bluecolored.bluemap.fabric;
 
 import de.bluecolored.bluemap.common.live.LiveBlockLog;
 import de.bluecolored.bluemap.common.live.LiveStats;
-import net.minecraft.block.BlockState;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.state.property.Property;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.LightType;
-import net.minecraft.world.World;
-
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import net.minecraft.core.BlockPos;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 
 /**
  * BlueMap Live (see docs/bluemap-live/phase-11.md): the changed blocks of the worlds (reported by the WorldChunkMixin),
@@ -51,7 +50,7 @@ public final class FabricBlockChanges {
     static final int MAX_PER_TICK = 2048;
 
     private static volatile boolean listening = false;
-    private static final Map<World, Set<Long>> CHANGED = new ConcurrentHashMap<>();
+    private static final Map<Level, Set<Long>> CHANGED = new ConcurrentHashMap<>();
 
     /** the block-state-strings (block-states are shared objects) */
     private static final Map<BlockState, String> STATE_STRINGS = new ConcurrentHashMap<>();
@@ -69,7 +68,7 @@ public final class FabricBlockChanges {
     }
 
     /** called by the mixin when a block of a loaded chunk changed */
-    public static void changed(World world, BlockPos pos) {
+    public static void changed(Level world, BlockPos pos) {
         Set<Long> set = CHANGED.computeIfAbsent(world, w -> new LinkedHashSet<>());
         synchronized (set) {
             if (set.size() < MAX_PER_TICK) set.add(pos.asLong());
@@ -84,12 +83,12 @@ public final class FabricBlockChanges {
      * Once per tick (server-thread): the changes around the players become entries of the log of their world.
      * @param logs the log of a world
      */
-    static void flush(List<ServerWorld> worlds, java.util.function.Function<ServerWorld, LiveBlockLog> logs, double radius, long now) {
+    static void flush(List<ServerLevel> worlds, java.util.function.Function<ServerLevel, LiveBlockLog> logs, double radius, long now) {
         long start = System.nanoTime();
         int recorded = 0;
         long dropped = DROPPED.getAndSet(0);
         if (dropped > 0) LiveStats.add(LiveStats.BLOCK_CHANGES_DROPPED, dropped);
-        for (ServerWorld world : worlds) {
+        for (ServerLevel world : worlds) {
             Set<Long> set = CHANGED.get(world);
             if (set == null) continue;
             long[] positions;
@@ -98,16 +97,16 @@ public final class FabricBlockChanges {
                 positions = set.stream().mapToLong(Long::longValue).toArray();
                 set.clear();
             }
-            List<ServerPlayerEntity> players = world.getPlayers();
+            List<ServerPlayer> players = world.players();
             if (players.isEmpty()) continue;
             double radiusSquared = radius * radius;
             LiveBlockLog log = null;
-            BlockPos.Mutable neighbor = new BlockPos.Mutable();
+            BlockPos.MutableBlockPos neighbor = new BlockPos.MutableBlockPos();
             for (long packed : positions) {
-                BlockPos pos = BlockPos.fromLong(packed);
+                BlockPos pos = BlockPos.of(packed);
                 boolean near = false;
-                for (ServerPlayerEntity player : players) {
-                    if (player.squaredDistanceTo(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= radiusSquared) {
+                for (ServerPlayer player : players) {
+                    if (player.distanceToSqr(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) <= radiusSquared) {
                         near = true;
                         break;
                     }
@@ -117,17 +116,17 @@ public final class FabricBlockChanges {
                 int[][] offsets = {{0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}, {-1, 0, 0}, {1, 0, 0}};
                 // the light the faces get: the brightest of the block and its neighbors (like the light of the
                 // air in front of a face, which BlueMap uses)
-                int skyLight = world.getLightLevel(LightType.SKY, pos), blockLight = world.getLightLevel(LightType.BLOCK, pos);
+                int skyLight = world.getBrightness(LightLayer.SKY, pos), blockLight = world.getBrightness(LightLayer.BLOCK, pos);
                 for (int i = 0; i < 6; i++) {
                     neighbor.set(pos.getX() + offsets[i][0], pos.getY() + offsets[i][1], pos.getZ() + offsets[i][2]);
                     BlockState state = world.getBlockState(neighbor);
                     neighbors[i] = state.isAir() ? null : toString(state);
-                    skyLight = Math.max(skyLight, world.getLightLevel(LightType.SKY, neighbor));
-                    blockLight = Math.max(blockLight, world.getLightLevel(LightType.BLOCK, neighbor));
+                    skyLight = Math.max(skyLight, world.getBrightness(LightLayer.SKY, neighbor));
+                    blockLight = Math.max(blockLight, world.getBrightness(LightLayer.BLOCK, neighbor));
                 }
                 BlockState newState = world.getBlockState(pos);
                 // the light-engine updates later: a placed torch already lights its own block
-                int luminance = newState.getLuminance();
+                int luminance = newState.getLightEmission();
                 if (log == null) log = logs.apply(world);
                 log.add(pos.getX(), pos.getY(), pos.getZ(), toString(newState), neighbors, now, skyLight,
                         Math.max(blockLight, luminance), luminance);
@@ -145,14 +144,14 @@ public final class FabricBlockChanges {
         Map<String, String> properties = new HashMap<>();
         for (Property<?> property : state.getProperties()) properties.put(property.getName(), value(state, property));
         // like the entity-types (Registries.BLOCK.getId needs fabric-api interfaces that are not on the classpath)
-        String id = state.getRegistryEntry().getKey().map(key -> key.getValue().toString()).orElse("minecraft:air");
+        String id = state.getBlockHolder().unwrapKey().map(key -> key.location().toString()).orElse("minecraft:air");
         String result = LiveBlockLog.normalize(id, properties);
         if (STATE_STRINGS.size() < 65536) STATE_STRINGS.put(state, result);
         return result;
     }
 
     private static <T extends Comparable<T>> String value(BlockState state, Property<T> property) {
-        return property.name(state.get(property));
+        return property.getName(state.getValue(property));
     }
 
 }

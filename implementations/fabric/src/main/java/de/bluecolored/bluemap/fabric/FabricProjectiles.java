@@ -26,11 +26,11 @@ package de.bluecolored.bluemap.fabric;
 
 import com.flowpowered.math.vector.Vector3d;
 import de.bluecolored.bluemap.common.live.LiveEntityState;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.RaycastContext;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 /**
@@ -66,21 +66,21 @@ final class FabricProjectiles {
      * @param velocity in blocks per tick
      * @return the impact, or null if the projectile does not hit a block within {@link #MAX_TICKS}
      */
-    static @Nullable LiveEntityState.Impact predictImpact(Entity entity, String type, Vec3d position, Vec3d velocity) {
+    static @Nullable LiveEntityState.Impact predictImpact(Entity entity, String type, Vec3 position, Vec3 velocity) {
         double gravity = gravity(type), drag = drag(type);
-        Vec3d current = position, motion = velocity;
+        Vec3 current = position, motion = velocity;
         for (int tick = 0; tick < MAX_TICKS; tick++) {
-            Vec3d next = current.add(motion);
-            BlockHitResult hit = entity.getWorld().raycast(new RaycastContext(
-                    current, next, RaycastContext.ShapeType.COLLIDER, RaycastContext.FluidHandling.NONE, entity));
+            Vec3 next = current.add(motion);
+            BlockHitResult hit = entity.level().clip(new ClipContext(
+                    current, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, entity));
             if (hit.getType() != HitResult.Type.MISS) {
-                Vec3d at = hit.getPos();
+                Vec3 at = hit.getLocation();
                 double length = next.distanceTo(current);
                 double fraction = length > 1e-9 ? Math.min(1, at.distanceTo(current) / length) : 0;
                 return new LiveEntityState.Impact(new Vector3d(at.x, at.y, at.z), tick + fraction);
             }
             current = next;
-            motion = new Vec3d(motion.x * drag, motion.y * drag - gravity, motion.z * drag);
+            motion = new Vec3(motion.x * drag, motion.y * drag - gravity, motion.z * drag);
         }
         return null;
     }

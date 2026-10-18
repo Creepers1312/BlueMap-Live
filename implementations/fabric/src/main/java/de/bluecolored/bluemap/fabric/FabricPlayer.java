@@ -39,27 +39,27 @@ import de.bluecolored.bluemap.common.plugin.text.Text;
 import de.bluecolored.bluemap.common.serverinterface.Gamemode;
 import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
-import net.minecraft.block.Blocks;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.component.type.ChargedProjectilesComponent;
-import net.minecraft.component.type.CustomModelDataComponent;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityPose;
-import net.minecraft.entity.EquipmentSlot;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.effect.StatusEffectInstance;
-import net.minecraft.entity.effect.StatusEffects;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.CrossbowItem;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.util.Arm;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.Vec3d;
-import net.minecraft.world.GameMode;
-import net.minecraft.world.LightType;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Pose;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.CrossbowItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ChargedProjectiles;
+import net.minecraft.world.item.component.CustomModelData;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.LightLayer;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
@@ -69,12 +69,12 @@ import java.util.UUID;
 
 public class FabricPlayer extends Player {
 
-    private static final Map<GameMode, Gamemode> GAMEMODE_MAP = new EnumMap<>(GameMode.class);
+    private static final Map<GameType, Gamemode> GAMEMODE_MAP = new EnumMap<>(GameType.class);
     static {
-        GAMEMODE_MAP.put(GameMode.ADVENTURE, Gamemode.ADVENTURE);
-        GAMEMODE_MAP.put(GameMode.SURVIVAL, Gamemode.SURVIVAL);
-        GAMEMODE_MAP.put(GameMode.CREATIVE, Gamemode.CREATIVE);
-        GAMEMODE_MAP.put(GameMode.SPECTATOR, Gamemode.SPECTATOR);
+        GAMEMODE_MAP.put(GameType.ADVENTURE, Gamemode.ADVENTURE);
+        GAMEMODE_MAP.put(GameType.SURVIVAL, Gamemode.SURVIVAL);
+        GAMEMODE_MAP.put(GameType.CREATIVE, Gamemode.CREATIVE);
+        GAMEMODE_MAP.put(GameType.SPECTATOR, Gamemode.SPECTATOR);
     }
 
     private final UUID uuid;
@@ -104,8 +104,8 @@ public class FabricPlayer extends Player {
             LivePlayerState live
     ) {}
 
-    public FabricPlayer(ServerPlayerEntity player, FabricMod mod) {
-        this.uuid = player.getUuid();
+    public FabricPlayer(ServerPlayer player, FabricMod mod) {
+        this.uuid = player.getUUID();
         this.mod = mod;
         this.motionTracker = new PlayerMotionTracker();
         this.swingTracker = new SwingTracker();
@@ -187,11 +187,11 @@ public class FabricPlayer extends Player {
      * Checks for a new arm-swing (attack/use) and a new hurt of the player. Called every tick, so nothing is missed.
      * Only call on server thread!
      */
-    public void trackSwing(ServerPlayerEntity player) {
-        Hand hand = player.preferredHand != null ? player.preferredHand : Hand.MAIN_HAND;
-        boolean mainArmLeft = player.getMainArm() == Arm.LEFT;
-        boolean leftArm = hand == Hand.MAIN_HAND ? mainArmLeft : !mainArmLeft;
-        swingTracker.update(player.handSwinging, player.handSwingTicks, leftArm);
+    public void trackSwing(ServerPlayer player) {
+        InteractionHand hand = player.swingingArm != null ? player.swingingArm : InteractionHand.MAIN_HAND;
+        boolean mainArmLeft = player.getMainArm() == HumanoidArm.LEFT;
+        boolean leftArm = hand == InteractionHand.MAIN_HAND ? mainArmLeft : !mainArmLeft;
+        swingTracker.update(player.swinging, player.swingTime, leftArm);
 
         // a new hurt sets hurtTime to maxHurtTime (10 ticks), it counts down every tick
         if (player.hurtTime > lastHurtTime) hurtCount++;
@@ -209,30 +209,30 @@ public class FabricPlayer extends Player {
     /**
      * The held items, a new object is only created when an item (or its components) changed.
      */
-    private Equipment sampleEquipment(ServerPlayerEntity player) {
-        ItemStack mainHand = player.getMainHandStack();
-        ItemStack offHand = player.getOffHandStack();
+    private Equipment sampleEquipment(ServerPlayer player) {
+        ItemStack mainHand = player.getMainHandItem();
+        ItemStack offHand = player.getOffhandItem();
         boolean changed = false;
 
         // the count is ignored, it does not change how the item looks
-        if (!ItemStack.areItemsAndComponentsEqual(mainHand, lastMainHand)) {
+        if (!ItemStack.isSameItemSameComponents(mainHand, lastMainHand)) {
             lastMainHand = mainHand.copy();
             mainHandItem = toHeldItem(mainHand);
             changed = true;
         }
-        if (!ItemStack.areItemsAndComponentsEqual(offHand, lastOffHand)) {
+        if (!ItemStack.isSameItemSameComponents(offHand, lastOffHand)) {
             lastOffHand = offHand.copy();
             offHandItem = toHeldItem(offHand);
             changed = true;
         }
 
-        boolean leftHanded = player.getMainArm() == Arm.LEFT;
-        boolean fishing = player.fishHook != null;
+        boolean leftHanded = player.getMainArm() == HumanoidArm.LEFT;
+        boolean fishing = player.fishing != null;
         Armor armor = FabricArmor.sample(player);
         if (armor.isEmpty()) armor = null;
         HeldItem head = FabricArmor.headItem(player);
         // dynamic lights: the brightest of the held items and the item on the head
-        int light = Math.max(Math.max(luminance(mainHand), luminance(offHand)), luminance(player.getEquippedStack(EquipmentSlot.HEAD)));
+        int light = Math.max(Math.max(luminance(mainHand), luminance(offHand)), luminance(player.getItemBySlot(EquipmentSlot.HEAD)));
         if (changed || leftHanded != equipment.leftHanded() || fishing != equipment.fishing() ||
                 !java.util.Objects.equals(armor, equipment.armor()) || !java.util.Objects.equals(head, equipment.head()) ||
                 light != equipment.light()) {
@@ -247,8 +247,8 @@ public class FabricPlayer extends Player {
      */
     static int luminance(ItemStack stack) {
         if (stack.isEmpty()) return 0;
-        if (stack.getItem() instanceof BlockItem blockItem) return blockItem.getBlock().getDefaultState().getLuminance();
-        if (stack.isOf(Items.LAVA_BUCKET)) return Blocks.LAVA.getDefaultState().getLuminance();
+        if (stack.getItem() instanceof BlockItem blockItem) return blockItem.getBlock().defaultBlockState().getLightEmission();
+        if (stack.is(Items.LAVA_BUCKET)) return Blocks.LAVA.defaultBlockState().getLightEmission();
         return 0;
     }
 
@@ -256,29 +256,29 @@ public class FabricPlayer extends Player {
         if (stack.isEmpty()) return null;
 
         // the id from the registry-entry of the item (avoids the fabric-injected registry-interface)
-        String id = stack.getRegistryEntry().getKey().map(key -> key.getValue().toString()).orElse(null);
+        String id = stack.getItemHolder().unwrapKey().map(key -> key.location().toString()).orElse(null);
         if (id == null) return null;
 
-        CustomModelDataComponent customModelData = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
-        boolean charged = stack.isOf(Items.CROSSBOW) && CrossbowItem.isCharged(stack);
-        ChargedProjectilesComponent projectiles = charged ? stack.get(DataComponentTypes.CHARGED_PROJECTILES) : null;
+        CustomModelData customModelData = stack.get(DataComponents.CUSTOM_MODEL_DATA);
+        boolean charged = stack.is(Items.CROSSBOW) && CrossbowItem.isCharged(stack);
+        ChargedProjectiles projectiles = charged ? stack.get(DataComponents.CHARGED_PROJECTILES) : null;
 
         return new HeldItem(
                 id,
-                stack.hasGlint(),
+                stack.hasFoil(),
                 // the record-component "value" has no yarn-name in 1.21.1, so its intermediary name is used
-                customModelData != null ? customModelData.comp_2382() : null,
+                customModelData != null ? customModelData.value() : null,
                 charged,
                 projectiles != null && projectiles.contains(Items.FIREWORK_ROCKET)
         );
     }
 
-    private static @Nullable ItemUse sampleItemUse(ServerPlayerEntity player) {
+    private static @Nullable ItemUse sampleItemUse(ServerPlayer player) {
         if (!player.isUsingItem()) return null;
         return new ItemUse(
-                player.getActiveHand() == Hand.MAIN_HAND,
-                player.getActiveItem().getUseAction().name().toLowerCase(Locale.ROOT),
-                player.getItemUseTime()
+                player.getUsedItemHand() == InteractionHand.MAIN_HAND,
+                player.getUseItem().getUseAnimation().name().toLowerCase(Locale.ROOT),
+                player.getTicksUsingItem()
         );
     }
 
@@ -289,7 +289,7 @@ public class FabricPlayer extends Player {
         MinecraftServer server = mod.getServer();
         if (server == null) return;
 
-        ServerPlayerEntity player = server.getPlayerManager().getPlayer(uuid);
+        ServerPlayer player = server.getPlayerList().getPlayer(uuid);
         if (player == null) return;
 
         update(player);
@@ -298,41 +298,41 @@ public class FabricPlayer extends Player {
     /**
      * Only call on server thread!
      */
-    public void update(ServerPlayerEntity player) {
-        Gamemode gamemode = GAMEMODE_MAP.get(player.interactionManager.getGameMode());
+    public void update(ServerPlayer player) {
+        Gamemode gamemode = GAMEMODE_MAP.get(player.gameMode.getGameModeForPlayer());
         if (gamemode == null) gamemode = Gamemode.SURVIVAL;
 
-        StatusEffectInstance invis = player.getStatusEffect(StatusEffects.INVISIBILITY);
+        MobEffectInstance invis = player.getEffect(MobEffects.INVISIBILITY);
         boolean invisible = invis != null && invis.getDuration() > 0;
 
         Text name = Text.of(player.getName().getString());
 
-        Vec3d pos = player.getPos();
-        Vector3d position = new Vector3d(pos.getX(), pos.getY(), pos.getZ());
-        Vector3d rotation = new Vector3d(player.getPitch(), player.getHeadYaw(), 0);
+        Vec3 pos = player.position();
+        Vector3d position = new Vector3d(pos.x(), pos.y(), pos.z());
+        Vector3d rotation = new Vector3d(player.getXRot(), player.getYHeadRot(), 0);
 
-        net.minecraft.server.world.ServerWorld world = player.getServerWorld();
+        net.minecraft.server.level.ServerLevel world = player.serverLevel();
         ServerWorld serverWorld = mod.getServerWorld(world);
 
-        int skyLight = world.getLightingProvider().get(LightType.SKY).getLightLevel(player.getBlockPos());
-        int blockLight = world.getLightingProvider().get(LightType.BLOCK).getLightLevel(player.getBlockPos());
+        int skyLight = world.getLightEngine().getLayerListener(LightLayer.SKY).getLightValue(player.blockPosition());
+        int blockLight = world.getLightEngine().getLayerListener(LightLayer.BLOCK).getLightValue(player.blockPosition());
 
         MovementState movement = new MovementState(
-                player.isSneaking(),
+                player.isShiftKeyDown(),
                 player.isSprinting(),
-                player.isOnGround(),
+                player.onGround(),
                 player.isSwimming(),
                 player.getAbilities().flying,
                 player.isFallFlying(),
-                player.hasVehicle(),
+                player.isPassenger(),
                 // vanilla LivingEntityRenderer: lying in the bed (direction of the bed, moved towards the head-end)
-                player.isInPose(EntityPose.SLEEPING) ?
-                        (player.getSleepingDirection() != null ? player.getSleepingDirection().asString() : "") : null,
-                player.isInPose(EntityPose.SLEEPING) ? player.getEyeHeight(EntityPose.STANDING) - 0.1 : 0
+                player.hasPose(Pose.SLEEPING) ?
+                        (player.getBedOrientation() != null ? player.getBedOrientation().getSerializedName() : "") : null,
+                player.hasPose(Pose.SLEEPING) ? player.getEyeHeight(Pose.STANDING) - 0.1 : 0
         );
         // vanilla LivingEntityRenderer: on a living vehicle the body follows the vehicle
         float bodyYaw = player.getVehicle() instanceof LivingEntity vehicle ?
-                MovementState.passengerBodyYaw(player.getHeadYaw(), vehicle.bodyYaw) : player.getBodyYaw();
+                MovementState.passengerBodyYaw(player.getYHeadRot(), vehicle.yBodyRot) : player.getVisualRotationYInDegrees();
         Vehicle vehicle = sampleVehicle(player, bodyYaw);
 
         long now = System.currentTimeMillis();
@@ -372,11 +372,11 @@ public class FabricPlayer extends Player {
      * health and the precipitation at the player (vanilla Biome.getPrecipitation: rain, snow or none);
      * RegistryEntry.value() is unmapped in the yarn-mappings of 1.21 (comp_349, see FabricParticles)
      */
-    static @Nullable de.bluecolored.bluemap.common.live.PlayerStatus sampleStatus(ServerPlayerEntity player) {
+    static @Nullable de.bluecolored.bluemap.common.live.PlayerStatus sampleStatus(ServerPlayer player) {
         if (statusUnavailable) return null;
         try {
-            net.minecraft.util.math.BlockPos pos = player.getBlockPos();
-            String precipitation = player.getWorld().getBiome(pos).comp_349().getPrecipitation(pos).name()
+            net.minecraft.core.BlockPos pos = player.blockPosition();
+            String precipitation = player.level().getBiome(pos).value().getPrecipitationAt(pos).name()
                     .toLowerCase(java.util.Locale.ROOT);
             return new de.bluecolored.bluemap.common.live.PlayerStatus(player.getHealth(), player.getMaxHealth(), precipitation);
         } catch (LinkageError ex) {
@@ -393,12 +393,12 @@ public class FabricPlayer extends Player {
         Entity vehicle = passenger.getVehicle();
         if (vehicle == null) return null;
         float vehicleYaw = FabricVehicles.drawnRotation(vehicle)[0];
-        Vec3d pos = passenger.getPos(), vehiclePos = vehicle.getPos();
+        Vec3 pos = passenger.position(), vehiclePos = vehicle.position();
         return new Vehicle(
                 vehicle.getId(),
                 Vehicle.toLocal(pos.x - vehiclePos.x, pos.y - vehiclePos.y, pos.z - vehiclePos.z, vehicleYaw),
                 Vehicle.relativeYaw(bodyYaw, vehicleYaw),
-                Vehicle.relativeYaw(passenger.getHeadYaw(), vehicleYaw)
+                Vehicle.relativeYaw(passenger.getYHeadRot(), vehicleYaw)
         );
     }
 

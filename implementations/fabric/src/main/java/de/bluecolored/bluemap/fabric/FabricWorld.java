@@ -26,10 +26,9 @@ package de.bluecolored.bluemap.fabric;
 
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
 import de.bluecolored.bluemap.core.util.Key;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.WorldSavePath;
-
+import net.minecraft.world.level.storage.LevelResource;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.nio.file.Path;
@@ -39,24 +38,24 @@ import java.util.concurrent.ExecutionException;
 
 public class FabricWorld implements ServerWorld {
 
-    private final WeakReference<net.minecraft.server.world.ServerWorld> delegate;
+    private final WeakReference<net.minecraft.server.level.ServerLevel> delegate;
     private final Path worldFolder;
     private final Key dimension;
 
-    public FabricWorld(net.minecraft.server.world.ServerWorld delegate) {
+    public FabricWorld(net.minecraft.server.level.ServerLevel delegate) {
         this.delegate = new WeakReference<>(delegate);
 
         MinecraftServer server = delegate.getServer();
-        this.worldFolder = delegate.getServer().getRunDirectory()
-                .resolve(server.getSavePath(WorldSavePath.ROOT));
+        this.worldFolder = delegate.getServer().getServerDirectory()
+                .resolve(server.getWorldPath(LevelResource.ROOT));
 
-        Identifier id = delegate.getRegistryKey().getValue();
+        ResourceLocation id = delegate.dimension().location();
         this.dimension = new Key(id.getNamespace(), id.getPath());
     }
 
     @Override
     public boolean persistWorldChanges() throws IOException {
-        net.minecraft.server.world.ServerWorld world = delegate.get();
+        net.minecraft.server.level.ServerLevel world = delegate.get();
         if (world == null) return false;
 
         var taskResult = CompletableFuture.supplyAsync(() -> {
