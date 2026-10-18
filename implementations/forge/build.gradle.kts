@@ -36,6 +36,12 @@ dependencies {
 
 }
 
+// BlueMap Live: the live-code shared by forge and neoforge (mojang-names, see implementations/shared-live)
+sourceSets.main {
+    java.srcDir("../shared-live/src/main/java")
+    resources.srcDir("../shared-live/src/main/resources")
+}
+
 minecraft {
     mappings( "official", minecraftVersion )
     reobf = false
@@ -102,9 +108,14 @@ val mergeShadowAndJarJar = tasks.create<Jar>("mergeShadowAndJarJar") {
             include("META-INF/jarjar/**")
         }
     ).exclude(
-        "META-INF/services/net.kyori.adventure*" // not correctly relocated and not needed -> exclude
+        "META-INF/services/net.kyori.adventure*", // not correctly relocated and not needed -> exclude
+        "META-INF/MANIFEST.MF" // BlueMap Live: the manifest of this jar (below) instead of the one of the shadow-jar
     )
     archiveFileName = "${project.name}-${project.version}-merged.jar"
+    // BlueMap Live: the mixin for the block-changes (forge reads the mixin-configs from the manifest)
+    manifest {
+        attributes("MixinConfigs" to "bluemap_live.mixins.json")
+    }
 }
 
 tasks.getByName<CopyFileTask>("release") {

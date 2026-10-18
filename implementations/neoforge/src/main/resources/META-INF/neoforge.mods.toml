@@ -9,6 +9,10 @@ displayName="BlueMap"
 description='''A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)'''
 displayTest="IGNORE_SERVER_VERSION"
 
+# BlueMap Live: the mixin for the block-changes
+[[mixins]]
+config="bluemap_live.mixins.json"
+
 [[dependencies.bluemap]]
     modId="neoforge"
     mandatory=true
