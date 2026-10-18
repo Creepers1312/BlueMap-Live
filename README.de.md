@@ -29,7 +29,10 @@ Die originale Karte wird ergänzt, nicht ersetzt. Karte, Texturen, Webclient, Na
   <img src="docs/images/settings-live.png" alt="Einstellungen: Glättung, Bildrate und Folgekamera" width="49%">
 </p>
 
-![Regen in der Nacht über einem Leuchtturm, mit Wolken und Weltuhr](docs/images/weather.webp)
+<p>
+  <img src="docs/images/weather.webp" alt="Regen in der Nacht über einem Leuchtturm, mit Wolken und Weltuhr" width="49%">
+  <img src="docs/images/weather-morning.webp" alt="Dieselbe Stelle an einem verregneten Morgen, mit Spieler-Markierung" width="49%">
+</p>
 
 ## Download
 
