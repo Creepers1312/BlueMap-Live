@@ -29,8 +29,14 @@
  * No three.js, unit-tested with node.
  */
 
-/** a preview that is not confirmed by a rendered tile within this time (ms) is discarded */
+/**
+ * A preview whose tile was rendered again this long (ms) after the change, without containing it, is discarded (the
+ * rendered tile is newer). Without a render the preview stays: while Minecraft does not save (e.g. a singleplayer-game
+ * paused because its window lost focus), BlueMap renders nothing and the tile still shows the old block.
+ */
 export const PREVIEW_TIMEOUT = 90000;
+/** a preview that is never confirmed is discarded after this time (ms) at the latest (e.g. rendering is paused) */
+export const PREVIEW_MAX_AGE = 30 * 60000;
 /** at most this many previews (the oldest are discarded) */
 export const MAX_PREVIEWS = 4096;
 /** the 6 neighbors in the order of the data: down, up, north, south, west, east */
@@ -170,7 +176,14 @@ export class PreviewStore {
             const t = tileOf(preview.x, preview.z, this.hires);
             if (t.x !== tile.x || t.z !== tile.z) return;
             const saved = chunks.get((preview.x >> 4) + "," + (preview.z >> 4));
-            if (saved === undefined || saved * 1000 < preview.time) return;
+            if (saved === undefined || saved * 1000 < preview.time) {
+                // rendered long after the change, but without it: the tile is newer than the preview
+                if (saved !== undefined && this.now() - preview.added > PREVIEW_TIMEOUT) {
+                    this.previews.delete(key);
+                    removed++;
+                }
+                return;
+            }
             this.previews.delete(key);
             removed++;
         });
@@ -178,12 +191,12 @@ export class PreviewStore {
         return removed;
     }
 
-    /** discards the previews that were not confirmed in time */
+    /** discards the previews that were never confirmed (see PREVIEW_MAX_AGE) */
     expire() {
         const now = this.now();
         let removed = 0;
         this.previews.forEach((preview, key) => {
-            if (now - preview.added > PREVIEW_TIMEOUT) {
+            if (now - preview.added > PREVIEW_MAX_AGE) {
                 this.previews.delete(key);
                 removed++;
             }

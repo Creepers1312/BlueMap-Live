@@ -10,6 +10,7 @@ The first stable version. It contains everything from 0.1 to 0.6. Only 0.1 and 0
 - **Players walk straight**: the body follows the movement like in the game (the server-side body rotation lags behind, the map now computes it like the Minecraft client does for other players).
 - **Faster map**: about a third less work per frame in the browser with many players and entities (median 22 ms → 14 ms per frame in a scene with 20 players, 180 entities and rain). Block previews are no longer rebuilt when a block changes more than once.
 - **Chests**: a chest that was just placed and is opened no longer shows its closed lid as well.
+- **Placed blocks stay on the map**: a preview disappeared after 90 s even if BlueMap had not rendered the tile yet (e.g. while the game was paused). It now stays until the tile is rendered.
 - **Jar names** start with `bluemap-live-`, so they are not mixed up with the original BlueMap. The Fabric version refuses to start together with the original BlueMap instead of running both.
 - Minecraft versions: 1.21 and 1.21.1 (newer versions are not supported).
 - New README (English and German), a [configuration reference](docs/bluemap-live/configuration.md) and this changelog.

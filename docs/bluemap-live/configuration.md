@@ -17,7 +17,7 @@ The cost column is for the server. Drawing is always done by the browser of each
 | `live-entities-limit` | `200` | 0–1000 | Entities per map, the nearest first. | caps the response size |
 | `live-entities-hidden-types` | `[]` | | Entity types that are never sent, e.g. `["minecraft:item", "minecraft:arrow"]`. | |
 | `live-block-updates` | `true` | | Changed regions are rendered again after `live-block-update-cooldown`, the map reloads the tiles without a page reload. | renders more often |
-| `live-block-preview` | `true` | | Changed blocks are shown at once as a preview until the tile is rendered again (a preview without a render within 90 s is discarded). Needs `live-block-updates`. | a hook on every block change, the work is done once per tick |
+| `live-block-preview` | `true` | | Changed blocks are shown at once as a preview until the tile is rendered again (discarded if its tile is rendered more than 90 s after the change without it, after 30 min at the latest; while the game is paused, it stays). Needs `live-block-updates`. | a hook on every block change, the work is done once per tick |
 | `live-block-preview-radius` | `96` | 0–256 blocks | Radius around the shown players for the previews. | |
 | `live-block-update-cooldown` | `10` | seconds | A changed region is rendered again at the earliest after this time (BlueMap: 60). | |
 

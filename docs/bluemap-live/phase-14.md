@@ -67,6 +67,18 @@ Meldung des Nutzers (Bild): Eine gerade gesetzte Truhe wird geöffnet, der aufge
 
 Test: `blocks-e2e.mjs`, Schritt „a placed chest (still a preview) is opened“ (Test-Truhe mit magentafarbenem Deckel im Blockmodell). Ohne den Fix schlägt er fehl, mit dem Fix 18/18.
 
+## 3b. Fix: gesetzte Blöcke verschwinden nach einer Weile von der Karte
+
+Meldung des Nutzers (Bilder): Im Spiel stehen zwei Truhen, auf der Karte nur eine; „manchmal verschwinden Texturen, wenn man AFK ist“. Eine unsichtbare Truhe lässt sich öffnen, dann erscheint nur ihr Deckel.
+
+Ursache: Eine Vorschau wurde nach 90 s verworfen, auch wenn BlueMap die Kachel bis dahin gar nicht neu gerendert hatte. Die Karte zeigte dann wieder die alte Kachel ohne den Block. Neu rendern kann BlueMap erst, wenn Minecraft den Chunk gespeichert hat. Ein Einzelspieler-Spiel speichert nichts, solange es pausiert, und es pausiert, sobald das Fenster den Fokus verliert, also etwa beim Wechsel in den Browser. Das ist die wahrscheinliche Ursache, geprüft ist sie nicht. Auch eine lange Render-Warteschlange kann die Kachel über 90 s verzögern.
+
+Lösung (`BlockPreviewData`):
+- Eine Vorschau wird verworfen, wenn ihre Kachel **mehr als 90 s nach der Änderung** gerendert wird und die Änderung trotzdem nicht enthält; dann ist die Kachel neuer.
+- Ohne Rendern bleibt die Vorschau, höchstens 30 min (`PREVIEW_MAX_AGE`).
+
+Tests: Node `BlockPreview.test.mjs` (ohne Rendern bleibt die Vorschau nach 90 s; ein Rendern ihrer Kachel ohne die Änderung verwirft sie erst lange nach der Änderung), `blocks-e2e.mjs` 18/18.
+
 ## 4. Test in Minecraft: Forge und NeoForge (Nutzer)
 
 Für jede Plattform einmal mit Minecraft 1.21.1 (Einzelspieler genügt, dedizierter Server besser):

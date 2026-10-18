@@ -356,14 +356,17 @@ await step("a placed chest (still a preview) is opened: the closed lid of the pr
     await control({closeContainer: "13,64,6"});
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.chestLids.lids.size === 0, null, {timeout: 8000});
     assert.ok(await chestLidAt("b28-chest-preview-closed", 13.5, 64 + 13 / 16, 6.5) > closed * 0.8, "the closed lid is shown again");
-    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 91000));
+    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 1801000));
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 3000});
 });
 
-await step("a preview that is not confirmed is discarded after 90 s", async () => {
+await step("a preview without a render of its tile stays after 90 s (e.g. the game is paused), it is discarded after 30 min", async () => {
     await control({block: "7,64,6", state: "minecraft:stone"});
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 1, null, {timeout: 5000});
     await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 91000));
+    await sleep(500);
+    assert.equal((await previews()).count, 1, "still shown after 90 s");
+    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 1801000));
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 3000});
     assert.equal((await previews()).hidden, 0);
 });
@@ -375,7 +378,7 @@ await step("a block without a preview (water: no model) keeps the old block in t
     assert.equal((await previews()).hidden, 0, "not hidden while nothing is drawn");
     await control({block: "12,63,12", state: "minecraft:air"});
     await page.waitForFunction(() => window.bluemap.mapViewer.data.uniforms.hiddenBlockCount.value === 1, null, {timeout: 5000});
-    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 91000));
+    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 1801000));
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 3000});
 });
 

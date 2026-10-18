@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 
-import {blockAssetName, buildHiddenTable, DEFAULT_LIGHT, parseLight, isHidden, MAX_HIDDEN_BLOCKS, parseBlocks, PREVIEW_TIMEOUT, PreviewStore, previewParts,
+import {blockAssetName, buildHiddenTable, DEFAULT_LIGHT, parseLight, isHidden, MAX_HIDDEN_BLOCKS, parseBlocks, PREVIEW_MAX_AGE, PREVIEW_TIMEOUT, PreviewStore, previewParts,
     tileOf, TABLE_SLOTS, voxelHash} from "../src/js/markers/blocks/BlockPreviewData.js";
 import {buildPreviewGeometry} from "../src/js/markers/blocks/BlockPreviewView.js";
 import {parseEntitiesResponse} from "../src/js/markers/LiveEntityData.js";
@@ -52,8 +52,22 @@ test("block-preview: unconfirmed previews are discarded, later changes replace e
     store.apply([change(2, 0, 64, 0, AIR)]);
     assert.equal(store.version, version, "nothing new");
     now = PREVIEW_TIMEOUT + 1;
+    assert.equal(store.expire(), 0, "without a render of its tile the preview stays (e.g. the game is paused)");
+    now = PREVIEW_MAX_AGE + 1;
     assert.equal(store.expire(), 1);
     assert.equal(store.previews.size, 0);
+});
+
+test("block-preview: a render of the tile without the change discards the preview only long after the change", () => {
+    let now = 0;
+    const store = new PreviewStore(HIRES, () => now);
+    store.apply([change(1, 10, 64, 10, STONE)]);
+    const tile = {x: 0, z: 0, chunks: [0, 0, -1]}; // tile of the block, its chunk saved before the change
+    now = 10000;
+    assert.equal(store.confirm(tile), 0, "rendered from older chunk-data shortly after the change: waits");
+    now = PREVIEW_TIMEOUT + 1;
+    assert.equal(store.confirm({x: 5, z: 5, chunks: [80, 80, -1]}), 0, "another tile");
+    assert.equal(store.confirm(tile), 1, "its tile rendered again long after the change, still without it");
 });
 
 test("block-preview: what is drawn - the new block without faces towards full neighbors, the neighbor-faces into a hole", () => {

@@ -57,7 +57,7 @@ Rendert eine Region gerade erst, kommen bis zu 10 s Abklingzeit dazu. Läuft ger
 - Eine Vorschau gilt als bestätigt, wenn ihre Kachel neu gerendert wurde und ihr Chunk **nach** der Änderung gespeichert war. Weil die Zeit auf die Sekunde genau ist, wartet eine Änderung aus derselben Sekunde auf das nächste Rendern.
 - Die Vorschau wird erst entfernt, wenn die neue Kachel geladen ist. Es gibt also keine Lücke.
 - Ein Rendern aus älteren Chunk-Daten bestätigt nichts.
-- **Unbestätigt** nach 90 s: Die Vorschau wird verworfen, die Karte zeigt wieder die Kachel.
+- **Unbestätigt:** Die Vorschau wird verworfen, wenn ihre Kachel mehr als 90 s nach der Änderung ohne sie gerendert wird, spätestens nach 30 min (geändert in 1.0, siehe `phase-14.md` §3b; vorher nach 90 s auch ohne Rendern).
 
 **Zeichnen** (`markers/blocks/`):
 - **Neuer Block:** sein Modell, ohne die Flächen zu vollen Nachbarblöcken (Vanilla-Cullface). Abgedunkelt wie die Modelle im Spiel (oben 1, Seiten 0,8/0,6, unten 0,5) und nachts wie die Entities.
