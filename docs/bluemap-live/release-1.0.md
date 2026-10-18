@@ -21,7 +21,7 @@ Alles aus 0.1–0.6. Auf GitHub veröffentlicht sind bisher nur `v0.1.0-alpha` u
 
 | # | Punkt | Warum | Wer |
 |---|---|---|---|
-| F1 | `README.md` neu schreiben | völlig veraltet (Phasen 7/8 „geplant“, Version 0.1.0, „nicht für den produktiven Einsatz“) | ✅ `README.md` (Englisch) und `README.de.md`; Bilder fehlen noch (Platzhalter als Kommentar, Nutzer liefert sie) |
+| F1 | `README.md` neu schreiben | völlig veraltet (Phasen 7/8 „geplant“, Version 0.1.0, „nicht für den produktiven Einsatz“) | ✅ `README.md` (Englisch) und `README.de.md` mit Bildern des Nutzers (`docs/images`); ein Wetterbild ist optional (Platzhalter als Kommentar) |
 | F2 | `fabric.mod.json`: Beschreibung | nennt nur „live 3d player-models“ | ✅ auch in `mods.toml`/`neoforge.mods.toml` (Name „BlueMap Live“) |
 | F3 | `fabric.mod.json`: Minecraft-Version | `>=1.21` ohne Obergrenze, getestet ist nur 1.21.1; neuere Versionen können abstürzen oder still Funktionen verlieren | ✅ `>=1.21 <1.21.2` (Forge/NeoForge `[1.21,1.21.2)`) |
 | F4 | Name der JAR | `bluemap-<version>-fabric.jar`, leicht mit dem Original-BlueMap zu verwechseln (beide gleichzeitig im `mods`-Ordner wären ein Problem) | ✅ `bluemap-live-<version>-<plattform>.jar`; Fabric: `breaks: bluemap` |

@@ -8,7 +8,7 @@ It extends the original map and does not replace it. The map, its textures, the 
 
 > Not made by the BlueMap team. Please report problems [here](https://github.com/Creepers1312/BlueMap-Live/issues), not at the original project.
 
-<!-- screenshot: docs/images/overview.png (the map with players, mobs and weather) -->
+![A player riding a horse at night, mobs with health bars, moon and stars](docs/images/overview.webp)
 
 ## Features
 
@@ -22,10 +22,14 @@ It extends the original map and does not replace it. The map, its textures, the 
 | **Map controls** | settings in a popup with tabs, quality presets, entity filter, name tags, health bars, following a player in first person or over the shoulder, a LIVE indicator, 28 languages |
 | **Server** | `/bluemap live-stats` shows what the live data costs; the metrics reports of the original BlueMap are off by default (`metrics` in `core.conf`) |
 
-<!-- screenshot: docs/images/players.png (player models, held items, armor) -->
-<!-- screenshot: docs/images/mobs.png (mobs and items) -->
-<!-- screenshot: docs/images/weather.png (rain, clouds or a night sky) -->
-<!-- screenshot: docs/images/settings.png (the settings popup) -->
+![A player model with skin and armor in a room with lecterns](docs/images/player.webp)
+
+<p>
+  <img src="docs/images/settings-entities.png" alt="Settings: entities and filter" width="49%">
+  <img src="docs/images/settings-live.png" alt="Settings: smoothing, frame rate and follow camera" width="49%">
+</p>
+
+<!-- screenshot: docs/images/weather.webp (rain or a thunderstorm) -->
 
 ## Download
 

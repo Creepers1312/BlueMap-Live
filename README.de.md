@@ -8,7 +8,7 @@ Die originale Karte wird ergänzt, nicht ersetzt. Karte, Texturen, Webclient, Na
 
 > Nicht vom BlueMap-Team. Fehler bitte [hier](https://github.com/Creepers1312/BlueMap-Live/issues) melden, nicht beim Original.
 
-<!-- Bild: docs/images/overview.png (Karte mit Spielern, Mobs und Wetter) -->
+![Ein Spieler reitet nachts auf einem Pferd, Mobs mit Lebensbalken, Mond und Sterne](docs/images/overview.webp)
 
 ## Funktionen
 
@@ -22,10 +22,14 @@ Die originale Karte wird ergänzt, nicht ersetzt. Karte, Texturen, Webclient, Na
 | **Bedienung** | Einstellungen als Popup mit Reitern, Voreinstellungen, Entity-Filter, Namensschilder, Lebensbalken, einem Spieler folgen (Ego-Perspektive oder über der Schulter), LIVE-Anzeige, 28 Sprachen |
 | **Server** | `/bluemap live-stats` zeigt, was die Live-Daten kosten; die Metrik-Berichte des Original-BlueMap sind standardmäßig aus (`metrics` in `core.conf`) |
 
-<!-- Bild: docs/images/players.png (Spielermodelle, Items, Rüstung) -->
-<!-- Bild: docs/images/mobs.png (Mobs und Gegenstände) -->
-<!-- Bild: docs/images/weather.png (Regen, Wolken oder Sternenhimmel) -->
-<!-- Bild: docs/images/settings.png (das Einstellungs-Popup) -->
+![Ein Spielermodell mit Skin und Rüstung in einem Raum mit Lesepulten](docs/images/player.webp)
+
+<p>
+  <img src="docs/images/settings-entities.png" alt="Einstellungen: Entities und Filter" width="49%">
+  <img src="docs/images/settings-live.png" alt="Einstellungen: Glättung, Bildrate und Folgekamera" width="49%">
+</p>
+
+<!-- Bild: docs/images/weather.webp (Regen oder Gewitter) -->
 
 ## Download
 
