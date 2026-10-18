@@ -26,6 +26,7 @@ import {Marker} from "./Marker";
 import {CSS2DObject} from "../util/CSS2DRenderer";
 import {animate, htmlToElement} from "../util/Utils";
 import {healthColor, labelContent} from "./EntityLabel.js";
+import {BodyYawTracker} from "./player/BodyYaw.js";
 import {MathUtils, Quaternion, Vector3} from "three";
 import {angleDelta, bedTransform, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse, riderOnVehicle} from "./LivePlayerData";
 import {PlayerModel} from "./player/PlayerModel";
@@ -116,6 +117,9 @@ export class PlayerMarker extends Marker {
         /** riding: the position and yaws on the drawn vehicle (see attachTo), null if not attached */
         this.attached = null;
         this.movementAnimation = null;
+        /** BlueMap Live: the body-yaw like the vanilla client of other players (see BodyYaw), null: the sent one */
+        this.bodyTracker = new BodyYawTracker();
+        this.trackedBodyYaw = null;
         /** BlueMap Live: hidden while the camera follows this player in first-person */
         this.firstPersonHidden = false;
 
@@ -213,7 +217,10 @@ export class PlayerMarker extends Marker {
         // ignore position-updates that are older than the current state
         if (!previous || !isStaleResponse(previous.time, markerData.time)) {
             // teleport, respawn, world-change: the animation starts fresh as well
-            if (isDiscontinuous(previous, markerData)) this.animator.reset();
+            if (isDiscontinuous(previous, markerData)) {
+                this.animator.reset();
+                this.bodyTracker.body = null; // starts again at the new position
+            }
             this.animator.setTarget(markerData);
             this.updateMovement(previous, markerData, updateInterval, due);
             this.lastPlayerData = markerData;
@@ -364,7 +371,8 @@ export class PlayerMarker extends Marker {
 
     /** @private the displayed state: interpolated, or on the vehicle while riding */
     get shownState() {
-        return this.attached ? {...this.displayed, ...this.attached} : this.displayed;
+        if (this.attached) return {...this.displayed, ...this.attached};
+        return this.trackedBodyYaw === null ? this.displayed : {...this.displayed, bodyYaw: this.trackedBodyYaw};
     }
 
     /** @private */
@@ -392,6 +400,26 @@ export class PlayerMarker extends Marker {
     }
 
     /**
+     * @private the body follows the movement like in the vanilla client; riding and lying in a bed keep the sent yaw
+     * (the server computes the passenger-yaw, the bed sets it)
+     */
+    stepBodyYaw(dt) {
+        const data = this.lastPlayerData;
+        const state = data ? data.state : null;
+        if (!data || this.vehicle || this.attached || (state && (state.bed || state.riding))) {
+            this.trackedBodyYaw = null;
+            this.bodyTracker.body = null;
+            return;
+        }
+        const d = this.displayed;
+        if (this.bodyTracker.body === null) this.bodyTracker.reset(d.bodyYaw, d.x, d.z);
+        const use = data.use;
+        this.trackedBodyYaw = this.bodyTracker.step(dt, d.x, d.z, d.headYaw, this.animator.swingTime >= 0,
+            !!(use && use.action === "block"));
+        this.applyDisplay();
+    }
+
+    /**
      * Advances the limb-animation and applies it to the model. Called once per rendered frame.
      * @param dt {number} - seconds since the last frame
      * @returns {boolean} true if the model is currently moving and should be rendered with a high frame-rate
@@ -399,6 +427,7 @@ export class PlayerMarker extends Marker {
     stepAnimation(dt) {
         this.playback.release();
         const moving = this.stepSegment();
+        this.stepBodyYaw(dt);
         const state = this.shownState;
         const active = this.animator.step(dt,
             MathUtils.degToRad(state.pitch),

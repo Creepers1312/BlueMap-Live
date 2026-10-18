@@ -31,6 +31,12 @@ Alles aus 0.1–0.6. Auf GitHub veröffentlicht sind bisher nur `v0.1.0-alpha` u
 | F9 | Doku-Index | `docs/bluemap-live/README.md`: was für Nutzer ist (Installation, Konfiguration, FAQ) und was Entwickler-Doku (Phasen) | Claude |
 | F10 | Temporärer Branch `bluemap-live-model-dump` | nur für den einmaligen Vanilla-Dump angelegt | Nutzer (löschen, falls gewünscht) |
 
+### Bereits erledigt
+
+| Fix | Ursache und Lösung | Test |
+|---|---|---|
+| **Körper läuft schräg** (Meldung des Nutzers: Spieler läuft geradeaus, der Körper ist seitlich gedreht, der Kopf schaut geradeaus) | Der Server berechnet die Körperdrehung von Spielern in `LivingEntity.tick`, das für Spieler erst im Netzwerk-Tick läuft. Bis dahin hat der Welt-Tick die Vorposition schon zurückgesetzt, der Spieler gilt als stehend. Der Körper folgt dem Kopf dann nur, wenn der Unterschied 50° übersteigt (`turnHead`, im CI-Dump aus dem Spiel gelesen). Der Vanilla-Client berechnet die Körperdrehung anderer Spieler deshalb selbst. **Lösung:** Die Webapp rechnet genauso (`player/BodyYaw.js`): pro Tick Zielrichtung aus der Bewegung (rückwärts: entgegengesetzt), beim Schlagen die Blickrichtung, 30 % Annäherung, höchstens 50° vom Kopf (15° beim Blocken), zwischen den Ticks interpoliert. Beim Reiten und im Bett bleibt der gesendete Wert. | `BodyYaw.test.mjs` (4), `player-e2e.mjs` (Geradeauslaufen mit 40° schräg gesendetem Körper; stehend folgt der Körper bis auf 50°) |
+
 ## 3. Qualitäts-Tore
 
 1. **Release-Kandidat `v1.0.0-rc.1`** (Tag durch den Nutzer, die CI hängt die JAR an).

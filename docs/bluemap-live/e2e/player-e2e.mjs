@@ -159,23 +159,39 @@ await step("normal movement is interpolated", async () => {
     await waitForX(A, 11);
 });
 
-await step("rotation without movement updates yaw/pitch, position unchanged", async () => {
+await step("rotation without movement updates yaw/pitch, position unchanged; the body follows like vanilla", async () => {
     await control({uuid: A, x: 11, y: 64, z: 24, yaw: 90, bodyYaw: 90, pitch: 30});
     await eventually(async () => {
         const m = await marker(A);
         assert.ok(near(m.x, 11), `x ${m.x}`);
-        assert.ok(near(m.bodyRotY, -Math.PI / 2), `body ${m.bodyRotY}`);
+        // vanilla turnHead (the client computes the body of other players): standing, the body follows the head
+        // only up to 50 degrees, from 0 to 40 (the body-yaw the test-server sends is not used, see BodyYaw)
+        assert.ok(near(m.bodyRotY, -40 * Math.PI / 180), `body ${m.bodyRotY}`);
         assert.ok(near(m.headRotX, Math.PI / 6), `pitch ${m.headRotX}`);
-        assert.ok(near(m.headRotY, 0), `head relative to body ${m.headRotY}`);
+        assert.ok(near(m.headRotY, -50 * Math.PI / 180), `head relative to body ${m.headRotY}`);
     });
 });
 
-await step("head-yaw differing from body-yaw rotates only the head", async () => {
+await step("head-yaw differing from body-yaw rotates only the head (at most 50 degrees)", async () => {
     await control({uuid: A, x: 11, y: 64, z: 24, yaw: 135, bodyYaw: 90, pitch: 0});
     await eventually(async () => {
         const m = await marker(A);
-        assert.ok(near(m.bodyRotY, -Math.PI / 2), `body ${m.bodyRotY}`);
-        assert.ok(near(m.headRotY, -Math.PI / 4), `head ${m.headRotY}`);
+        assert.ok(near(m.bodyRotY, -85 * Math.PI / 180), `body ${m.bodyRotY}`);
+        assert.ok(near(m.headRotY, -50 * Math.PI / 180), `head ${m.headRotY}`);
+    });
+});
+
+await step("walking straight ahead turns the body to the look-direction (the sent body-yaw lags on the server)", async () => {
+    // the server sends the body 40 degrees off while the player walks south, looking south (yaw 0)
+    await control({uuid: A, x: 11, y: 64, z: 24, yaw: 0, bodyYaw: 40, pitch: 0, respawn: 1});
+    await sleep(400);
+    for (let i = 1; i <= 8; i++) {
+        await control({uuid: A, x: 11, y: 64, z: 24 + i * 1.1, yaw: 0, bodyYaw: 40, pitch: 0});
+        await sleep(250);
+    }
+    await eventually(async () => {
+        const m = await marker(A);
+        assert.ok(Math.abs(m.bodyRotY) < 3 * Math.PI / 180, `body ${m.bodyRotY * 180 / Math.PI} degrees`);
     });
 });
 
@@ -405,7 +421,8 @@ await step("skin (classic): front view – every front face, quadrant orientatio
 });
 
 await step("skin (classic): back view", async () => {
-    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 180, bodyYaw: 180, pitch: 0, skin: "classic"});
+    // each view places the standing player anew (respawn: the body starts at the sent yaw, see BodyYaw)
+    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 180, bodyYaw: 180, pitch: 0, respawn: 1, skin: "classic"});
     await sleep(1200);
     const points = await projectQuadrants(C, PARTS.map(part => [part, "back"]));
     checkQuadrants(await screenshotPixels("06-skin-back"), points);
@@ -413,20 +430,20 @@ await step("skin (classic): back view", async () => {
 
 await step("skin (classic): left and right side", async () => {
     // facing -x: the camera (south) sees the players left side
-    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 90, bodyYaw: 90, pitch: 0, skin: "classic"});
+    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 90, bodyYaw: 90, pitch: 0, respawn: 1, skin: "classic"});
     await sleep(1200);
     // (the side faces of the body are completely covered by the arms in a side view)
     let points = await projectQuadrants(C, [["head", "left"], ["leftArm", "left"], ["leftLeg", "left"]]);
     checkQuadrants(await screenshotPixels("07-skin-left"), points);
 
-    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: -90, bodyYaw: -90, pitch: 0, skin: "classic"});
+    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: -90, bodyYaw: -90, pitch: 0, respawn: 1, skin: "classic"});
     await sleep(1200);
     points = await projectQuadrants(C, [["head", "right"], ["rightArm", "right"], ["rightLeg", "right"]]);
     checkQuadrants(await screenshotPixels("08-skin-right"), points);
 });
 
 await step("skin (classic): top view", async () => {
-    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, skin: "classic"});
+    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, respawn: 1, skin: "classic"});
     await viewPlayerC(0);
     const points = await projectQuadrants(C, [["head", "top"], ["rightArm", "top"], ["leftArm", "top"]]);
     checkQuadrants(await screenshotPixels("09-skin-top"), points);
@@ -444,7 +461,7 @@ const projectBonePoint = (uuid, bone, px, py, pz) => page.evaluate(([uuid, bone,
 }, [uuid, bone, px, py, pz]);
 
 await step("skin (slim): 3 px arms, the rest of the body unchanged", async () => {
-    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, skin: "classic"});
+    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, respawn: 1, skin: "classic"});
     await viewPlayerC(1.45);
     // 2.5 px outside of the shoulder-joint: inside the classic right arm (joint -3..+1), outside the slim one (-2..+1)
     // (in the space of the arm-bone, so the idle-animation of the arm does not matter)
@@ -453,7 +470,7 @@ await step("skin (slim): 3 px arms, the rest of the body unchanged", async () =>
     const armColors = [0, 1, 2, 3].map(q => skinColor(0, "rightArm", "front", q));
     assert.ok(armColors.some(c => colorClose(png.pixel(probe.x, probe.y), c)), "classic arm covers x = -7.5");
 
-    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, skin: "slim"});
+    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, respawn: 1, skin: "slim"});
     await page.waitForFunction(uuid => window.bluemap.playerMarkerManager.getPlayerMarkerSet(false).getPlayerMarker(uuid).model.displayedVariant === "slim", C, {timeout: 10000});
     await sleep(1200);
     probe = await projectBonePoint(C, "rightArm", -2.5, -6, 2.05);
@@ -476,7 +493,7 @@ await step("skin: missing skin-image falls back to the default skin from texture
 });
 
 await step("skin: replaced and released textures are disposed, other players keep theirs", async () => {
-    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, skin: "classic"});
+    await control({uuid: C, x: 8.5, y: 64, z: 8.5, yaw: 0, bodyYaw: 0, pitch: 0, respawn: 1, skin: "classic"});
     await page.waitForFunction(uuid => window.bluemap.playerMarkerManager.getPlayerMarkerSet(false).getPlayerMarker(uuid).model.displayedSkin?.state === "loaded"
         && !window.bluemap.playerMarkerManager.getPlayerMarkerSet(false).getPlayerMarker(uuid).model.displayedSkin.isDefault, C, {timeout: 10000});
     const cacheUrls = await page.evaluate(() => [...window.bluemap.playerMarkerManager.skinCache.entries.keys()]);
