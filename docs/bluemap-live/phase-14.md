@@ -79,6 +79,15 @@ Lösung (`BlockPreviewData`):
 
 Tests: Node `BlockPreview.test.mjs` (ohne Rendern bleibt die Vorschau nach 90 s; ein Rendern ihrer Kachel ohne die Änderung verwirft sie erst lange nach der Änderung), `blocks-e2e.mjs` 18/18.
 
+## 3c. Fix: Schattierung und Flackern bei abgebauten Blöcken
+
+Meldung des Nutzers (Bilder): Abgebaute Blöcke sind anders schattiert als die Kachel und flackern.
+
+- **Schattierung:** Die Vorschau dunkelte Flächen nach Richtung ab (oben 100 %, Nord/Süd 80 %, Ost/West 60 %, unten 50 %, wie die Item-Modelle). BlueMaps Renderer macht das nicht (`ResourceModelRenderer`: nur die Tönung, abgedunkelt wird über Ambient Occlusion). Die Vorschau zeichnet die Flächen jetzt ohne diese Abdunklung. Ambient Occlusion hat die Vorschau weiterhin nicht, Ecken in einem Loch sind darum etwas heller als nach dem Rendern.
+- **Flackern:** Die Speicherzeit der Chunks ist nur sekundengenau. Speicherte Minecraft in derselben Sekunde, in der der Block abgebaut wurde, bestätigte die neue Kachel die Vorschau nicht. Vorschau und Kachel lagen dann übereinander, bis die Kachel erneut gerendert wurde. Mit 3b hätte das bis zu 30 min dauern können. Jetzt gilt: Folgt innerhalb von 60 s (`SAME_SECOND_WAIT`) kein neueres Rendern der Kachel, war die Änderung enthalten, und die Vorschau wird entfernt. War die Speicherung vor der Änderung, speichert Minecraft den Chunk ohnehin erneut, und das nächste Rendern bestätigt sie.
+
+Tests: Node 189/189 (u. a. „a tile from a chunk saved in the same second …“, Farbe der Seitenflächen 1), `blocks-e2e.mjs` 18/18.
+
 ## 4. Test in Minecraft: Forge und NeoForge (Nutzer)
 
 Für jede Plattform einmal mit Minecraft 1.21.1 (Einzelspieler genügt, dedizierter Server besser):

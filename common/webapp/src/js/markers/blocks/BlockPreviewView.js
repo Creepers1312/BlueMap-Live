@@ -138,14 +138,6 @@ export function previewLights(previews) {
 
 const QUAD = 23;
 
-/** vanilla face-shading of block-models (up, down, north/south, east/west), like the item-models */
-function shade(nx, ny, nz) {
-    const ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
-    if (ay >= ax && ay >= az) return ny > 0 ? 1 : 0.5;
-    if (az >= ax) return 0.8;
-    return 0.6;
-}
-
 /**
  * Loads the block-assets (assets/blocks/<state>.json, created by the server when a change is shown) and their textures.
  */
@@ -300,16 +292,13 @@ export function buildPreviewGeometry(quads, texture, placements, tint) {
                 (cullface !== 0 || !onSide(quads, o, placement.cullface))) continue;
             if (cullface !== 0 && placement.skip.includes(cullface)) continue;
             const p = c => [quads[o + c * 3] + placement.x, quads[o + c * 3 + 1] + placement.y, quads[o + c * 3 + 2] + placement.z];
-            const [a, b, c] = [p(0), p(1), p(2)];
-            const nx = (b[1] - a[1]) * (c[2] - a[2]) - (b[2] - a[2]) * (c[1] - a[1]);
-            const ny = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
-            const nz = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0]);
-            const s = shade(nx, ny, nz);
+            // no face-shading by direction: like BlueMaps renderer (ResourceModelRenderer: the tint only, the faces
+            // are darkened by ambient-occlusion, which the preview does not have)
             const tinted = quads[o + 21] >= 0;
             for (const corner of [0, 1, 2, 0, 2, 3]) {
                 positions.push(...p(corner));
                 uvs.push(quads[o + 12 + corner * 2], 1 - quads[o + 12 + corner * 2 + 1]);
-                colors.push(s * (tinted ? tr : 1), s * (tinted ? tg : 1), s * (tinted ? tb : 1));
+                colors.push(tinted ? tr : 1, tinted ? tg : 1, tinted ? tb : 1);
                 // sky- and block-light like the vertices of the hires-tiles (see previewMaterialShader)
                 const light = placement.light || DEFAULT_LIGHT;
                 lights.push(light.sky, light.block);

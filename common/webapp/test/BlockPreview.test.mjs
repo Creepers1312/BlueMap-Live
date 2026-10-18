@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 
-import {blockAssetName, buildHiddenTable, DEFAULT_LIGHT, parseLight, isHidden, MAX_HIDDEN_BLOCKS, parseBlocks, PREVIEW_MAX_AGE, PREVIEW_TIMEOUT, PreviewStore, previewParts,
+import {blockAssetName, buildHiddenTable, DEFAULT_LIGHT, parseLight, isHidden, MAX_HIDDEN_BLOCKS, parseBlocks, PREVIEW_MAX_AGE, PREVIEW_TIMEOUT, SAME_SECOND_WAIT, PreviewStore, previewParts,
     tileOf, TABLE_SLOTS, voxelHash} from "../src/js/markers/blocks/BlockPreviewData.js";
 import {buildPreviewGeometry} from "../src/js/markers/blocks/BlockPreviewView.js";
 import {parseEntitiesResponse} from "../src/js/markers/LiveEntityData.js";
@@ -56,6 +56,21 @@ test("block-preview: unconfirmed previews are discarded, later changes replace e
     now = PREVIEW_MAX_AGE + 1;
     assert.equal(store.expire(), 1);
     assert.equal(store.previews.size, 0);
+});
+
+test("block-preview: a tile from a chunk saved in the same second confirms the preview if no newer render follows", () => {
+    let now = 0;
+    const store = new PreviewStore(HIRES, () => now);
+    store.apply([change(1, 10, 64, 10, STONE, 1_000_400), change(2, 12, 64, 12, STONE, 1_000_400)]);
+    const sameSecond = {x: 0, z: 0, chunks: [0, 0, 1000]}; // saved at second 1000, the changes at 1000.4 s
+    now = 5000;
+    assert.equal(store.confirm(sameSecond), 0, "maybe saved before the change: waits");
+    now = 5000 + SAME_SECOND_WAIT - 1;
+    assert.equal(store.expire(), 0);
+    store.apply([change(3, 12, 64, 12, AIR, 1_003_000)]);
+    now = 5000 + SAME_SECOND_WAIT + 1;
+    assert.equal(store.expire(), 1, "no newer render of the tile: the change was contained, the preview is removed");
+    assert.deepEqual([...store.previews.keys()], ["12,64,12"], "a newer change of a block starts again");
 });
 
 test("block-preview: a render of the tile without the change discards the preview only long after the change", () => {
@@ -113,8 +128,8 @@ test("block-preview: geometry of the placed parts (cullface-filter, tint only fo
     assert.equal(all.getAttribute("position").count, 12);
     assert.deepEqual([...all.getAttribute("position").array.slice(0, 3)], [10, 65, 5]);
     const colors = all.getAttribute("color").array;
-    assert.ok(Math.abs(colors[0] - 0x91 / 255) < 1e-6, "tinted top, shade 1");
-    assert.ok(Math.abs(colors[6 * 3] - 0.8) < 1e-6, "untinted north-side, shade 0.8");
+    assert.ok(Math.abs(colors[0] - 0x91 / 255) < 1e-6, "tinted top");
+    assert.equal(colors[6 * 3], 1, "untinted north-side: no shading by direction, like BlueMaps renderer");
     assert.equal(buildPreviewGeometry(quads, 0, [{x: 0, y: 0, z: 0, cullface: null, skip: [2]}], 0).getAttribute("position").count, 6);
     assert.equal(buildPreviewGeometry(quads, 0, [{x: 0, y: 0, z: 0, cullface: 3, skip: []}], 0).getAttribute("position").count, 6);
     assert.equal(buildPreviewGeometry(quads, 1, [{x: 0, y: 0, z: 0, cullface: null, skip: []}], 0), null, "another texture");

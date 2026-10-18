@@ -37,6 +37,13 @@
 export const PREVIEW_TIMEOUT = 90000;
 /** a preview that is never confirmed is discarded after this time (ms) at the latest (e.g. rendering is paused) */
 export const PREVIEW_MAX_AGE = 30 * 60000;
+/**
+ * A tile rendered from a chunk saved in the same second as the change may or may not contain it (the save-time has a
+ * precision of 1 s). If the save was before the change, the chunk is changed again and Minecraft saves it again within
+ * seconds, so a newer render follows. Without a newer render within this time (ms), the change was contained and the
+ * preview is removed (otherwise preview and tile overlap and flicker).
+ */
+export const SAME_SECOND_WAIT = 60000;
 /** at most this many previews (the oldest are discarded) */
 export const MAX_PREVIEWS = 4096;
 /** the 6 neighbors in the order of the data: down, up, north, south, west, east */
@@ -177,6 +184,11 @@ export class PreviewStore {
             if (t.x !== tile.x || t.z !== tile.z) return;
             const saved = chunks.get((preview.x >> 4) + "," + (preview.z >> 4));
             if (saved === undefined || saved * 1000 < preview.time) {
+                if (saved !== undefined && saved === Math.floor(preview.time / 1000)) {
+                    // saved in the same second: maybe with the change, see SAME_SECOND_WAIT
+                    if (preview.sameSecond === undefined) preview.sameSecond = this.now();
+                    return;
+                }
                 // rendered long after the change, but without it: the tile is newer than the preview
                 if (saved !== undefined && this.now() - preview.added > PREVIEW_TIMEOUT) {
                     this.previews.delete(key);
@@ -191,12 +203,13 @@ export class PreviewStore {
         return removed;
     }
 
-    /** discards the previews that were never confirmed (see PREVIEW_MAX_AGE) */
+    /** discards the previews that were never confirmed (see PREVIEW_MAX_AGE, SAME_SECOND_WAIT) */
     expire() {
         const now = this.now();
         let removed = 0;
         this.previews.forEach((preview, key) => {
-            if (now - preview.added > PREVIEW_MAX_AGE) {
+            if (now - preview.added > PREVIEW_MAX_AGE ||
+                (preview.sameSecond !== undefined && now - preview.sameSecond > SAME_SECOND_WAIT)) {
                 this.previews.delete(key);
                 removed++;
             }
