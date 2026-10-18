@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+import {clamp} from "./util/LiveMath.js";
+
 /*
  * BlueMap Live: quality-presets of the settings-menu, they set BlueMaps own settings (resolution, render-distances)
  * and the live-settings (frame-rate-limit, entity-distance, particles) together.
@@ -42,8 +44,6 @@ export const QUALITY_PRESETS = {
 
 const SLIDER_DEFAULTS = {hiresSliderMin: 50, hiresSliderMax: 500, hiresSliderDefault: 100,
     lowresSliderMin: 500, lowresSliderMax: 10000, lowresSliderDefault: 2000};
-
-const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
 
 /**
  * The values of a preset for the settings of this map.

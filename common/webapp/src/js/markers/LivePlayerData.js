@@ -25,6 +25,7 @@
 
 import {parseWorldTime} from "./WorldTime.js";
 import {parseParticles} from "./particles/ParticleData.js";
+import {isFiniteNumber} from "../util/LiveMath.js";
 
 /*
  * Parsing and validation of the live/players.json data (no three.js dependencies, so it can be unit-tested with node).
@@ -41,8 +42,6 @@ export const MAX_UPDATE_INTERVAL = 10000;
 
 /** Moving further than this (blocks) between two updates is never interpolated, even without a generation change */
 export const MAX_INTERPOLATION_DISTANCE = 64;
-
-const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
 
 const numberOr = (value, fallback) => isFiniteNumber(value) ? value : fallback;
 

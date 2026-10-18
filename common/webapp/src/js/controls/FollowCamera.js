@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+import {DEG2RAD} from "../util/LiveMath.js";
+
 /*
  * BlueMap Live: the camera while following a player in the free-flight view (setting followMode, see LiveDisplay):
  * "firstPerson" at the eyes of the player, "shoulder" behind and right of the head. "map" keeps BlueMaps own
@@ -33,8 +35,6 @@ export const FOLLOW_MODES = ["map", "firstPerson", "shoulder"];
 
 /** the camera of the shoulder-view: behind the eyes, to the right and up (blocks) */
 export const SHOULDER_OFFSET = {back: 3.5, right: 0.75, up: 0.35};
-
-const DEG2RAD = Math.PI / 180;
 
 /**
  * vanilla EntityType.PLAYER / PlayerEntity.getActiveEyeHeight: standing 1.62, sneaking 1.27, swimming, gliding

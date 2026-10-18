@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+import {wrapDegrees} from "../../util/LiveMath.js";
+
 /*
  * BlueMap Live: the body-yaw of the players like the vanilla client computes it for other players
  * (OtherClientPlayerEntity -> LivingEntity.tick / turnHead, 1.21, read from the game in the CI-dump).
@@ -33,13 +35,6 @@
 
 /** one tick in seconds */
 const TICK = 0.05;
-
-const wrapDegrees = angle => {
-    let a = angle % 360;
-    if (a >= 180) a -= 360;
-    if (a < -180) a += 360;
-    return a;
-};
 
 /**
  * One tick of vanilla LivingEntity.tick (the body-part) and turnHead.

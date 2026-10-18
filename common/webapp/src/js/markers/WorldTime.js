@@ -23,13 +23,12 @@
  * THE SOFTWARE.
  */
 
+import {clamp01, isFiniteNumber} from "../util/LiveMath.js";
+
 /*
  * The day-night-cycle of the Minecraft world for the map-lighting (BlueMap Live, see docs/bluemap-live/phase-8.md).
  * No three.js, so it can be unit-tested with node.
  */
-
-const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
-const clamp01 = value => Math.min(1, Math.max(0, value));
 
 /**
  * @param value {any} - the "world"-object of live/players.json

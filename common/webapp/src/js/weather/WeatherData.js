@@ -24,6 +24,7 @@
  */
 
 import {skyAngle} from "../markers/WorldTime.js";
+import {clamp01, TAU} from "../util/LiveMath.js";
 
 /*
  * BlueMap Live: the sky and the weather of the live world-time mode (sun, moon, stars, clouds, rain, snow, lightning),
@@ -48,9 +49,6 @@ export const MOON_SIZE = 20;
 export const CLOUD_HEIGHT = 192;
 export const CLOUD_SCALE = 12;
 export const CLOUD_SPEED = 0.03;
-
-const TAU = Math.PI * 2;
-const clamp01 = value => Math.min(1, Math.max(0, value));
 
 /**
  * The direction of the sun (the moon is opposite), vanilla renderSky: rotated by -90 degrees around y, then by the

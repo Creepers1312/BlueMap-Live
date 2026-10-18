@@ -43,8 +43,6 @@ export const PIXEL_SCALE = 0.9375 / 16;
 /** height of the model in pixels */
 export const MODEL_HEIGHT = 32;
 
-export const MODEL_VARIANTS = ["classic", "slim"];
-
 export const PART_NAMES = ["head", "body", "rightArm", "leftArm", "rightLeg", "leftLeg"];
 
 export const FACE_NAMES = ["right", "left", "top", "bottom", "front", "back"];

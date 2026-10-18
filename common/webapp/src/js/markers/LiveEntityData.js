@@ -33,8 +33,7 @@ import {MOB_TYPES} from "./mob/MobTypes.js";
 import {parseEffects, parseParticles} from "./particles/ParticleData.js";
 import {parseContainers} from "./ChestLids.js";
 import {parseBlocks} from "./blocks/BlockPreviewData.js";
-
-const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
+import {isFiniteNumber} from "../util/LiveMath.js";
 
 const parseVector = value => {
     if (!value || typeof value !== "object") return null;

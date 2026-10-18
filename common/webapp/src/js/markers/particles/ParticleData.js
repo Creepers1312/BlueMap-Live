@@ -23,12 +23,12 @@
  * THE SOFTWARE.
  */
 
+import {isFiniteNumber} from "../../util/LiveMath.js";
+
 /*
  * Parsing of the particle-data of BlueMap Live (see docs/bluemap-live/phase-10.md, no three.js, unit-tested with node):
  * the particles an entity or player emits ("particles") and the effects of a world ("effects" in live/entities.json).
  */
-
-const isFiniteNumber = value => typeof value === "number" && Number.isFinite(value);
 
 /** at most this many swirl-colors are used (the java ParticleState.MAX_SWIRLS) */
 export const MAX_SWIRLS = 16;

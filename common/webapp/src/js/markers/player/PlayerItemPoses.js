@@ -23,6 +23,8 @@
  * THE SOFTWARE.
  */
 
+import {clamp} from "../../util/LiveMath.js";
+
 /*
  * Arm-poses for held and used items, and the item-model predicates (pure logic, no three.js).
  *
@@ -33,7 +35,6 @@
  */
 
 const PI = Math.PI;
-const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 const lerp = (t, a, b) => a + (b - a) * t;
 
 /** vanilla: the default crossbow pull-time in ticks (without quick-charge) */
