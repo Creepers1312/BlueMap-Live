@@ -1,113 +1,93 @@
 # BlueMap Live
 
-> **Dies ist ein Fork von [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap)** (Branch `mc1.21.1`) mit dem Ziel,
-> die originale BlueMap-Karte um **Live-Inhalte** zu ergänzen – ohne die Karte, ihre Texturen, den Webclient oder die Navigation zu ersetzen.
+**English** · [Deutsch](README.de.md)
 
-**Ziel:** Minecraft Java Edition **1.21.1** mit **Fabric**
+BlueMap Live is an unofficial fork of [BlueMap](https://github.com/BlueMap-Minecraft/BlueMap) that shows your Minecraft world **live** on the 3D map: players with their skins and animations, mobs, items, effects, block changes, the time of day and the weather.
 
-- echte 3D-Spielermodelle mit Skin, Live-Position, Blickrichtung und Animationen (siehe auch [BlueMap#95](https://github.com/BlueMap-Minecraft/BlueMap/issues/95))
-- Live-Blockänderungen ohne komplettes Neu-Rendern der Welt
+It extends the original map and does not replace it. The map, its textures, the web client, the navigation and the webserver are BlueMap's own; the live content is drawn on top.
 
-### Stand
+> Not made by the BlueMap team. Please report problems [here](https://github.com/Creepers1312/BlueMap-Live/issues), not at the original project.
 
-| Phase | Inhalt | Status |
+<!-- screenshot: docs/images/overview.png (the map with players, mobs and weather) -->
+
+## Features
+
+| | |
+|---|---|
+| **Players** | 3D models with skin, walking, sneaking, swimming, flying with elytra, riding, sleeping, held items with their animations (bow, crossbow, shield, trident, eating, …), armor with trims, dynamic light from torches in the hand |
+| **Entities** | dropped items, thrown items, arrows and tridents with their flight, vanilla mobs with textures and animations, boats and minecarts, leashes, placeholders for other creatures |
+| **Effects** | explosions, potions, fire, smoke |
+| **Blocks** | changed blocks appear at once as a preview, with the light of their surroundings, until BlueMap has rendered the tile again; chests open and close |
+| **World** | the day-night cycle of the world, live weather with sun, moon phases, stars, clouds, rain, snow and lightning, a world clock |
+| **Map controls** | settings in a popup with tabs, quality presets, entity filter, name tags, health bars, following a player in first person or over the shoulder, a LIVE indicator, 28 languages |
+| **Server** | `/bluemap live-stats` shows what the live data costs; the metrics reports of the original BlueMap are off by default (`metrics` in `core.conf`) |
+
+<!-- screenshot: docs/images/players.png (player models, held items, armor) -->
+<!-- screenshot: docs/images/mobs.png (mobs and items) -->
+<!-- screenshot: docs/images/weather.png (rain, clouds or a night sky) -->
+<!-- screenshot: docs/images/settings.png (the settings popup) -->
+
+## Download
+
+Downloads are on the [releases page](https://github.com/Creepers1312/BlueMap-Live/releases/latest). Each release has one jar per platform:
+
+| Platform | File | Status |
 |---|---|---|
-| 1 | Analyse und Architektur | fertig – [`docs/bluemap-live/analysis.md`](docs/bluemap-live/analysis.md) |
-| 2 | End-to-End-Prototyp: erweiterte Live-Spielerdaten + **vorläufiges** 3D-Objekt im Webclient | implementiert, teilweise getestet, **noch nicht mit Gradle gebaut und nicht auf einem echten Server geprüft** – [`docs/bluemap-live/phase-2.md`](docs/bluemap-live/phase-2.md) |
-| 3 | Echte Spielermodelle mit Skin und Animationen | implementiert, automatisiert getestet und vom Nutzer in Minecraft geprüft (Einzelspieler) – [`docs/bluemap-live/phase-3.md`](docs/bluemap-live/phase-3.md) |
-| 3b | Gehaltene Items und Item-Animationen | implementiert, automatisiert getestet und vom Nutzer in Minecraft geprüft (inkl. F5-Vergleich) – [`docs/bluemap-live/phase-4.md`](docs/bluemap-live/phase-4.md) |
-| 5 | Entities (Release 0.2.0): Gegenstände am Boden, Wurfgegenstände, Pfeile, Treffer-Blitz | implementiert und automatisiert getestet; nach erstem Test in Minecraft überarbeitet, erneute Prüfung offen – [`docs/bluemap-live/phase-5.md`](docs/bluemap-live/phase-5.md) |
-| 6 | Mobs (Release 0.3.0): Vanilla-Modelle mit Textur und Animation, Platzhalter für andere Lebewesen | implementiert und automatisiert getestet (Modelldaten im CI gegen Minecraft geprüft); in Minecraft nicht verifiziert – [`docs/bluemap-live/phase-6.md`](docs/bluemap-live/phase-6.md) |
-| 7 | Live-Blockänderungen (Release 0.4.0, zuverlässig, dann inkrementell), darin auch Truhen/interaktive Blöcke (Entscheidung: Option 1, `phase-4.md` §8) | geplant |
-| 8 | Effekte (0.5.0), Stabilisierung und Dokumentation (1.0) | geplant |
+| Fabric (Loader ≥ 0.17.2 and Fabric API) | `bluemap-live-<version>-fabric.jar` | tested in Minecraft |
+| NeoForge | `bluemap-live-<version>-neoforge.jar` | new in 1.0, the tests in Minecraft are still open |
+| Forge | `bluemap-live-<version>-forge.jar` | new in 1.0, the tests in Minecraft are still open |
 
-Aktuelle Version: [0.1.0-alpha (Pre-release)](https://github.com/Creepers1312/BlueMap-Live/releases/tag/v0.1.0-alpha) · Release-Plan (was in die nächsten Versionen kommt): [`docs/bluemap-live/roadmap.md`](docs/bluemap-live/roadmap.md)
+Minecraft Java Edition **1.21.1** (and 1.21). Works in singleplayer and on dedicated servers. Only the server needs the mod; players use their browser.
 
-Noch **nicht für den produktiven Einsatz** gedacht.
+## Installation
 
-Test in einer Einzelspielerwelt: [`docs/bluemap-live/singleplayer-test.md`](docs/bluemap-live/singleplayer-test.md)
+1. Remove the original BlueMap jar from the `mods` folder (both together do not work).
+2. Put the BlueMap Live jar for your platform into the `mods` folder.
+3. Start the server or world. As in BlueMap, accept the download of the Minecraft resources once in `config/bluemap/core.conf` (`accept-download: true`).
+4. Open the map in the browser: `http://localhost:8100` by default.
 
-### Branches
+Existing BlueMap configs and maps are kept. BlueMap's own documentation applies to everything that is not live: [bluemap.bluecolored.de/wiki](https://bluemap.bluecolored.de/wiki/).
 
-- `mc1.21.1` – unveränderter Stand des Original-BlueMap-Branches (Basis)
-- `bluemap-live` – Entwicklungsstand von BlueMap Live
+## Configuration
 
-Lizenz und Urheberschaft von BlueMap bleiben unverändert (MIT, siehe [LICENSE](LICENSE)).
-Alles unterhalb dieser Linie ist die originale BlueMap-README.
+The live settings are in `config/bluemap/plugin.conf`. All of them are on by default:
 
----
+| Setting | Default | What it does |
+|---|---|---|
+| `live-player-markers` | `true` | sends the players to the map |
+| `live-player-update-interval` | `250` | milliseconds between two samples (50–10000); lower is smoother but costs more |
+| `live-player-extended-data` | `true` | body rotation, movement, items, armor, …; `false` sends only name, position and rotation |
+| `live-entities` | `true` | items, projectiles, mobs and vehicles around the players |
+| `live-entities-radius` | `30` | blocks around each player (0–128) |
+| `live-entities-limit` | `200` | entities per map, the nearest first (0–1000) |
+| `live-entities-hidden-types` | `[]` | entity types that are never sent, e.g. `["minecraft:item"]` |
+| `live-block-updates` | `true` | changed tiles are rendered again after a short cooldown |
+| `live-block-preview` | `true` | changed blocks are shown at once as a preview |
+| `live-block-preview-radius` | `96` | blocks around the players (0–256) |
+| `live-block-update-cooldown` | `10` | seconds until a changed region is rendered again |
 
-[![title-banner](https://bluecolored.de/paste/BluemapBanner.png)](https://bluemap.bluecolored.de/)
+Only things around players that are visible on the map are sent; hidden players and their surroundings stay hidden. All settings, including the ones in the browser, are described in [docs/bluemap-live/configuration.md](docs/bluemap-live/configuration.md).
 
-<div align="center">
+## Performance
 
-create **3D**-maps of your Minecraft worlds and display them in your browser  
-**>> [DEMO MAP](https://bluecolored.de/bluemap) <<**
+The server only samples the positions and states (a few field reads per entity, by default 4 times per second). Drawing the models, animations and weather is done by the browser of each viewer. The quality presets in the settings (Performance, Balanced, Beautiful) set how much the browser draws.
 
+## Building
 
-[![GitHub issues](https://img.shields.io/github/issues-raw/BlueMap-Minecraft/BlueMap)](https://github.com/orgs/BlueMap-Minecraft/projects/2)
-[![GitHub all releases](https://img.shields.io/github/downloads/BlueMap-Minecraft/BlueMap/total)](https://github.com/BlueMap-Minecraft/BlueMap/releases)
-[![GitHub release (latest by date)](https://img.shields.io/github/v/release/BlueMap-Minecraft/BlueMap)](https://github.com/BlueMap-Minecraft/BlueMap/releases/latest)
-[![Discord](https://img.shields.io/discord/665868367416131594?label=discord)](https://discord.gg/zmkyJa3)
+```sh
+./gradlew release
+```
 
-</div>
+The jars are in `build/release/`. Java 21 is needed. The tests of the web client run with `npm test` in `common/webapp`.
 
-<br>
-<br>
+## Documentation
 
-## What is BlueMap
-BlueMap is a program that reads your Minecraft world files and generates not only a map, but also 3D-models of the whole surface.
-With the web-app you then can look at those in your browser and basically view the world as if you were ingame! 
-Or just look at it from far away to get an overview.
+- [docs/bluemap-live/README.md](docs/bluemap-live/README.md): an overview of all documents
+- [CHANGELOG.md](CHANGELOG.md): what changed in each version
+- [docs/bluemap-live/roadmap.md](docs/bluemap-live/roadmap.md): what comes next (1.x: support for mod entities)
 
-[![screenshot](https://bluecolored.de/paste/BlueMapScreenshot.jpg?2)](https://bluecolored.de/bluemap)
+## Credits and license
 
-BlueMap comes as a Spigot/Paper or Sponge Plugin, as a Fabric or Forge-Mod and you can also use BlueMap without any Server
-from the Command-Line as a standalone tool.
+BlueMap is made by [Blue (TBlueF, Lukas Rieger)](https://github.com/TBlueF) and the [BlueMap contributors](https://github.com/BlueMap-Minecraft/BlueMap/graphs/contributors). BlueMap Live builds on it and keeps its license: MIT, see [LICENSE](LICENSE). The original README is at [BlueMap-Minecraft/BlueMap](https://github.com/BlueMap-Minecraft/BlueMap#readme).
 
-If installed as a Plugin/Mod, BlueMap **renders asynchronously** to your MinecraftServer-Thread. 
-This means at no time it will block your server-thread directly. 
-So as long as your CPU is not fully utilized, your server should not be slowed down while BlueMap is rendering.
-
-
-## Using BlueMap
-You can download BlueMap from [here](https://github.com/BlueMap-Minecraft/BlueMap/releases).  
-Read the [installation instructions](https://bluemap.bluecolored.de/wiki/getting-started/Installation.html) to get started!
-
-Here you can see how many servers are using BlueMap:
-
-[![BlueMap Graph](https://metrics.bluecolored.de/bluemap/graph.php?1)](https://metrics.bluecolored.de/)
-
-## Development
-### Clone
-If you have git installed, simply use the command `git clone --recursive https://github.com/BlueMap-Minecraft/BlueMap.git` to clone BlueMap.
-
-### Build
-In order to build BlueMap you simply need to run the `./gradlew release` command in BlueMap's root directory.
-You can find the compiled JAR files in `./build/release`.
-
-### Issues
-You found a bug, have another issue?  
-First, make sure it's not on your end, if you are unsure you can always ask about it in our [Discord](https://bluecolo.red/map-discord).  
-If you are sure it's a bug on BlueMap's end, please create an issue [here](https://github.com/BlueMap-Minecraft/BlueMap/issues)!
-
-### Contributing
-You are welcome to contribute!
-Just create a pull request with your changes :)
-
-**If you want to have your changes merged, make sure they are complete, documented and well tested!**
-
-Keep in mind that we have to maintain all new features and keep supporting them in the future.
-This means we always can decide to not accept a PR for any reason.
-
-## Links
-**TODO-List:** https://github.com/orgs/BlueMap-Minecraft/projects/2  
-**Wiki:** https://bluecolo.red/map-wiki  
-**Discord:** https://bluecolo.red/map-discord  
-**Reddit:** https://www.reddit.com/r/BlueMap  
-
----
-
-[![JetBrainsLogo](https://bluemap.bluecolored.de/assets/jetbrains.svg)](https://www.jetbrains.com/?from=BlueMap)<br>
-<br>
-Special thanks to [JetBrains](https://www.jetbrains.com/?from=BlueMap) for giving out an OpenSource-Licence for BlueMap development!
+Minecraft textures and models are not part of this repository. Like BlueMap, the mod downloads them from Mojang after you accept it.
