@@ -147,6 +147,19 @@ public class VanillaAnimationDumpTest {
                 "isEating", "setEating", "travel", "getControlledMovementInput", "getSaddledSpeed", "tickControlled"));
     }
 
+    /**
+     * The current question (only these are dumped if not empty, the 4 x 50 annotations are not enough for all):
+     * the body-yaw of players (server-side bodyYaw vs. the client of other players).
+     */
+    private static final Map<String, Set<String>> FOCUS = Map.of(
+            "net/minecraft/entity/LivingEntity", Set.of("tick", "turnHead", "getMaxRelativeHeadRotation", "getMaxHeadRotation"),
+            "net/minecraft/entity/Entity", Set.of("updatePositionAndAngles", "resetPosition", "updatePrevPosition"),
+            "net/minecraft/server/network/ServerPlayNetworkHandler", Set.of("onPlayerMove"),
+            "net/minecraft/server/network/ServerPlayerEntity", Set.of("playerTick", "tick"),
+            "net/minecraft/client/network/OtherClientPlayerEntity", Set.of("tick", "tickMovement"),
+            "net/minecraft/entity/player/PlayerEntity", Set.of("getMaxRelativeHeadRotation", "tickMovement")
+    );
+
     /** text-resources of the game (shaders, atlas-definitions), printed as they are */
     private static final List<String> RESOURCES = List.of(
             "assets/minecraft/particles/explosion.json", "assets/minecraft/particles/explosion_emitter.json",
@@ -172,7 +185,7 @@ public class VanillaAnimationDumpTest {
     @Test
     public void dumpVanillaAnimations() throws IOException {
         List<String> lines = new ArrayList<>();
-        for (Map.Entry<String, Set<String>> entry : METHODS.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : (FOCUS.isEmpty() ? METHODS : FOCUS).entrySet()) {
             byte[] bytes;
             try (InputStream in = getClass().getClassLoader().getResourceAsStream(entry.getKey() + ".class")) {
                 if (in == null) {
@@ -183,7 +196,7 @@ public class VanillaAnimationDumpTest {
             }
             dumpClass(bytes, entry.getValue(), lines);
         }
-        for (String resource : RESOURCES) {
+        for (String resource : FOCUS.isEmpty() ? RESOURCES : List.<String>of()) {
             try (InputStream in = getClass().getClassLoader().getResourceAsStream(resource)) {
                 lines.add(resource + ": " + (in == null ? "not found" : new String(in.readAllBytes(), StandardCharsets.UTF_8)
                         .replaceAll("\\s+", " ")));
