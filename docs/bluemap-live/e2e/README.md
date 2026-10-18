@@ -115,3 +115,11 @@ Zusätzliche Steuerparameter des Testservers:
 
 `E2EItemResources` liefert dazu Testtexturen für Himmel und Wetter: gelbe Sonne, eine Farbe pro Mondphase (Phase 2 blau), karierte Wolken, blaue Regenstreifen, weiße Schneeflocken.
 
+
+## Leistungsmessung (`perf-stress.mjs`)
+
+Kein Test mit Bestanden/Fehlgeschlagen, sondern eine Messung: eine Stress-Szene (20 Spieler, 120 Mobs, 60 Gegenstände, 30 Block-Vorschauen, Regen, Lebensbalken) gegen den Testserver. Ausgegeben wird die JS-Zeit der Render-Funktion pro Bild (Median, 90 %), dazu `<out>.cpuprofile` für die Chrome-DevTools. Für lesbare Funktionsnamen die Webapp mit `npx vite build --minify false` bauen.
+
+```bash
+node docs/bluemap-live/e2e/perf-stress.mjs e2e-out/perf
+```

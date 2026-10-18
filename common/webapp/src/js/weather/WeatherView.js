@@ -142,6 +142,7 @@ export class WeatherView {
 
         // --- weather in the world ---
         this.group = new Group();
+        this.group.userData.noCss2d = true; // see CSS2DRenderer
         this.group.name = "bm-live-weather";
 
         // alphaTest compares the alpha after the opacity (0.3 from above): low, the texels of clouds.png are 0 or 1

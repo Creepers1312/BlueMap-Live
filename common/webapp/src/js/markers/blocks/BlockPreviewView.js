@@ -325,6 +325,7 @@ export class BlockPreviewView {
         /** the light-emitting previews (see previewLights) */
         this.lights = [];
         this.group = new Group();
+        this.group.userData.noCss2d = true; // see CSS2DRenderer
         this.group.name = "bm-live-block-previews";
         this.meshes = [];
         this.materials = new Map();

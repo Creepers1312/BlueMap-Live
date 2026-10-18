@@ -51,6 +51,7 @@ export class ChestLidView {
     constructor(textureCache) {
         this.textureCache = textureCache;
         this.group = new Group();
+        this.group.userData.noCss2d = true; // see CSS2DRenderer
         this.group.name = "bm-live-chest-lids";
         /** @type {Map<string, object>} */
         this.lids = new Map();

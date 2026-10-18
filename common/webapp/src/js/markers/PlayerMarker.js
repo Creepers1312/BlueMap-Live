@@ -105,6 +105,7 @@ export class PlayerMarker extends Marker {
         if (!skinCache) skinCache = fallbackSkinCache || (fallbackSkinCache = new PlayerSkinCache());
         this.playerskinsUrl = playerskinsUrl;
         this.model = new PlayerModel(skinCache, itemCache);
+        this.model.userData.noCss2d = true; // see CSS2DRenderer
         this.model.position.y = -PLAYER_HEIGHT; // the marker itself sits at head-height, the model origin is at the feet
         this.headPivot = this.model.parts.head;
         this.add(this.model);

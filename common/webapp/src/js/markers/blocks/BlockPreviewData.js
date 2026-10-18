@@ -101,6 +101,10 @@ export const blockKey = (x, y, z) => x + "," + y + "," + z;
 /**
  * The previews of the block-changes of a map.
  */
+/** applied changes are remembered this long (ms): longer than the server keeps them (10 s) plus the playback-delay */
+const SEEN_MAX_AGE = 60000;
+const SEEN_PRUNE_INTERVAL = 5000;
+
 export class PreviewStore {
 
     /**
@@ -113,7 +117,9 @@ export class PreviewStore {
         /** @type {Map<string, {id: number, x: number, y: number, z: number, state: string, neighbors: Array<string | null>, time: number, added: number}>} */
         this.previews = new Map();
         /** the ids of the changes that were applied (each change is applied once) */
-        this.seen = new Set();
+        /** id@time of the applied changes -> client-time when seen (id and time: the ids start again after a server-restart) */
+        this.seen = new Map();
+        this.seenPruned = 0;
         this.version = 0;
     }
 
@@ -122,20 +128,25 @@ export class PreviewStore {
      * @returns {boolean} if something changed
      */
     apply(changes) {
-        const ids = new Set();
+        const now = this.now();
         let changed = false;
         for (const change of changes) {
-            ids.add(change.id);
-            if (this.seen.has(change.id)) continue;
+            const seenKey = change.id + "@" + change.time;
+            if (this.seen.has(seenKey)) continue;
+            // the changes of a response arrive in parts (at their playback-times): the keys are kept for a while
+            this.seen.set(seenKey, now);
             const key = blockKey(change.x, change.y, change.z);
             const current = this.previews.get(key);
-            if (current && current.id > change.id) continue;
+            if (current && current.id >= change.id) continue;
             this.previews.delete(key);
             this.previews.set(key, {...change, added: this.now()});
             changed = true;
         }
-        // the server keeps a change for some seconds: only the ids of the current data are needed
-        this.seen = ids;
+        // the server keeps a change for some seconds (LiveBlockLog.MAX_AGE_MILLIS = 10 s, plus the playback-delay)
+        if (this.seen.size > 0 && now - this.seenPruned > SEEN_PRUNE_INTERVAL) {
+            this.seenPruned = now;
+            this.seen.forEach((time, key) => { if (now - time > SEEN_MAX_AGE) this.seen.delete(key); });
+        }
         while (this.previews.size > MAX_PREVIEWS) {
             this.previews.delete(this.previews.keys().next().value);
             changed = true;

@@ -416,7 +416,8 @@ export class MapViewer {
 
 		// render markers
 		this.renderer.render(this.markers, this.camera);
-		this.css2dRenderer.render(this.markers, this.camera);
+		// BlueMap Live: the WebGLRenderer just updated the matrices of the marker-scene
+		this.css2dRenderer.render(this.markers, this.camera, false);
 	}
 
 	/**

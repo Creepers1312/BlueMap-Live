@@ -23,6 +23,7 @@
  * THE SOFTWARE.
  */
 import {Group, MathUtils, Sphere, Vector3} from "three";
+import {markRaw, toRaw} from "vue";
 import {Marker} from "./Marker.js";
 import {ItemView} from "./player/ItemView.js";
 import {
@@ -115,12 +116,35 @@ export class EntityMarker extends Marker {
         this.data.type = "entity";
         this.data.listed = false;
 
+        // not listed in the menu: position and visibility without the vue-reactivity of the Marker (three.js and the
+        // animation read them many times per frame, every access through the reactive proxy was expensive)
+        let position = markRaw(toRaw(this.data.position));
+        let visible = this.data.visible;
+        this.data.position = position;
+        Object.defineProperty(this, "position", {
+            get() { return position; },
+            set(value) {
+                position = markRaw(toRaw(value));
+                this.data.position = position;
+            },
+        });
+        Object.defineProperty(this, "visible", {
+            get() { return visible; },
+            set(value) {
+                if (visible === value) return;
+                visible = value;
+                this.data.visible = value;
+            },
+        });
+
         this.itemCache = itemCache;
         this.entityCache = entityCache;
         this.mobCache = mobCache;
         this.kind = null;
         this.entityType = null;
         this.body = new Group();
+        // no html-elements inside (the label is a child of the marker): skipped by the CSS2DRenderer
+        this.body.userData.noCss2d = true;
         this.add(this.body);
         this.view = null;
 

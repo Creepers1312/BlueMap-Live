@@ -172,3 +172,30 @@ test("block-preview: a depth-bias after the logarithmic depth (polygonOffset has
     assert.equal(shader.uniforms.bmSunlight, uniforms.sunlightStrength);
     assert.equal(material.customProgramCacheKey(), "bluemap-live-block-preview-lit-depth-bias");
 });
+
+test("block-preview: changes arriving in parts (playback) are applied once, a restarted server is new again", () => {
+    let now = 0;
+    const store = new PreviewStore(HIRES, () => now);
+    const a = change(1, 0, 64, 0, STONE, 1000), b = change(2, 1, 64, 0, STONE, 1000), c = change(3, 2, 64, 0, STONE, 1000);
+    assert.equal(store.apply([a]), true);
+    assert.equal(store.apply([b, c]), true);
+    const version = store.version;
+    // the next responses repeat the same changes, again in parts: nothing is built again
+    for (let i = 0; i < 5; i++) {
+        assert.equal(store.apply([a]), false);
+        assert.equal(store.apply([b]), false);
+        assert.equal(store.apply([c]), false);
+    }
+    assert.equal(store.version, version);
+    // a confirmed preview is not added again by the repeated data
+    store.previews.delete("0,64,0");
+    assert.equal(store.apply([a, b, c]), false);
+    assert.equal(store.previews.has("0,64,0"), false);
+    // after a server-restart the ids start again, with other times
+    assert.equal(store.apply([change(1, 5, 64, 5, STONE, 9000)]), true);
+    assert.ok(store.previews.has("5,64,5"));
+    // the remembered changes are pruned after a while
+    now = 120000;
+    store.apply([]);
+    assert.equal(store.seen.size, 0);
+});
