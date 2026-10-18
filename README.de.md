@@ -45,7 +45,7 @@ Die Downloads liegen auf der [Release-Seite](https://github.com/Creepers1312/Blu
 |---|---|---|
 | Fabric (Loader ≥ 0.17.2 und Fabric API) | `bluemap-live-<version>-fabric.jar` | in Minecraft getestet |
 | NeoForge | `bluemap-live-<version>-neoforge.jar` | neu in 1.0, Test in Minecraft noch offen |
-| Forge | `bluemap-live-<version>-forge.jar` | neu in 1.0, Test in Minecraft noch offen |
+| Forge | `bluemap-live-<version>-forge.jar` | neu in 1.0, in Minecraft getestet (Forge 52.1.0) |
 
 Minecraft Java Edition **1.21.1** (und 1.21). Läuft im Einzelspieler und auf dedizierten Servern. Nur der Server braucht die Mod; die Spieler nutzen ihren Browser.
 

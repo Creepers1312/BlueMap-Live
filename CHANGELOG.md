@@ -6,7 +6,7 @@ All versions of BlueMap Live. The detailed release notes (German) are in [docs/b
 
 The first stable version. It contains everything from 0.1 to 0.6. Only 0.1 and 0.3 were published as GitHub releases, so for many users this is the first release with these features.
 
-- **Forge and NeoForge**: the live features are now also available for Forge and NeoForge (Minecraft 1.21.1), not only for Fabric. Both share the live code of the Fabric version. They are new in 1.0 and have not been tested in Minecraft yet.
+- **Forge and NeoForge**: the live features are now also available for Forge and NeoForge (Minecraft 1.21.1), not only for Fabric. Both share the live code of the Fabric version. They are new in 1.0; Forge is tested in Minecraft, the test of NeoForge is still open.
 - **Players walk straight**: the body follows the movement like in the game (the server-side body rotation lags behind, the map now computes it like the Minecraft client does for other players).
 - **Faster map**: about a third less work per frame in the browser with many players and entities (median 22 ms → 14 ms per frame in a scene with 20 players, 180 entities and rain). Block previews are no longer rebuilt when a block changes more than once.
 - **Chests**: a chest that was just placed and is opened no longer shows its closed lid as well.

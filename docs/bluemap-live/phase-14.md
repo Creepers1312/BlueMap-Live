@@ -54,7 +54,8 @@ Fabric selbst bleibt bei Yarn. Die Fabric-Tests (`VanillaMobModelsTest`, Vanilla
 ### Was geprüft ist
 
 - **Automatisch (CI):** Forge und NeoForge kompilieren; der Build-Job meldet pro JAR, ob der gemeinsame Code und die Mixin-Konfiguration enthalten sind (Schritt „Release files“).
-- **Nicht geprüft:** ob die Events in Minecraft so feuern wie erwartet, und ob das Mixin auf Forge/NeoForge greift. Das testet der Nutzer (siehe 4).
+- **Forge in Minecraft (Nutzer, 2026-10-18):** Test mit `v1.0.0-rc.1` auf Forge 52.1.0 (Minecraft 1.21.1) laut Nutzer erfolgreich („forge test hat geklappt“); welche Punkte aus FN1–FN12 im Einzelnen geprüft wurden, ist nicht festgehalten.
+- **Nicht geprüft:** NeoForge in Minecraft (siehe 4).
 
 ### Bekannte Unterschiede zu Fabric
 

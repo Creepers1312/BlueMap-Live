@@ -30,7 +30,7 @@ Alles aus 0.1–0.6. Auf GitHub veröffentlicht sind bisher nur `v0.1.0-alpha` u
 | F7 | Release-Notes 1.0 und `CHANGELOG.md` | 0.4–0.6 zusammenführen, „Alpha“-Hinweise entfernen, bekannte Einschränkungen gesammelt | ✅ `releases/v1.0.0.md`, `CHANGELOG.md` |
 | F8 | Konfigurations-Referenz | alle `live-*`-Einstellungen aus `plugin.conf` und die Browser-Einstellungen an einer Stelle, mit Standardwerten und Server-Kosten | ✅ `configuration.md` |
 | F9 | Doku-Index | `docs/bluemap-live/README.md`: was für Nutzer ist (Installation, Konfiguration, FAQ) und was Entwickler-Doku (Phasen) | ✅ |
-| F11 | Forge und NeoForge | Entscheidung des Nutzers: Live-Funktionen vor 1.0 | ✅ kompiliert (CI), Test in Minecraft durch den Nutzer: FN1–FN12 in `phase-14.md` |
+| F11 | Forge und NeoForge | Entscheidung des Nutzers: Live-Funktionen vor 1.0 | ✅ kompiliert (CI); Forge in Minecraft getestet (Nutzer, `rc.1`); NeoForge offen: FN1–FN12 in `phase-14.md` |
 | F10 | Temporärer Branch `bluemap-live-model-dump` | nur für den einmaligen Vanilla-Dump angelegt | Nutzer (löschen, falls gewünscht) |
 
 ### Bereits erledigt

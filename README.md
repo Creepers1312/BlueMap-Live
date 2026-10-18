@@ -45,7 +45,7 @@ Downloads are on the [releases page](https://github.com/Creepers1312/BlueMap-Liv
 |---|---|---|
 | Fabric (Loader ≥ 0.17.2 and Fabric API) | `bluemap-live-<version>-fabric.jar` | tested in Minecraft |
 | NeoForge | `bluemap-live-<version>-neoforge.jar` | new in 1.0, the tests in Minecraft are still open |
-| Forge | `bluemap-live-<version>-forge.jar` | new in 1.0, the tests in Minecraft are still open |
+| Forge | `bluemap-live-<version>-forge.jar` | new in 1.0, tested in Minecraft (Forge 52.1.0) |
 
 Minecraft Java Edition **1.21.1** (and 1.21). Works in singleplayer and on dedicated servers. Only the server needs the mod; players use their browser.
 
