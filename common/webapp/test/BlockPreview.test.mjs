@@ -152,3 +152,23 @@ test("block-preview: light-emitting previews are dynamic lights (with the player
     assert.equal(lights.length, MAX_DYNAMIC_LIGHTS);
     assert.equal(lights[0].x, 100);
 });
+
+import {applyDepthBias, applyPreviewLighting, hiddenPreviews} from "../src/js/markers/blocks/BlockPreviewView.js";
+
+test("block-preview: the old block is hidden only when the new one is drawn (no flickering holes)", () => {
+    const previews = [{state: AIR}, {state: STONE}, {state: "minecraft:water[level=0]"}];
+    assert.deepEqual(hiddenPreviews(previews, new Set([STONE])).map(p => p.state), [AIR, STONE]);
+    assert.deepEqual(hiddenPreviews(previews, new Set()).map(p => p.state), [AIR], "models still loading: only removed blocks");
+});
+
+test("block-preview: a depth-bias after the logarithmic depth (polygonOffset has no effect there), with the lighting", () => {
+    const uniforms = {sunlightStrength: {value: 1}, ambientLight: {value: 0}, dynamicLights: {value: []}, dynamicLightCount: {value: 0}};
+    const material = applyDepthBias(applyPreviewLighting({}, uniforms));
+    const shader = {uniforms: {}, vertexShader: "#include <project_vertex>",
+        fragmentShader: "#include <logdepthbuf_fragment>\n#include <output_fragment>"};
+    material.onBeforeCompile(shader);
+    assert.ok(shader.fragmentShader.includes("gl_FragDepthEXT = max(0.0, gl_FragDepthEXT - 1e-5)"), shader.fragmentShader);
+    assert.ok(shader.fragmentShader.includes("bmLightLevel"), "the lighting-patch is kept");
+    assert.equal(shader.uniforms.bmSunlight, uniforms.sunlightStrength);
+    assert.equal(material.customProgramCacheKey(), "bluemap-live-block-preview-lit-depth-bias");
+});

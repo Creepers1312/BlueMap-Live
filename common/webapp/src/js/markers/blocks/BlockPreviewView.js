@@ -67,6 +67,43 @@ varying vec3 vBmWorld;
 }
 
 /**
+ * The depth-bias of the previews (in the units of the logarithmic depth, i.e. relative to the distance: about 0.02 %).
+ * BlueMaps renderer uses a logarithmic depth-buffer, the shaders write gl_FragDepth and polygonOffset has no effect:
+ * without the bias, the faces of a preview that lie on faces of the tile flicker (z-fighting).
+ */
+export const PREVIEW_DEPTH_BIAS = 1e-5;
+
+/**
+ * Draws a material a bit in front of coplanar faces (see PREVIEW_DEPTH_BIAS), after its other shader-patches.
+ * @param material {import("three").Material}
+ * @returns {import("three").Material}
+ */
+export function applyDepthBias(material) {
+    const patch = material.onBeforeCompile;
+    material.onBeforeCompile = (shader, renderer) => {
+        if (patch) patch.call(material, shader, renderer);
+        shader.fragmentShader = shader.fragmentShader.replace("#include <logdepthbuf_fragment>", `#include <logdepthbuf_fragment>
+#if defined( USE_LOGDEPTHBUF ) && defined( USE_LOGDEPTHBUF_EXT )
+	gl_FragDepthEXT = max(0.0, gl_FragDepthEXT - ${PREVIEW_DEPTH_BIAS.toExponential()});
+#endif`);
+    };
+    const key = material.customProgramCacheKey;
+    material.customProgramCacheKey = () => key.call(material) + "-depth-bias";
+    return material;
+}
+
+/**
+ * The previews whose old block is hidden in the tiles: removed blocks, and changed blocks whose new block is drawn
+ * (otherwise the tile keeps the old block, e.g. for liquids without a preview or while the model is loading,
+ * instead of a hole that flickers).
+ * @param previews {Iterable<{state: string}>}
+ * @param drawnStates {Set<string>}
+ */
+export function hiddenPreviews(previews, drawnStates) {
+    return [...previews].filter(preview => isAir(preview.state) || drawnStates.has(preview.state));
+}
+
+/**
  * The light-emitting previews (e.g. a placed torch) as dynamic lights, until the tile with the block-light is rendered.
  * @param previews {Iterable<{x: number, y: number, z: number, state: string, light: {luminance: number} | null}>}
  * @returns {Array<{x: number, y: number, z: number, level: number}>}
@@ -348,6 +385,8 @@ export class BlockPreviewView {
         byState.forEach((placements, state) => {
             const entry = this.assets.get(state);
             if (entry.status !== "loaded") return;
+            // a model without faces (e.g. vanilla water and lava, drawn by the renderer itself) is no preview
+            if (!entry.data.quads || entry.data.quads.length === 0) return;
             this.drawnStates.add(state);
             entry.textures.forEach((texture, index) => {
                 if (!texture) return;
@@ -361,7 +400,7 @@ export class BlockPreviewView {
         });
 
         // the old blocks in the tiles
-        this.hiddenCount = buildHiddenTable([...this.store.previews.values()], this.table);
+        this.hiddenCount = buildHiddenTable(hiddenPreviews(this.store.previews.values(), this.drawnStates), this.table);
         if (this.hiddenTexture) this.hiddenTexture.needsUpdate = true;
         return true;
     }
@@ -370,13 +409,15 @@ export class BlockPreviewView {
     material(texture) {
         let material = this.materials.get(texture);
         if (!material) {
-            // drawn a bit in front of the tile (the same faces can be in the tile, e.g. the neighbor-faces)
+            // drawn a bit in front of the tile (the same faces can be in the tile, e.g. the neighbor-faces): applyDepthBias,
+            // polygonOffset only helps without the logarithmic depth-buffer
             material = new MeshBasicMaterial({map: texture, vertexColors: true, alphaTest: 0.1,
                 transparent: true, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2});
             const uniforms = this.uniforms();
             // lit like the tiles (sky-, block- and dynamic light), without the map-uniforms like the entities
             if (uniforms && uniforms.dynamicLights) applyPreviewLighting(material, uniforms);
             else applyEntityShader(material, "", "block-preview");
+            applyDepthBias(material);
             this.materials.set(texture, material);
         }
         return material;

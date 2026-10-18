@@ -335,6 +335,17 @@ await step("a preview that is not confirmed is discarded after 90 s", async () =
     assert.equal((await previews()).hidden, 0);
 });
 
+await step("a block without a preview (water: no model) keeps the old block in the tile instead of a flickering hole", async () => {
+    await control({block: "12,63,12", state: "minecraft:water[level=0]"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 1, null, {timeout: 5000});
+    await sleep(1500); // the model is requested (and not found)
+    assert.equal((await previews()).hidden, 0, "not hidden while nothing is drawn");
+    await control({block: "12,63,12", state: "minecraft:air"});
+    await page.waitForFunction(() => window.bluemap.mapViewer.data.uniforms.hiddenBlockCount.value === 1, null, {timeout: 5000});
+    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 91000));
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 3000});
+});
+
 /** the mean brightness (r + g + b) of the top-face of a block */
 async function topBrightness(name, x, y, z) {
     const png = decodePng(await page.screenshot({path: `${OUT}/${name}.png`}));

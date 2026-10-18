@@ -134,6 +134,15 @@ Nach einem Test des Nutzers in Minecraft: Gesetzte Blöcke waren nachts heller a
 - **Grenzen:** Eine abgebaute Fackel leuchtet in der Kachel weiter, bis sie neu gerendert ist (das Licht der Kachel lässt sich nicht abziehen). Die Entities werden von dynamischen Lichtern nicht erhellt.
 - Test: `blocks-e2e.mjs` (im Freien vs. Höhle, leuchtende Vorschau erhellt den Nachbarn, nach dem Rendern kein dynamisches Licht mehr), `LiveBlockLogTest`, `BlockPreview.test.mjs`.
 
+## 3b. Flimmern der Block-Vorschau
+
+Nach einem Hinweis des Nutzers („die Texturen flimmern oft“). Zwei Ursachen:
+
+1. **Z-Fighting:** BlueMaps Renderer nutzt einen logarithmischen Tiefenpuffer; die Shader schreiben `gl_FragDepth`, damit wirkt der `polygonOffset` der Vorschau nicht. Vorschau-Flächen, die genau auf Flächen der Kachel liegen (Nachbarflächen in einem Loch, Kachel und Vorschau kurz gleichzeitig nach dem Rendern, Flächen ohne Cullface), flackerten pixelweise. **Lösung:** `applyDepthBias` zieht nach der logarithmischen Tiefe einen kleinen Wert ab (1e-5, etwa 0,02 % der Entfernung), die Vorschau liegt damit immer knapp vor der Kachel.
+2. **Löcher:** Der alte Block wurde in der Kachel sofort versteckt, auch wenn die Vorschau des neuen Blocks nicht gezeichnet werden konnte: solange das Modell lädt, und bei Wasser und Lava, deren Vanilla-Modell keine Flächen hat (der echte `ItemModelBaker` überspringt Modelle ohne Elemente). Fließendes Wasser ändert sich ständig, dabei blinkten Löcher auf. **Lösung:** `hiddenPreviews` versteckt den alten Block nur, wenn der neue gezeichnet wird (Modell geladen und mit Flächen) oder der Block entfernt wurde; sonst zeigt die Kachel den alten Block, bis sie neu gerendert ist.
+
+Test: `blocks-e2e.mjs` (Wasser ohne Vorschau versteckt nichts), `BlockPreview.test.mjs` (Filter, Tiefen-Versatz zusammen mit der Beleuchtung). Das Flimmern selbst ist im Software-Renderer des Tests nicht sichtbar (deterministisch) und wird dort nicht als Pixel geprüft.
+
 ## 4. Sprachen
 
 Alle 28 Sprachen aus `lang/settings.conf` haben die Texte von BlueMap Live (54 Schlüssel einschließlich der Reiter des Einstellungs-Popups). „LIVE“ bleibt in allen Sprachen gleich.
@@ -154,7 +163,7 @@ Wie in Phase 12 unter `live.<key>`: `nameTags`, `healthBars`, `followMode`, `wea
 
 | Test | Ergebnis |
 |---|---|
-| Node `npm test` | 180/180, neu `Weather.test.mjs` (6), `QualityPresets.test.mjs` (2), `Languages.test.mjs` (2); in `LiveEntities.test.mjs` Kategorien, Einstellungen, Beschriftung, Folgekamera; in `WorldTime.test.mjs` Mondphase, Uhr, Wetter, Live-Anzeige |
+| Node `npm test` | 182/182, neu `Weather.test.mjs` (6), `QualityPresets.test.mjs` (2), `Languages.test.mjs` (2); in `LiveEntities.test.mjs` Kategorien, Einstellungen, Beschriftung, Folgekamera; in `WorldTime.test.mjs` Mondphase, Uhr, Wetter, Live-Anzeige |
 | JUnit lokal | 97/97, Texturfilter für Himmel und Wetter, Licht der Blockänderungen |
 | Browser `qol-e2e.mjs` (neu) | 15/15: Einstellungs-Popup (aus dem Menü, 6 Reiter, jede Gruppe in genau einem Reiter, Schalter wirkt, Escape), Filter nach Kategorie, Schalter im Menü, Namensschild, Lebensbalken (Mob und Spieler, Spielername ausgeblendet), Entfernen der Beschriftung, Uhr mit Wetter und Mondphase, Live-Anzeige grün → gelb → rot → grün, Voreinstellungen, Ego- und Schulterkamera (Position, Modell aus/an), Sonne mittags senkrecht (Pixel), Mond der Phase 2 um Mitternacht (Pixel), Regen, Schnee, kein Niederschlag, Blitz hellt die Karte auf und klingt ab, Wolken von oben (Pixel), Abschalten |
 | Browser `display`, `particles`, `blocks`, `worldtime`, `entities`, `mobs`, `playback`, `animation`, `items`, `player` | 6/6, 13/13, 15/15, 9/9, 12/12, 15/15, 6/6, 19/19, 16/16, 22/22. `particles`: Die Prüfung „nichts mehr gezeichnet“ wartet jetzt auf das nächste Bild (die Gruppe wird ein Bild nach dem letzten Partikel ausgeblendet; vorher gelegentlich fehlgeschlagen). |

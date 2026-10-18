@@ -267,7 +267,9 @@ await step("follow-camera: first-person at the eyes (own model hidden), shoulder
     await sleep(1500);
     await page.evaluate(() => window.bluemap.setLiveDisplay("followMode", "firstPerson"));
     await page.evaluate(uuid => window.bluemap.followPlayer(window.bluemap.playerMarkerManager.getPlayerMarker(uuid)), PLAYER);
-    await sleep(800);
+    // the camera follows the played-back position (under load a bit later)
+    await page.waitForFunction(() => Math.abs(window.bluemap.mapViewer.camera.position.z - 12) < 0.05 &&
+        window.bluemap.appState.controls.state === "free", null, {timeout: 8000}).catch(() => {});
     const cam = () => page.evaluate(uuid => {
         const c = window.bluemap.mapViewer.camera.position;
         const m = window.bluemap.playerMarkerManager.getPlayerMarker(uuid);
