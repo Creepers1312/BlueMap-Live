@@ -142,21 +142,32 @@ jobs:
           cache: 'gradle'
       - name: Build with Gradle
         run: ./gradlew release --stacktrace
+      # BlueMap Live: which jars were built, and that the live-code and the mixin-config are in the forge/neoforge-jars
+      - name: Release files
+        run: |
+          for f in build/release/*.jar; do
+            live=$(unzip -l "$f" | grep -cE "live/mojang/LiveSampler.class|bluemap_live.mixins.json" || true)
+            mixin=$(unzip -p "$f" META-INF/MANIFEST.MF 2>/dev/null | grep -c "MixinConfigs" || true)
+            echo "::notice title=$(basename $f)::$(stat -c %s "$f") bytes, shared live-files: $live, MixinConfigs in manifest: $mixin"
+          done
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: build/release/*
-      # BlueMap Live: version-tags (v...) of the fork get the fabric-jar attached to their github-release
-      # (the release is created as pre-release if it does not exist yet)
+      # BlueMap Live: version-tags (v...) of the fork get the fabric-, forge- and neoforge-jar attached to their
+      # github-release (if it does not exist yet, it is created: as pre-release for tags with a "-", e.g. v1.0.0-rc.1)
       - name: Attach to GitHub release
         if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'Creepers1312/BlueMap-Live'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease";; esac
           gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || \
-            gh release create "$GITHUB_REF_NAME" --prerelease --title "BlueMap Live $GITHUB_REF_NAME" --notes "BlueMap Live $GITHUB_REF_NAME"
-          gh release upload "$GITHUB_REF_NAME" build/release/*-fabric*.jar --clobber
+            gh release create "$GITHUB_REF_NAME" $prerelease --title "BlueMap Live $GITHUB_REF_NAME" --notes "BlueMap Live $GITHUB_REF_NAME"
+          gh release upload "$GITHUB_REF_NAME" build/release/*-fabric.jar build/release/*-forge.jar \
+            build/release/*-neoforge.jar --clobber
 
   docker:
     name: Deploy Docker Build

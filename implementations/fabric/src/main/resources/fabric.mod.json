@@ -4,7 +4,7 @@
   "version": "${version}",
 
   "name": "BlueMap Live",
-  "description": "BlueMap Live: an unofficial fork of BlueMap with live 3d player-models. A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)",
+  "description": "BlueMap Live: an unofficial fork of BlueMap that shows the world live on the 3d-map: players, mobs, items, effects, block-changes, time and weather. A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)",
   "authors": [
     "Blue (TBlueF, Lukas Rieger)"
   ],
@@ -28,9 +28,13 @@
 
   "depends": {
     "java": ">=${java_version}",
-    "minecraft": ">=${minecraft_version}",
+    "minecraft": ">=${minecraft_version} <1.21.2",
     "fabricloader": ">=${fabric_loader_version}",
     "fabric-api-base": "*"
+  },
+
+  "breaks": {
+    "bluemap": "*"
   },
 
   "suggests": {}

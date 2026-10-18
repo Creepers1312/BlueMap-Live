@@ -1,15 +1,15 @@
 modLoader="javafml"
 loaderVersion="[0,)"
 license="MIT"
-issueTrackerURL="https://github.com/BlueMap-Minecraft/BlueMap/issues"
+issueTrackerURL="https://github.com/Creepers1312/BlueMap-Live/issues"
 
 [[mods]]
 modId="bluemap"
 version="${version}"
-displayName="BlueMap"
-displayURL="https://github.com/BlueMap-Minecraft/BlueMap"
+displayName="BlueMap Live"
+displayURL="https://github.com/Creepers1312/BlueMap-Live"
 authors="Blue (TBlueF, Lukas Rieger)"
-description="A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)"
+description="BlueMap Live: an unofficial fork of BlueMap that shows the world live on the 3d-map: players, mobs, items, effects, block-changes, time and weather. A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)"
 
 [[dependencies.bluemap]]
     modId="forge"
@@ -20,6 +20,6 @@ description="A 3d-map of your Minecraft worlds view-able in your browser using t
 [[dependencies.bluemap]]
     modId="minecraft"
     mandatory=true
-    versionRange="[${minecraft_version},)"
+    versionRange="[${minecraft_version},1.21.2)"
     ordering="NONE"
     side="SERVER"
