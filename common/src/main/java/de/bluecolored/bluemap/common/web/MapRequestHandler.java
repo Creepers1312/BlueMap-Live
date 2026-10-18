@@ -25,8 +25,12 @@
 package de.bluecolored.bluemap.common.web;
 
 import de.bluecolored.bluemap.common.config.PluginConfig;
+import de.bluecolored.bluemap.common.live.LiveEntitiesDataSupplier;
+import de.bluecolored.bluemap.common.live.LiveTileLog;
+import de.bluecolored.bluemap.common.live.LiveTilesDataSupplier;
 import de.bluecolored.bluemap.common.live.LiveMarkersDataSupplier;
 import de.bluecolored.bluemap.common.live.LivePlayersDataSupplier;
+import de.bluecolored.bluemap.common.live.LivePlayersJson;
 import de.bluecolored.bluemap.common.serverinterface.Server;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
 import de.bluecolored.bluemap.core.map.BmMap;
@@ -35,15 +39,56 @@ import de.bluecolored.bluemap.core.storage.Storage;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public class MapRequestHandler extends RoutingRequestHandler {
 
     public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter) {
+        this(map, serverInterface, pluginConfig, playerFilter, uuid -> null);
+    }
+
+    /**
+     * @param skinLookup provides the info about the stored full skin of a player, returns null if there is none
+     */
+    public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter,
+                             Function<UUID, LivePlayersJson.Skin> skinLookup) {
+        this(map, serverInterface, pluginConfig, playerFilter, skinLookup, itemId -> {});
+    }
+
+    /**
+     * @param itemRequester called with the ids of the items the players hold (to provide their item-assets)
+     */
+    public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter,
+                             Function<UUID, LivePlayersJson.Skin> skinLookup, Consumer<String> itemRequester) {
+        this(map, serverInterface, pluginConfig, playerFilter, skinLookup, itemRequester, type -> {});
+    }
+
+    /**
+     * @param entityRequester called with the types of the shown entities (to provide the assets of own entity-models)
+     */
+    public MapRequestHandler(BmMap map, Server serverInterface, PluginConfig pluginConfig, Predicate<UUID> playerFilter,
+                             Function<UUID, LivePlayersJson.Skin> skinLookup, Consumer<String> itemRequester,
+                             Consumer<String> entityRequester) {
         this(map.getStorage(),
-                new LivePlayersDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter),
-                new LiveMarkersDataSupplier(map.getMarkerSets()));
+                new LivePlayersDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter,
+                        pluginConfig.getLivePlayerUpdateInterval(), skinLookup, itemRequester),
+                new LiveMarkersDataSupplier(map.getMarkerSets()),
+                pluginConfig.getLivePlayerUpdateInterval());
+
+        // BlueMap Live: the entities around the players, refreshed like the players
+        register("live/entities\\.json", "", new JsonDataRequestHandler(new CachedRateLimitDataSupplier(
+                new LiveEntitiesDataSupplier(serverInterface, pluginConfig, map.getWorld(), playerFilter,
+                        pluginConfig.getLivePlayerUpdateInterval(), itemRequester, entityRequester),
+                pluginConfig.getLivePlayerUpdateInterval()
+        )));
+
+        // BlueMap Live: the tiles that were rendered again (the webapp reloads them)
+        register("live/tiles\\.json", "", new JsonDataRequestHandler(new CachedRateLimitDataSupplier(
+                new LiveTilesDataSupplier(LiveTileLog.of(map.getId())), 500
+        )));
     }
 
     public MapRequestHandler(MapStorage mapStorage) {
@@ -53,12 +98,19 @@ public class MapRequestHandler extends RoutingRequestHandler {
     public MapRequestHandler(MapStorage mapStorage,
                              @Nullable Supplier<String> livePlayersDataSupplier,
                              @Nullable Supplier<String> liveMarkerDataSupplier) {
+        this(mapStorage, livePlayersDataSupplier, liveMarkerDataSupplier, 1000);
+    }
+
+    public MapRequestHandler(MapStorage mapStorage,
+                             @Nullable Supplier<String> livePlayersDataSupplier,
+                             @Nullable Supplier<String> liveMarkerDataSupplier,
+                             long livePlayersRateLimitMillis) {
 
         register(".*", new MapStorageRequestHandler(mapStorage));
 
         if (livePlayersDataSupplier != null) {
             register("live/players\\.json", "", new JsonDataRequestHandler(
-                    new CachedRateLimitDataSupplier(livePlayersDataSupplier,1000)
+                    new CachedRateLimitDataSupplier(livePlayersDataSupplier, livePlayersRateLimitMillis)
             ));
         }
 

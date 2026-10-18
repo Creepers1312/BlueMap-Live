@@ -35,6 +35,15 @@ import de.bluecolored.bluemap.common.serverinterface.ServerEventListener;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
 import de.bluecolored.bluemap.core.logger.Logger;
 import de.bluecolored.bluemap.core.util.Caches;
+import de.bluecolored.bluemap.common.live.LiveBlockLog;
+import de.bluecolored.bluemap.common.live.LiveEffect;
+import de.bluecolored.bluemap.common.live.LiveEntityState;
+import de.bluecolored.bluemap.common.live.LiveWorldTime;
+import de.bluecolored.bluemap.common.live.OpenContainer;
+import de.bluecolored.bluemap.common.live.SwingState;
+import de.bluecolored.bluemap.live.mojang.LiveHost;
+import de.bluecolored.bluemap.live.mojang.LiveSampler;
+import de.bluecolored.bluemap.live.mojang.MojangPlayer;
 import net.minecraft.SharedConstants;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.registries.Registries;
@@ -48,12 +57,16 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import net.neoforged.neoforge.event.entity.EntityLeaveLevelEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.apache.logging.log4j.LogManager;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -61,7 +74,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Mod(Plugin.PLUGIN_ID)
-public class ForgeMod implements Server {
+public class ForgeMod implements Server, LiveHost {
 
     private final Plugin pluginInstance;
     private MinecraftServer serverInstance = null;
@@ -71,7 +84,10 @@ public class ForgeMod implements Server {
 
     private int playerUpdateIndex = 0;
     private final Map<UUID, Player> onlinePlayerMap;
-    private final List<ForgePlayer> onlinePlayerList;
+    private final List<MojangPlayer> onlinePlayerList;
+
+    // BlueMap Live: entities, effects, block-changes, chests, time and weather (shared with forge/neoforge)
+    private final LiveSampler live;
 
     public ForgeMod() {
         Logger.global.clear();
@@ -81,6 +97,7 @@ public class ForgeMod implements Server {
         this.onlinePlayerList = Collections.synchronizedList(new ArrayList<>());
 
         this.pluginInstance = new Plugin("neoforge", this);
+        this.live = new LiveSampler(this);
 
         this.eventForwarder = new ForgeEventForwarder();
         this.worlds = Caches.with()
@@ -133,7 +150,60 @@ public class ForgeMod implements Server {
 
     @SubscribeEvent
     public void onTick(ServerTickEvent.Post evt) {
-        updateSomePlayers();
+        MinecraftServer server = this.serverInstance;
+        if (server == null) return;
+        live.tick(server, onlinePlayerMap::get, this::updateSomePlayers);
+    }
+
+    // BlueMap Live: respawns and world-changes are discontinuous position-changes, update those players immediately
+    @SubscribeEvent
+    public void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent evt) {
+        if (evt.getEntity() instanceof ServerPlayer player) onPlayerDiscontinuity(player);
+    }
+
+    @SubscribeEvent
+    public void onPlayerChangedWorld(PlayerEvent.PlayerChangedDimensionEvent evt) {
+        if (evt.getEntity() instanceof ServerPlayer player) onPlayerDiscontinuity(player);
+    }
+
+    // BlueMap Live: actions that cause an arm-swing, only observed (never cancelled), so the swing can be classified
+    @SubscribeEvent
+    public void onAttackEntity(AttackEntityEvent evt) {
+        live.onPlayerAction(evt.getEntity(), onlinePlayerMap.get(evt.getEntity().getUUID()), SwingState.Kind.ATTACK);
+    }
+
+    @SubscribeEvent
+    public void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock evt) {
+        live.onPlayerAction(evt.getEntity(), onlinePlayerMap.get(evt.getEntity().getUUID()), SwingState.Kind.MINE);
+    }
+
+    @SubscribeEvent
+    public void onRightClickBlock(PlayerInteractEvent.RightClickBlock evt) {
+        live.onPlayerAction(evt.getEntity(), onlinePlayerMap.get(evt.getEntity().getUUID()), SwingState.Kind.USE);
+        live.onUseBlock(evt.getEntity(), evt.getLevel(), evt.getPos());
+    }
+
+    @SubscribeEvent
+    public void onRightClickItem(PlayerInteractEvent.RightClickItem evt) {
+        live.onPlayerAction(evt.getEntity(), onlinePlayerMap.get(evt.getEntity().getUUID()), SwingState.Kind.USE);
+    }
+
+    // BlueMap Live: explosions and splash-potions (the effect of a removed entity)
+    @SubscribeEvent
+    public void onEntityLeaveLevel(EntityLeaveLevelEvent evt) {
+        live.onEntityRemoved(evt.getEntity(), evt.getLevel());
+    }
+
+    /**
+     * Called (on the server-thread) when a players position changed discontinuously, e.g. on respawn or world-change.
+     */
+    private void onPlayerDiscontinuity(ServerPlayer playerInstance) {
+        if (this.serverInstance != playerInstance.getServer()) return;
+
+        if (onlinePlayerMap.get(playerInstance.getUUID()) instanceof MojangPlayer player) {
+            player.markDiscontinuity();
+            player.update(playerInstance);
+        }
     }
 
     @Override
@@ -181,6 +251,7 @@ public class ForgeMod implements Server {
         return Optional.empty();
     }
 
+    @Override
     public ServerWorld getServerWorld(ServerLevel world) {
         return worlds.get(Objects.requireNonNull(world));
     }
@@ -198,7 +269,7 @@ public class ForgeMod implements Server {
     @SubscribeEvent
     public void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent evt) {
         if (!(evt.getEntity() instanceof ServerPlayer serverPlayer)) return;
-        ForgePlayer player = new ForgePlayer(serverPlayer, this);
+        MojangPlayer player = new MojangPlayer(serverPlayer, this);
         onlinePlayerMap.put(player.getUuid(), player);
         onlinePlayerList.add(player);
     }
@@ -208,13 +279,20 @@ public class ForgeMod implements Server {
         var player = evt.getEntity();
         UUID playerUUID = player.getUUID();
         onlinePlayerMap.remove(playerUUID);
+        live.onPlayerLeave(playerUUID);
         synchronized (onlinePlayerList) {
             onlinePlayerList.removeIf(p -> p.getUuid().equals(playerUUID));
         }
     }
 
-    public MinecraftServer getServer() {
+    @Override
+    public @Nullable MinecraftServer getServer() {
         return this.serverInstance;
+    }
+
+    @Override
+    public Plugin getPluginInstance() {
+        return this.pluginInstance;
     }
 
     public Plugin getPlugin() {
@@ -228,23 +306,50 @@ public class ForgeMod implements Server {
 
     /**
      * Only update some of the online players each tick to minimize performance impact on the server-thread.
+     * The players are spread over the configured live-player-update-interval, so each player is updated once per interval.
      * Only call this method on the server-thread.
      */
     private void updateSomePlayers() {
         int onlinePlayerCount = onlinePlayerList.size();
         if (onlinePlayerCount == 0) return;
 
-        int playersToBeUpdated = onlinePlayerCount / 20; //with 20 tps, each player is updated once a second
-        if (playersToBeUpdated == 0) playersToBeUpdated = 1;
+        int intervalTicks = live.getPlayerUpdateIntervalTicks();
+        int playersToBeUpdated = Math.ceilDiv(onlinePlayerCount, intervalTicks);
+        int cycleLength = Math.max(intervalTicks, onlinePlayerCount);
 
         for (int i = 0; i < playersToBeUpdated; i++) {
             playerUpdateIndex++;
-            if (playerUpdateIndex >= 20 && playerUpdateIndex >= onlinePlayerCount) playerUpdateIndex = 0;
+            if (playerUpdateIndex >= cycleLength) playerUpdateIndex = 0;
 
             if (playerUpdateIndex < onlinePlayerCount) {
                 onlinePlayerList.get(playerUpdateIndex).update();
             }
         }
+    }
+
+    @Override
+    public List<LiveEntityState> getLiveEntities(ServerWorld world) {
+        return live.getLiveEntities(world);
+    }
+
+    @Override
+    public List<LiveEffect> getLiveEffects(ServerWorld world) {
+        return live.getLiveEffects(world);
+    }
+
+    @Override
+    public List<LiveBlockLog.Change> getLiveBlockChanges(ServerWorld world) {
+        return live.getLiveBlockChanges(world);
+    }
+
+    @Override
+    public List<OpenContainer> getOpenContainers(ServerWorld world) {
+        return live.getOpenContainers(world);
+    }
+
+    @Override
+    public @Nullable LiveWorldTime getLiveWorldTime(ServerWorld world) {
+        return live.getLiveWorldTime(world);
     }
 
 }

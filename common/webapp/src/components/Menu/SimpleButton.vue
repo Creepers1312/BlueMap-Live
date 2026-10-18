@@ -27,7 +27,7 @@ export default {
 
 <style lang="scss">
 
-.side-menu .simple-button {
+.side-menu .simple-button, .bm-settings-modal .simple-button {
   cursor: pointer;
   user-select: none;
   display: flex;

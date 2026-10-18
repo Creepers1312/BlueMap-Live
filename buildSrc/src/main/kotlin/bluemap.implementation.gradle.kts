@@ -12,7 +12,8 @@ tasks.register<CopyFileTask>("release") {
     dependsOn(tasks.shadowJar, tasks.spotlessCheck)
 
     inputFile = tasks.shadowJar.flatMap { it.archiveFile }
-    outputFile = releaseDirectory.resolve("bluemap-${project.version}-${project.name}.jar")
+    // BlueMap Live: bluemap-live-..., so it is not mixed up with the jars of the original BlueMap
+    outputFile = releaseDirectory.resolve("bluemap-live-${project.version}-${project.name}.jar")
 }
 
 tasks.getByName<Delete>("clean") {

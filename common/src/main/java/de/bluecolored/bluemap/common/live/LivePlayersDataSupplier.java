@@ -26,6 +26,7 @@ package de.bluecolored.bluemap.common.live;
 
 import com.google.gson.stream.JsonWriter;
 import de.bluecolored.bluemap.common.config.PluginConfig;
+import de.bluecolored.bluemap.common.plugin.items.ItemModelBaker;
 import de.bluecolored.bluemap.common.serverinterface.Player;
 import de.bluecolored.bluemap.common.serverinterface.Server;
 import de.bluecolored.bluemap.common.serverinterface.ServerWorld;
@@ -35,7 +36,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
@@ -45,65 +50,126 @@ public class LivePlayersDataSupplier implements Supplier<String> {
     private final PluginConfig config;
     private final World world;
     private final Predicate<UUID> playerFilter;
+    private final int updateIntervalMillis;
+    private final Function<UUID, LivePlayersJson.Skin> skinLookup;
+    private final Consumer<String> itemRequester;
+
+    /** item-requests with this prefix request a texture (armor), e.g. <code>texture:minecraft:models/armor/iron_layer_1</code> */
+    public static final String TEXTURE_PREFIX = "texture:";
 
     private transient @Nullable ServerWorld serverWorld;
 
     public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter) {
+        this(server, config, world, playerFilter, config.getLivePlayerUpdateInterval());
+    }
+
+    /**
+     * @param updateIntervalMillis the interval that is announced to clients, in which they should poll for new data
+     */
+    public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter, int updateIntervalMillis) {
+        this(server, config, world, playerFilter, updateIntervalMillis, uuid -> null);
+    }
+
+    /**
+     * @param skinLookup provides the info about the stored full skin of a player, returns null if there is none
+     */
+    public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter, int updateIntervalMillis,
+                                   Function<UUID, LivePlayersJson.Skin> skinLookup) {
+        this(server, config, world, playerFilter, updateIntervalMillis, skinLookup, itemId -> {});
+    }
+
+    /**
+     * @param itemRequester called with the id of every item a listed player holds (so the item-asset can be provided)
+     */
+    public LivePlayersDataSupplier(Server server, PluginConfig config, World world, Predicate<UUID> playerFilter, int updateIntervalMillis,
+                                   Function<UUID, LivePlayersJson.Skin> skinLookup, Consumer<String> itemRequester) {
+        this.itemRequester = itemRequester;
         this.server = server;
         this.config = config;
         this.world = world;
         this.playerFilter = playerFilter;
+        this.updateIntervalMillis = updateIntervalMillis;
+        this.skinLookup = skinLookup;
+    }
+
+    /**
+     * If a player is listed on the map according to the config (hidden game-modes, invisible, vanished, ...)
+     * and the player-filter (e.g. players hidden by command).
+     */
+    static boolean isShown(Player player, PluginConfig config, Predicate<UUID> playerFilter, boolean isCorrectWorld) {
+        if (config.isHideInvisible() && player.isInvisible()) return false;
+        if (config.isHideVanished() && player.isVanished()) return false;
+        if (config.isHideSneaking() && player.isSneaking()) return false;
+        if (config.getHiddenGameModes().contains(player.getGamemode().getId())) return false;
+        if (config.isHideDifferentWorld() && !isCorrectWorld) return false;
+        if (
+                player.getSkyLight() < config.getHideBelowSkyLight() &&
+                player.getBlockLight() < config.getHideBelowBlockLight()
+        ) return false;
+        return playerFilter.test(player.getUuid());
     }
 
     @Override
     public String get() {
+        long start = System.nanoTime();
+        try {
+            return build();
+        } finally {
+            LiveStats.add(LiveStats.PLAYERS_JSON_NANOS, System.nanoTime() - start);
+        }
+    }
+
+    private String build() {
         if (serverWorld == null)
             serverWorld = server.getServerWorld(world).orElse(null);
+
+        List<LivePlayersJson.Entry> entries = new ArrayList<>();
+        if (config.isLivePlayerMarkers()) {
+            for (Player player : this.server.getOnlinePlayers()) {
+                Player.LiveSnapshot snapshot = player.getLiveSnapshot();
+                ServerWorld playerWorld = snapshot.world();
+                boolean isCorrectWorld = playerWorld != null && playerWorld.equals(serverWorld);
+
+                if (!isShown(player, config, playerFilter, isCorrectWorld)) continue;
+
+                Equipment equipment = snapshot.state() != null ? snapshot.state().equipment() : null;
+                if (equipment != null && config.isLivePlayerExtendedData()) {
+                    if (equipment.mainHand() != null) itemRequester.accept(equipment.mainHand().id());
+                    if (equipment.offHand() != null) itemRequester.accept(equipment.offHand().id());
+                    if (equipment.armor() != null) equipment.armor().textures().forEach(t -> itemRequester.accept(TEXTURE_PREFIX + t));
+                    if (equipment.head() != null) itemRequester.accept(ItemModelBaker.SKULL_TEXTURES.containsKey(equipment.head().id()) ?
+                        TEXTURE_PREFIX + ItemModelBaker.SKULL_TEXTURES.get(equipment.head().id()) : equipment.head().id());
+                }
+
+                if (snapshot.state() != null && snapshot.state().particles() != null && config.isLivePlayerExtendedData())
+                    LiveEntitiesDataSupplier.requestParticleTextures(itemRequester);
+
+                entries.add(new LivePlayersJson.Entry(
+                        player.getUuid().toString(),
+                        player.getName().toPlainString(),
+                        !isCorrectWorld,
+                        playerWorld != null ? playerWorld.getDimension().getFormatted() : null,
+                        snapshot.state(),
+                        skinLookup.apply(player.getUuid())
+                ));
+            }
+        }
+
+        LiveWorldTime worldTime = serverWorld != null ? server.getLiveWorldTime(serverWorld) : null;
+        // the sky- and weather-textures of the world-time mode (cheap if they were requested before)
+        if (worldTime != null) for (String texture : LiveWorldTime.TEXTURES) itemRequester.accept(TEXTURE_PREFIX + texture);
 
         try (StringWriter jsonString = new StringWriter();
             JsonWriter json = new JsonWriter(jsonString)) {
 
-            json.beginObject();
-            json.name("players").beginArray();
-
-            if (config.isLivePlayerMarkers()) {
-                for (Player player : this.server.getOnlinePlayers()) {
-                    boolean isCorrectWorld = player.getWorld().equals(serverWorld);
-
-                    if (config.isHideInvisible() && player.isInvisible()) continue;
-                    if (config.isHideVanished() && player.isVanished()) continue;
-                    if (config.isHideSneaking() && player.isSneaking()) continue;
-                    if (config.getHiddenGameModes().contains(player.getGamemode().getId())) continue;
-                    if (config.isHideDifferentWorld() && !isCorrectWorld) continue;
-                    if (
-                            player.getSkyLight() < config.getHideBelowSkyLight() &&
-                            player.getBlockLight() < config.getHideBelowBlockLight()
-                    ) continue;
-                    if (!this.playerFilter.test(player.getUuid())) continue;
-
-                    json.beginObject();
-                    json.name("uuid").value(player.getUuid().toString());
-                    json.name("name").value(player.getName().toPlainString());
-                    json.name("foreign").value(!isCorrectWorld);
-
-                    json.name("position").beginObject();
-                    json.name("x").value(player.getPosition().getX());
-                    json.name("y").value(player.getPosition().getY());
-                    json.name("z").value(player.getPosition().getZ());
-                    json.endObject();
-
-                    json.name("rotation").beginObject();
-                    json.name("pitch").value(player.getRotation().getX());
-                    json.name("yaw").value(player.getRotation().getY());
-                    json.name("roll").value(player.getRotation().getZ());
-                    json.endObject();
-
-                    json.endObject();
-                }
-            }
-
-            json.endArray();
-            json.endObject();
+            LivePlayersJson.write(
+                    json,
+                    System.currentTimeMillis(),
+                    updateIntervalMillis,
+                    config.isLivePlayerExtendedData(),
+                    entries,
+                    worldTime
+            );
 
             json.flush();
             return jsonString.toString();

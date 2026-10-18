@@ -26,6 +26,7 @@ package de.bluecolored.bluemap.common.serverinterface;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import de.bluecolored.bluemap.common.debug.DebugDump;
+import de.bluecolored.bluemap.common.live.LiveEntityState;
 import de.bluecolored.bluemap.core.util.Caches;
 import de.bluecolored.bluemap.core.util.Tristate;
 import de.bluecolored.bluemap.core.world.World;
@@ -34,6 +35,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface Server {
@@ -96,6 +98,14 @@ public interface Server {
     }
 
     /**
+     * Returns true if this is an integrated server (the server of a singleplayer world, running inside the game-client).
+     * Used to choose safer defaults, e.g. the webserver only binds to the loopback-address by default.
+     */
+    default boolean isIntegratedServer() {
+        return false;
+    }
+
+    /**
      * Returns all loaded worlds of this server.
      */
     @DebugDump
@@ -116,5 +126,46 @@ public interface Server {
      * Removes all registered listeners
      */
     void unregisterAllListeners();
+
+    /**
+     * The latest sampled live-states of the entities (no players) around the players in a world (BlueMap Live).
+     * The radius around the players can be larger than the configured one, the data-supplier filters again.
+     * Platforms that do not support this return an empty list.
+     */
+    default List<LiveEntityState> getLiveEntities(ServerWorld world) {
+        return List.of();
+    }
+
+    /**
+     * The recent effects (explosions, splash-potions) in a world (BlueMap Live), oldest first.
+     * Platforms that do not support this return an empty list.
+     */
+    default List<de.bluecolored.bluemap.common.live.LiveEffect> getLiveEffects(ServerWorld world) {
+        return List.of();
+    }
+
+    /**
+     * The recent block-changes in a world (BlueMap Live), oldest first.
+     * Platforms that do not support this return an empty list.
+     */
+    default List<de.bluecolored.bluemap.common.live.LiveBlockLog.Change> getLiveBlockChanges(ServerWorld world) {
+        return List.of();
+    }
+
+    /**
+     * The opened containers (chests) in a world whose lids the webapp animates (BlueMap Live).
+     * Platforms that do not support this return an empty list.
+     */
+    default List<de.bluecolored.bluemap.common.live.OpenContainer> getOpenContainers(ServerWorld world) {
+        return List.of();
+    }
+
+    /**
+     * The latest sampled time and weather of a world (BlueMap Live), null if unknown or the world has no day-night-cycle
+     * (no sky-light or a fixed time).
+     */
+    default @org.jetbrains.annotations.Nullable de.bluecolored.bluemap.common.live.LiveWorldTime getLiveWorldTime(ServerWorld world) {
+        return null;
+    }
 
 }

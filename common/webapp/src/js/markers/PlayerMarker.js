@@ -24,7 +24,33 @@
  */
 import {Marker} from "./Marker";
 import {CSS2DObject} from "../util/CSS2DRenderer";
-import {animate, EasingFunctions, htmlToElement} from "../util/Utils";
+import {animate, htmlToElement} from "../util/Utils";
+import {healthColor, labelContent} from "./EntityLabel.js";
+import {BodyYawTracker} from "./player/BodyYaw.js";
+import {MathUtils, Quaternion, Vector3} from "three";
+import {angleDelta, bedTransform, DEFAULT_UPDATE_INTERVAL, interpolationDuration, isDiscontinuous, isStaleResponse, riderOnVehicle} from "./LivePlayerData";
+import {PlayerModel} from "./player/PlayerModel";
+import {PlayerSkinCache} from "./player/PlayerSkinCache";
+import {PlayerAnimator} from "./player/PlayerAnimator";
+import {LIVE_PLAYBACK, PlaybackQueue} from "./LivePlayback";
+
+const Y_AXIS = new Vector3(0, 1, 0), Z_AXIS = new Vector3(0, 0, 1);
+const tempQuaternion = new Quaternion();
+
+/** Height of the head-marker above the players feet */
+const PLAYER_HEIGHT = 1.8;
+
+/** Beyond this camera-distance only the head/name marker is shown, the 3d-model is hidden */
+const MODEL_MAX_DISTANCE = 1000;
+
+/**
+ * Closer than this camera-distance the 3d-model is at least about as big as the head-icon (32px at a usual
+ * field of view), so the head-icon is faded out (it would cover the face), only the name stays
+ */
+const HEAD_ICON_HIDE_DISTANCE = 50;
+
+/** used if no skin-cache is provided */
+let fallbackSkinCache = null;
 
 export class PlayerMarker extends Marker {
 
@@ -32,8 +58,11 @@ export class PlayerMarker extends Marker {
      * @param markerId {string}
      * @param playerUuid {string}
      * @param playerHead {string}
+     * @param skinCache {PlayerSkinCache | null} - shared skin-textures
+     * @param playerskinsUrl {string | null} - the url-prefix of the full skins (assets/playerskins/)
+     * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache | null} - shared item-models of held items
      */
-    constructor(markerId, playerUuid, playerHead = "assets/steve.png") {
+    constructor(markerId, playerUuid, playerHead = "assets/steve.png", skinCache = null, playerskinsUrl = null, itemCache = null) {
         super(markerId);
         Object.defineProperty(this, 'isPlayerMarker', {value: true});
         this.data.type = "player";
@@ -50,12 +79,17 @@ export class PlayerMarker extends Marker {
 <div id="bm-marker-${this.data.id}" class="bm-marker-${this.data.type}">
     <img src="${this.data.playerHead}" alt="playerhead" draggable="false">
     <div class="bm-player-name"></div>
+    <div class="bm-player-health"><div class="bm-health-fill"></div></div>
 </div>
         `));
         this.elementObject.onBeforeRender = (renderer, scene, camera) => this.onBeforeRender(renderer, scene, camera);
 
         this.playerHeadElement = this.element.getElementsByTagName("img")[0];
         this.playerNameElement = this.element.getElementsByTagName("div")[0];
+        // BlueMap Live: the health-bar (setting healthBars, see EntityLabel)
+        this.playerHealthElement = this.element.getElementsByClassName("bm-player-health")[0];
+        this.playerHealthFill = this.playerHealthElement.firstElementChild;
+        this.shownLabel = null;
 
         this.addEventListener( 'removed', () => {
             if (this.element.parentNode) this.element.parentNode.removeChild(this.element);
@@ -66,6 +100,37 @@ export class PlayerMarker extends Marker {
         }, {once: true});
 
         this.add(this.elementObject);
+
+        // 3d player-model, rendered in the normal marker-scene (same camera & depth-buffer as the map)
+        if (!skinCache) skinCache = fallbackSkinCache || (fallbackSkinCache = new PlayerSkinCache());
+        this.playerskinsUrl = playerskinsUrl;
+        this.model = new PlayerModel(skinCache, itemCache);
+        this.model.userData.noCss2d = true; // see CSS2DRenderer
+        this.model.position.y = -PLAYER_HEIGHT; // the marker itself sits at head-height, the model origin is at the feet
+        this.headPivot = this.model.parts.head;
+        this.add(this.model);
+
+        /** @type {import("./LivePlayerData").LivePlayer | null} */
+        this.lastPlayerData = null;
+        this.displayed = {x: 0, y: 0, z: 0, bodyYaw: 0, headYaw: 0, pitch: 0};
+        /** the vehicle the player rides (LivePlayerData.parseVehicle), null if none */
+        this.vehicle = null;
+        /** riding: the position and yaws on the drawn vehicle (see attachTo), null if not attached */
+        this.attached = null;
+        this.movementAnimation = null;
+        /** BlueMap Live: the body-yaw like the vanilla client of other players (see BodyYaw), null: the sent one */
+        this.bodyTracker = new BodyYawTracker();
+        this.trackedBodyYaw = null;
+        /** BlueMap Live: hidden while the camera follows this player in first-person */
+        this.firstPersonHidden = false;
+
+        // limb-animations, stepped by the PlayerMarkerManager in the render-loop of the map-viewer
+        this.animator = new PlayerAnimator();
+
+        /** the samples wait for their playback-time (smooth movement although the responses arrive unevenly) */
+        this.playback = new PlaybackQueue(({markerData, updateInterval}, due) => this.applyData(markerData, updateInterval, due));
+        /** played back: the running interpolation, computed every frame from the time it was due */
+        this.segment = null;
     }
 
     /**
@@ -87,6 +152,39 @@ export class PlayerMarker extends Marker {
         }
 
         this.element.setAttribute("distance-data", value);
+
+        // BlueMap Live: the camera is in the head of this player (first-person, see FollowCamera)
+        this.model.visible = this.model.hasSkin && distance <= MODEL_MAX_DISTANCE && !this.firstPersonHidden;
+        this.elementObject.visible = !this.firstPersonHidden;
+
+        this.updateLabel();
+
+        const modelNear = this.model.visible && distance <= HEAD_ICON_HIDE_DISTANCE;
+        if (modelNear !== this.modelNear) {
+            this.modelNear = modelNear;
+            this.element.setAttribute("model-data", modelNear ? "near" : "none");
+        }
+    }
+
+    /**
+     * BlueMap Live: the name and the health-bar with the settings nameTags and healthBars (LiveDisplay)
+     * @private
+     */
+    updateLabel() {
+        const status = this.lastPlayerData && this.lastPlayerData.status;
+        const content = labelContent("name", status ? status.health : null, status ? status.maxHealth : null);
+        const key = content ? `${content.name !== null}|${content.fraction}` : "";
+        if (key === this.shownLabel) return;
+        this.shownLabel = key;
+        this.element.setAttribute("name-data", content && content.name !== null ? "shown" : "hidden");
+        this.element.setAttribute("health-data", content && content.fraction !== null ? "shown" : "hidden");
+        if (content && content.fraction !== null) {
+            this.playerHealthElement.style.display = "";
+            this.playerHealthFill.style.width = (content.fraction * 100).toFixed(1) + "%";
+            this.playerHealthFill.style.backgroundColor = healthColor(content.fraction);
+        } else {
+            this.playerHealthElement.style.display = "none";
+        }
     }
 
     /**
@@ -100,52 +198,40 @@ export class PlayerMarker extends Marker {
      */
 
     /**
-     * @param markerData {PlayerLike}
+     * @param markerData {import("./LivePlayerData").LivePlayer} - normalized player-data (see LivePlayerData.parsePlayer)
+     * @param updateInterval {number} - the expected time until the next update in ms
      */
-    updateFromData(markerData) {
+    updateFromData(markerData, updateInterval = DEFAULT_UPDATE_INTERVAL) {
+        // BlueMap Live: applied evenly at its sample-time plus the playback-delay (see LivePlayback)
+        this.playback.push({markerData, updateInterval}, markerData.time, updateInterval);
+    }
 
-        // animate position update
-        let pos = markerData.position || {};
-        let rot = markerData.rotation || {};
-        if (!this.position.x && !this.position.y && !this.position.z) {
-            this.position.set(
-                pos.x || 0,
-                (pos.y || 0) + 1.8,
-                pos.z || 0
-            );
-            this.data.rotation.pitch = rot.pitch || 0;
-            this.data.rotation.yaw = rot.yaw || 0;
-        } else {
-            let startPos = {
-                x: this.position.x,
-                y: this.position.y,
-                z: this.position.z,
-                pitch: this.data.rotation.pitch,
-                yaw: this.data.rotation.yaw,
-            }
-            let deltaPos = {
-                x: (pos.x || 0) - startPos.x,
-                y: ((pos.y || 0) + 1.8) - startPos.y,
-                z: (pos.z || 0) - startPos.z,
-                pitch: (rot.pitch || 0) - startPos.pitch,
-                yaw: (rot.yaw || 0) - startPos.yaw
-            }
-            while (deltaPos.yaw > 180) deltaPos.yaw -= 360;
-            while (deltaPos.yaw < -180) deltaPos.yaw += 360;
+    /**
+     * @private
+     * @param markerData {import("./LivePlayerData").LivePlayer}
+     * @param updateInterval {number}
+     * @param due {number} - client-time (epoch-ms) when the sample was due
+     */
+    applyData(markerData, updateInterval, due = Date.now()) {
+        const previous = this.lastPlayerData;
 
-            if (deltaPos.x || deltaPos.y || deltaPos.z || deltaPos.pitch || deltaPos.yaw) {
-                animate(progress => {
-                    let ease = EasingFunctions.easeInOutCubic(progress);
-                    this.position.set(
-                        startPos.x + deltaPos.x * ease || 0,
-                        startPos.y + deltaPos.y * ease || 0,
-                        startPos.z + deltaPos.z * ease || 0
-                    );
-                    this.data.rotation.pitch = startPos.pitch + deltaPos.pitch * ease || 0;
-                    this.data.rotation.yaw = startPos.yaw + deltaPos.yaw * ease || 0;
-                }, 1000);
+        // ignore position-updates that are older than the current state
+        if (!previous || !isStaleResponse(previous.time, markerData.time)) {
+            // teleport, respawn, world-change: the animation starts fresh as well
+            if (isDiscontinuous(previous, markerData)) {
+                this.animator.reset();
+                this.bodyTracker.body = null; // starts again at the new position
             }
+            this.animator.setTarget(markerData);
+            this.updateMovement(previous, markerData, updateInterval, due);
+            this.lastPlayerData = markerData;
+            this.vehicle = markerData.vehicle;
+            this.applyDisplay(); // e.g. into or out of the bed
         }
+
+        this.updateSkin(markerData.skin);
+        this.model.setArmor(markerData.equipment ? markerData.equipment.armor : null);
+        this.model.setHeadItem(markerData.equipment ? markerData.equipment.head : null);
 
         // update name
         let name = markerData.name || this.data.playerUuid;
@@ -157,8 +243,213 @@ export class PlayerMarker extends Marker {
         this.data.foreign = markerData.foreign;
     }
 
+    /**
+     * @private
+     * @param skin {{model: string, version: string} | null}
+     */
+    updateSkin(skin) {
+        const url = skin && this.playerskinsUrl ?
+            `${this.playerskinsUrl}${this.data.playerUuid}.png?v=${skin.version}` :
+            null;
+        this.model.setSkin(url, skin ? skin.model : "classic");
+    }
+
+    /**
+     * @private
+     */
+    updateMovement(previous, next, updateInterval, due = Date.now()) {
+        const target = {
+            x: next.position.x,
+            y: next.position.y,
+            z: next.position.z,
+            bodyYaw: next.bodyYaw,
+            headYaw: next.rotation.yaw,
+            pitch: next.rotation.pitch,
+        };
+
+        if (this.movementAnimation) {
+            this.movementAnimation.cancel();
+            this.movementAnimation = null;
+        }
+        this.segment = null;
+
+        // teleport, respawn, world-change, first update: jump directly to the new state
+        if (isDiscontinuous(previous, next)) {
+            this.applyMovement(target);
+            return;
+        }
+
+        // interpolate linearly from the currently displayed state to the target over the time until the next update
+        const start = {...this.displayed};
+        const delta = {
+            x: target.x - start.x,
+            y: target.y - start.y,
+            z: target.z - start.z,
+            bodyYaw: angleDelta(start.bodyYaw, target.bodyYaw),
+            headYaw: angleDelta(start.headYaw, target.headYaw),
+            pitch: target.pitch - start.pitch,
+        };
+
+        if (!delta.x && !delta.y && !delta.z && !delta.bodyYaw && !delta.headYaw && !delta.pitch) return;
+
+        const duration = interpolationDuration(previous, next, updateInterval, LIVE_PLAYBACK.delay > 0);
+        if (LIVE_PLAYBACK.delay > 0) {
+            // played back: the position follows the time since the sample was due (see stepAnimation), so the
+            // movement does not wait for the next frame and runs without stops from sample to sample
+            this.segment = {start, delta, startTime: due, duration};
+            this.stepSegment();
+            return;
+        }
+
+        this.movementAnimation = animate(progress => {
+            this.applyMovement({
+                x: start.x + delta.x * progress,
+                y: start.y + delta.y * progress,
+                z: start.z + delta.z * progress,
+                bodyYaw: start.bodyYaw + delta.bodyYaw * progress,
+                headYaw: start.headYaw + delta.headYaw * progress,
+                pitch: start.pitch + delta.pitch * progress,
+            });
+        }, duration);
+    }
+
+    /**
+     * @private
+     * Played back: applies the interpolation at the current time.
+     * @returns {boolean} true while it moves
+     */
+    stepSegment() {
+        const segment = this.segment;
+        if (!segment) return false;
+        const progress = Math.min(1, Math.max(0, (Date.now() - segment.startTime) / segment.duration));
+        const {start, delta} = segment;
+        this.applyMovement({
+            x: start.x + delta.x * progress,
+            y: start.y + delta.y * progress,
+            z: start.z + delta.z * progress,
+            bodyYaw: start.bodyYaw + delta.bodyYaw * progress,
+            headYaw: start.headYaw + delta.headYaw * progress,
+            pitch: start.pitch + delta.pitch * progress,
+        });
+        if (progress >= 1) this.segment = null;
+        return true;
+    }
+
+    /**
+     * @private
+     * Applies a (possibly interpolated) state to the marker and the model.
+     * Minecraft-convention: yaw 0 = facing +z (south), yaw 90 = facing -x (west), positive pitch = looking down.
+     */
+    applyMovement(state) {
+        this.displayed = state;
+        this.applyDisplay();
+    }
+
+    /**
+     * Riding: draws the player on the drawn vehicle (called after the entities of the frame are stepped), with the
+     * offset and yaws of the sample relative to the vehicle-yaw (see the server-side Vehicle.toLocal).
+     * Without a vehicle-marker the separately interpolated position is used.
+     * @param vehicleMarker {object | null | undefined} - the EntityMarker of the vehicle
+     */
+    attachTo(vehicleMarker) {
+        const vehicle = this.vehicle;
+        if (!vehicle || !vehicleMarker || !vehicleMarker.isEntityMarker || !vehicleMarker.rotation3) {
+            if (this.attached) {
+                this.attached = null;
+                this.applyDisplay();
+            }
+            return;
+        }
+        this.attached = riderOnVehicle(vehicle, vehicleMarker.position, vehicleMarker.rotation3.body);
+        this.applyDisplay();
+    }
+
+    /** the drawn position (feet) and body-yaw, e.g. for the leashes the player holds */
+    get anchor() {
+        const state = this.shownState;
+        return {position: {x: state.x, y: state.y, z: state.z}, yaw: state.bodyYaw};
+    }
+
+    /** @private the displayed state: interpolated, or on the vehicle while riding */
+    get shownState() {
+        if (this.attached) return {...this.displayed, ...this.attached};
+        return this.trackedBodyYaw === null ? this.displayed : {...this.displayed, bodyYaw: this.trackedBodyYaw};
+    }
+
+    /** @private */
+    applyDisplay() {
+        const state = this.shownState;
+        this.position.set(state.x, state.y + PLAYER_HEIGHT, state.z);
+        this.data.rotation.pitch = state.pitch;
+        this.data.rotation.yaw = state.headYaw;
+
+        // vanilla LivingEntityRenderer: lying in a bed (moved towards the head-end, turned by the bed, lying on the
+        // back); the player-model is the vanilla model turned by 180 degrees and flipped, so R_y(270) becomes R_y(90)
+        const bed = this.lastPlayerData && this.lastPlayerData.state ? this.lastPlayerData.state.bed : null;
+        if (bed) {
+            const t = bedTransform(bed.direction, bed.offset, state.bodyYaw);
+            this.model.position.set(t.x, -PLAYER_HEIGHT, t.z);
+            this.model.quaternion.setFromAxisAngle(Y_AXIS, MathUtils.degToRad(t.yaw))
+                .multiply(tempQuaternion.setFromAxisAngle(Z_AXIS, MathUtils.degToRad(90)))
+                .multiply(tempQuaternion.setFromAxisAngle(Y_AXIS, MathUtils.degToRad(90)));
+        } else {
+            this.model.position.set(0, -PLAYER_HEIGHT, 0);
+            this.model.rotation.set(0, MathUtils.degToRad(-state.bodyYaw), 0);
+        }
+        this.headPivot.rotation.y = MathUtils.degToRad(-(state.headYaw - state.bodyYaw));
+        this.headPivot.rotation.x = MathUtils.degToRad(state.pitch);
+    }
+
+    /**
+     * @private the body follows the movement like in the vanilla client; riding and lying in a bed keep the sent yaw
+     * (the server computes the passenger-yaw, the bed sets it)
+     */
+    stepBodyYaw(dt) {
+        const data = this.lastPlayerData;
+        const state = data ? data.state : null;
+        if (!data || this.vehicle || this.attached || (state && (state.bed || state.riding))) {
+            this.trackedBodyYaw = null;
+            this.bodyTracker.body = null;
+            return;
+        }
+        const d = this.displayed;
+        if (this.bodyTracker.body === null) this.bodyTracker.reset(d.bodyYaw, d.x, d.z);
+        const use = data.use;
+        this.trackedBodyYaw = this.bodyTracker.step(dt, d.x, d.z, d.headYaw, this.animator.swingTime >= 0,
+            !!(use && use.action === "block"));
+        this.applyDisplay();
+    }
+
+    /**
+     * Advances the limb-animation and applies it to the model. Called once per rendered frame.
+     * @param dt {number} - seconds since the last frame
+     * @returns {boolean} true if the model is currently moving and should be rendered with a high frame-rate
+     */
+    stepAnimation(dt) {
+        this.playback.release();
+        const moving = this.stepSegment();
+        this.stepBodyYaw(dt);
+        const state = this.shownState;
+        const active = this.animator.step(dt,
+            MathUtils.degToRad(state.pitch),
+            MathUtils.degToRad(angleDelta(state.bodyYaw, state.headYaw))
+        );
+        this.model.applyPose(this.animator.pose);
+        // the enchantment-glint moves all the time (vanilla texture-matrix by the time): keep rendering
+        return active || moving || !!(this.model.armor && this.model.armor.hasGlint);
+    }
+
     dispose() {
         super.dispose();
+
+        if (this.movementAnimation) {
+            this.movementAnimation.cancel();
+            this.movementAnimation = null;
+        }
+
+        // releases the skin, the shared geometries and materials are not disposed here
+        this.model.dispose();
+        this.remove(this.model);
 
         let element = this.elementObject.element;
         if (element.parentNode) element.parentNode.removeChild(element);

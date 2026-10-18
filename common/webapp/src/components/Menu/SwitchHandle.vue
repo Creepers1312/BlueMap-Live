@@ -12,7 +12,7 @@ export default {
 </script>
 
 <style lang="scss">
-.side-menu .switch {
+.side-menu .switch, .bm-settings-modal .switch {
   height: 1em;
   width: 2em;
 

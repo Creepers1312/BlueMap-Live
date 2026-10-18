@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
-  "id": "bluemap",
+  "id": "bluemap_live",
   "version": "${version}",
 
-  "name": "BlueMap",
-  "description": "A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)",
+  "name": "BlueMap Live",
+  "description": "BlueMap Live: an unofficial fork of BlueMap that shows the world live on the 3d-map: players, mobs, items, effects, block-changes, time and weather. A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)",
   "authors": [
     "Blue (TBlueF, Lukas Rieger)"
   ],
   "contact": {
-    "homepage": "https://github.com/BlueMap-Minecraft",
-    "sources": "https://github.com/BlueMap-Minecraft/BlueMap"
+    "homepage": "https://github.com/Creepers1312/BlueMap-Live",
+    "sources": "https://github.com/Creepers1312/BlueMap-Live"
   },
   "license": "MIT",
   "icon": "assets/bluemap/icon.png",
@@ -22,11 +22,19 @@
     ]
   },
 
+  "mixins": [
+    "bluemap_live.mixins.json"
+  ],
+
   "depends": {
     "java": ">=${java_version}",
-    "minecraft": ">=${minecraft_version}",
+    "minecraft": ">=${minecraft_version} <1.21.2",
     "fabricloader": ">=${fabric_loader_version}",
     "fabric-api-base": "*"
+  },
+
+  "breaks": {
+    "bluemap": "*"
   },
 
   "suggests": {}

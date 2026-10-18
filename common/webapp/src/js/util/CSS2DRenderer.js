@@ -118,9 +118,14 @@ var CSS2DRenderer = function (events = null) {
 
     };
 
+    // BlueMap Live: the css2d-objects of the last render (collected while rendering, no second traversal for the z-order)
+    var rendered = [];
+
     var renderObject = function ( object, scene, camera, parentVisible ) {
 
         if ( object instanceof CSS2DObject ) {
+
+            rendered.push( object );
 
             object.events = _this.events;
 
@@ -155,6 +160,9 @@ var CSS2DRenderer = function (events = null) {
 
         }
 
+        // BlueMap Live: subtrees without css2d-objects (e.g. the 3d-models of the live entities) are not traversed
+        if ( object.userData.noCss2d === true ) return;
+
         for ( var i = 0, l = object.children.length; i < l; i ++ ) {
 
             renderObject( object.children[ i ], scene, camera, parentVisible && object.visible );
@@ -179,17 +187,9 @@ var CSS2DRenderer = function (events = null) {
 
     }();
 
-    var filterAndFlatten = function ( scene ) {
+    var filterAndFlatten = function () {
 
-        var result = [];
-
-        scene.traverse( function ( object ) {
-
-            if ( object instanceof CSS2DObject ) result.push( object );
-
-        } );
-
-        return result;
+        return rendered.slice();
 
     };
 
@@ -215,9 +215,16 @@ var CSS2DRenderer = function (events = null) {
 
     };
 
-    this.render = function ( scene, camera ) {
+    /**
+     * @param scene
+     * @param camera
+     * @param updateMatrices {boolean} - BlueMap Live: false if the matrices are up to date (the scene was just
+     *  rendered with the WebGLRenderer, which updates them)
+     */
+    this.render = function ( scene, camera, updateMatrices = true ) {
 
-        if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
+        if ( updateMatrices && scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
+        rendered = [];
         if ( camera.parent === null ) camera.updateMatrixWorld();
 
         viewMatrix.copy( camera.matrixWorldInverse );

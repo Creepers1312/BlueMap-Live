@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {Color, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, WebGLRenderer} from "three";
+import {Color, PerspectiveCamera, Raycaster, Scene, Vector2, Vector3, Vector4, WebGLRenderer} from "three";
 import {Map} from "./map/Map";
 import {SkyboxScene} from "./skybox/SkyboxScene";
 import {ControlsManager} from "./controls/ControlsManager";
@@ -63,6 +63,16 @@ export class MapViewer {
 				skyColor: { value: new Color(0.5, 0.5, 1) },
 				voidColor: { value: new Color(0, 0, 0) },
 				chunkBorders: { value: false },
+				// BlueMap Live: dynamic lights (players holding light-emitting items), see markers/DynamicLights.js
+				dynamicLights: { value: Array.from({length: 8}, () => new Vector4()) },
+				dynamicLightCount: { value: 0 },
+				// BlueMap Live: parts of the tiles that are not drawn (the lids of opened chests, see ChestLidView)
+				hiddenBoxesMin: { value: Array.from({length: 16}, () => new Vector3()) },
+				hiddenBoxesMax: { value: Array.from({length: 16}, () => new Vector3()) },
+				hiddenBoxCount: { value: 0 },
+				// BlueMap Live: changed blocks that are not drawn (see BlockPreviewView)
+				hiddenBlocks: { value: null },
+				hiddenBlockCount: { value: 0 },
 				hiresTileMap: {
 					value: {
 						map: null,
@@ -74,6 +84,8 @@ export class MapViewer {
 				}
 			},
 			superSampling: 1,
+			// BlueMap Live: the highest frame-rate while something moves (0: unlimited, the display-rate)
+			fpsLimit: 0,
 			loadedCenter: new Vector2(0, 0),
 			loadedHiresViewDistance: 200,
 			loadedLowresViewDistance: 2000,
@@ -99,6 +111,8 @@ export class MapViewer {
 		this.css2dRenderer = new CSS2DRenderer(this.events);
 
 		this.skyboxScene = new SkyboxScene(this.data.uniforms);
+		// BlueMap Live: sun, moon and stars of the live weather, drawn after the sky with the sky-camera (WeatherView)
+		this.skyExtras = null;
 
 		this.camera = new CombinedCamera(75, 1, 0.1, 10000, 0);
 		this.skyboxCamera = new PerspectiveCamera(75, 1, 0.1, 10000);
@@ -297,7 +311,8 @@ export class MapViewer {
 		}
 
 		// render
-		if (delta >= 50 || Date.now() - this.lastRedrawChange < 1000) {
+		const minDelta = this.data.fpsLimit > 0 ? 1000 / this.data.fpsLimit - 1 : 0;
+		if (delta >= 50 || (Date.now() - this.lastRedrawChange < 1000 && delta >= minDelta)) {
 			this.lastFrame = now;
 			this.render(delta);
 		}
@@ -324,6 +339,17 @@ export class MapViewer {
 
 		// render skybox
 		this.renderer.render(this.skyboxScene, this.skyboxCamera);
+		if (this.skyExtras && this.skyExtras.visible && this.camera.ortho < 1) {
+			// the sky-camera of BlueMap keeps its own projection (the sky is one color), the sun and moon need the one of the camera
+			if (!this.skyExtrasCamera) this.skyExtrasCamera = new PerspectiveCamera(75, 1, 0.1, 10000);
+			this.skyExtrasCamera.rotation.copy(this.camera.rotation);
+			if (this.skyExtrasCamera.fov !== this.camera.fov || this.skyExtrasCamera.aspect !== this.camera.aspect) {
+				this.skyExtrasCamera.fov = this.camera.fov;
+				this.skyExtrasCamera.aspect = this.camera.aspect;
+				this.skyExtrasCamera.updateProjectionMatrix();
+			}
+			this.renderer.render(this.skyExtras, this.skyExtrasCamera);
+		}
 		this.renderer.clearDepth();
 
 		if (this.map && this.map.isLoaded) {
@@ -390,7 +416,8 @@ export class MapViewer {
 
 		// render markers
 		this.renderer.render(this.markers, this.camera);
-		this.css2dRenderer.render(this.markers, this.camera);
+		// BlueMap Live: the WebGLRenderer just updated the matrices of the marker-scene
+		this.css2dRenderer.render(this.markers, this.camera, false);
 	}
 
 	/**

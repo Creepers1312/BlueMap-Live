@@ -26,29 +26,80 @@
 import {MarkerSet} from "./MarkerSet";
 import {alert} from "../util/Utils";
 import {PlayerMarker} from "./PlayerMarker";
+import {DEFAULT_UPDATE_INTERVAL, isStaleResponse, parsePlayersResponse, resolveUpdateInterval} from "./LivePlayerData";
 
 export class PlayerMarkerSet extends MarkerSet {
 
-    constructor(id, playerheadsUrl, data = null) {
+    /**
+     * @param id {string}
+     * @param playerheadsUrl {string}
+     * @param data {object | null}
+     * @param skinCache {import("./player/PlayerSkinCache").PlayerSkinCache | null}
+     * @param playerskinsUrl {string | null}
+     * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache | null}
+     */
+    constructor(id, playerheadsUrl, data = null, skinCache = null, playerskinsUrl = null, itemCache = null) {
         super(id, data);
         this.data.label = "Player";
         this.data.toggleable = true;
         this.data.defaultHide = false;
 
         this.data.playerheadsUrl = playerheadsUrl;
+
+        // not part of the (reactive) data
+        this.skinCache = skinCache;
+        this.playerskinsUrl = playerskinsUrl;
+        this.itemCache = itemCache;
+
+        this.lastServerTime = null;
+        this.updateInterval = DEFAULT_UPDATE_INTERVAL;
+        this.worldTime = null;
+    }
+
+    /**
+     * Binds this set to the urls and the skin-cache of a (new) player-marker-manager, e.g. after a map-switch.
+     * Player-markers created afterwards use the new skin-cache. Responses of the previous map are no longer
+     * compared to the new ones (their serverTimes are unrelated).
+     * @param playerheadsUrl {string}
+     * @param skinCache {import("./player/PlayerSkinCache").PlayerSkinCache | null}
+     * @param playerskinsUrl {string | null}
+     * @param itemCache {import("./player/ItemAssetCache").ItemAssetCache | null}
+     */
+    bindSource(playerheadsUrl, skinCache, playerskinsUrl, itemCache = null) {
+        this.data.playerheadsUrl = playerheadsUrl;
+        this.skinCache = skinCache;
+        this.playerskinsUrl = playerskinsUrl;
+        this.itemCache = itemCache;
+        this.lastServerTime = null;
+        this.worldTime = null;
     }
 
     updateFromPlayerData(data) {
-        if (!Array.isArray(data.players)) {
+        let response = parsePlayersResponse(data);
+        if (!response) {
+            this.worldTime = null;
             this.clear();
             return false;
+        }
+
+        // ignore responses that are older than the last one we processed (e.g. from a cache)
+        if (isStaleResponse(this.lastServerTime, response.serverTime)) return true;
+        if (response.serverTime !== null) this.lastServerTime = response.serverTime;
+
+        this.updateInterval = resolveUpdateInterval(response.updateInterval);
+
+        /** BlueMap Live: the sampled time of the world (null: no day-night-cycle or not sent) */
+        this.worldTime = response.world;
+
+        if (response.invalid > 0) {
+            alert(this.events, `${response.invalid} invalid player-entries in live player data have been ignored.`, "fine");
         }
 
         /** @type Set<Marker> */
         let updatedPlayerMarkers = new Set();
 
         // update
-        data.players.forEach(playerData => {
+        response.players.forEach(playerData => {
             try {
                 let playerMarker = this.updatePlayerMarkerFromData(playerData);
                 updatedPlayerMarkers.add(playerMarker);
@@ -78,12 +129,12 @@ export class PlayerMarkerSet extends MarkerSet {
         // create new if not existent of wrong type
         if (!marker || !marker.isPlayerMarker) {
             if (marker) this.remove(marker);
-            marker = new PlayerMarker(markerId, playerUuid, `${this.data.playerheadsUrl}${playerUuid}.png`);
+            marker = new PlayerMarker(markerId, playerUuid, `${this.data.playerheadsUrl}${playerUuid}.png`, this.skinCache, this.playerskinsUrl, this.itemCache);
             this.add(marker);
         }
 
         // update
-        marker.updateFromData(markerData);
+        marker.updateFromData(markerData, this.updateInterval);
 
         // hide if from different world
         marker.visible = !markerData.foreign;

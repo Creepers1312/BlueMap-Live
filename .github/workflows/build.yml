@@ -13,6 +13,76 @@ on:
 
 jobs:
 
+  # BlueMap Live: the instructions of the vanilla methods the webapp rebuilds (poses, feature-renderers) as annotations,
+  # in parts (github shows at most 50 annotations per job); not part of the normal CI-runs
+  vanilla-dump:
+    name: "Vanilla animation dump (${{ matrix.part }})"
+    # only when started by hand (Actions -> CI -> Run workflow): 4 extra jobs, needed only to read vanilla code
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        part: [0, 1, 2, 3]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          cache: 'gradle'
+      - name: Dump
+        run: ./gradlew :fabric:test --tests '*VanillaAnimationDumpTest' > /dev/null 2>&1 || true
+      - name: Part a
+        run: sed -n "$(( ${{ matrix.part }} * 50 + 1 )),$(( ${{ matrix.part }} * 50 + 30 ))p" implementations/fabric/build/vanilla-animation-dump.txt 2>/dev/null || echo "::warning::no dump"
+      - name: Part b
+        run: sed -n "$(( ${{ matrix.part }} * 50 + 31 )),$(( ${{ matrix.part }} * 50 + 50 ))p" implementations/fabric/build/vanilla-animation-dump.txt 2>/dev/null || true
+
+  # BlueMap Live: one-time conversion of the fabric-sources from yarn- to mojang-names (shared live-code for
+  # fabric, forge and neoforge); only for a push with "[migrate-mappings]" in the commit-message,
+  # the result goes to the branch bluemap-live-mojmap
+  migrate-mappings:
+    name: "Migrate fabric to mojang mappings"
+    if: github.event_name == 'push' && contains(github.event.head_commit.message, '[migrate-mappings]')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          cache: 'gradle'
+      - name: Migrate
+        run: |
+          ./gradlew :fabric:migrateMappings --mappings "net.minecraft:mappings:1.21" --stacktrace
+          ./gradlew :fabric:migrateMappings --mappings "net.minecraft:mappings:1.21" \
+            --input src/test/java --output remappedTest --stacktrace
+      - name: Push
+        run: |
+          cd implementations/fabric
+          rm -rf src/main/java src/test/java
+          cp -r remappedSrc src/main/java
+          cp -r remappedTest src/test/java
+          rm -rf remappedSrc remappedTest
+          cd ../..
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b bluemap-live-mojmap
+          git add -A implementations/fabric/src
+          git commit -m "Fabric: sources migrated to mojang mappings (loom migrateMappings) [skip ci]"
+          git push -f origin bluemap-live-mojmap
+
   test:
     name: "Tests"
     runs-on: ubuntu-latest
@@ -29,11 +99,35 @@ jobs:
           java-version: 21
           cache: 'gradle'
       - name: Tests
-        run: ./gradlew spotlessCheck test --stacktrace
+        run: ./gradlew spotlessCheck test --stacktrace 2>&1 | tee test-output.txt; exit ${PIPESTATUS[0]}
+      # BlueMap Live: the differences of the webapp mob-models to vanilla (if any) as annotations
+      # (github shows at most 10 annotations per type and step: 30 lines per step)
+      - name: Vanilla model check
+        if: always()
+        run: head -n 30 implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
+      - name: Vanilla model check (2)
+        if: always()
+        run: sed -n '31,60p' implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
+      - name: Vanilla model check (3)
+        if: always()
+        run: sed -n '61,90p' implementations/fabric/build/vanilla-model-check.txt 2>/dev/null || true
+      # BlueMap Live: the reason of a failed test-run as annotation (the failures from the junit-reports)
+      - name: Test failures
+        if: failure()
+        run: |
+          for f in $(grep -l -E "<failure|<error" */build/test-results/test/*.xml implementations/*/build/test-results/test/*.xml 2>/dev/null); do
+            grep -E "message=|Caused by|Exception:|Error:" "$f" | sort -u | head -30 | \
+              sed 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' | sed "s|^|::error title=$(basename $f)::|"; echo
+            grep -E "ERROR|WARN|Exception|Incompatible|requires|Mod resolution" "$f" | head -30 | \
+              sed 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' | sed "s|^|::error title=log $(basename $f)::|"; echo
+          done
+          grep -E "FAILED|initializationError" test-output.txt | grep -v buildSrc | head -10 | sed 's/^/::warning title=gradle::/' || true
 
   build:
     name: "Build"
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # BlueMap Live: attach the jar to the github-release of a version-tag
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -48,14 +142,37 @@ jobs:
           cache: 'gradle'
       - name: Build with Gradle
         run: ./gradlew release --stacktrace
+      # BlueMap Live: which jars were built, and that the live-code and the mixin-config are in the forge/neoforge-jars
+      - name: Release files
+        run: |
+          for f in build/release/*.jar; do
+            live=$(unzip -l "$f" | grep -cE "live/mojang/LiveSampler.class|bluemap_live.mixins.json" || true)
+            mixin=$(unzip -p "$f" META-INF/MANIFEST.MF 2>/dev/null | grep -c "MixinConfigs" || true)
+            echo "::notice title=$(basename $f)::$(stat -c %s "$f") bytes, shared live-files: $live, MixinConfigs in manifest: $mixin"
+          done
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: artifacts
           path: build/release/*
+      # BlueMap Live: version-tags (v...) of the fork get the fabric-, forge- and neoforge-jar attached to their
+      # github-release (if it does not exist yet, it is created: as pre-release for tags with a "-", e.g. v1.0.0-rc.1)
+      - name: Attach to GitHub release
+        if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'Creepers1312/BlueMap-Live'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in *-*) prerelease="--prerelease";; esac
+          gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" $prerelease --title "BlueMap Live $GITHUB_REF_NAME" --notes "BlueMap Live $GITHUB_REF_NAME"
+          gh release upload "$GITHUB_REF_NAME" build/release/*-fabric.jar build/release/*-forge.jar \
+            build/release/*-neoforge.jar --clobber
 
   docker:
     name: Deploy Docker Build
+    # only publish images from the original repository (BlueMap Live does not publish docker images)
+    if: github.repository == 'BlueMap-Minecraft/BlueMap'
     runs-on: ubuntu-latest
     needs: build
     steps:

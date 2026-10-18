@@ -64,6 +64,12 @@ export class FreeFlightControls {
         this.moveSpeed = 0.5;
 
         this.animationTargetHeight = 0;
+
+        /**
+         * BlueMap Live: the camera-pose while following a player (null: BlueMaps own following)
+         * @type {((player: object) => {position: {x: number, y: number, z: number}, rotation: number, angle: number} | null) | null}
+         */
+        this.followPose = null;
     }
 
     /**
@@ -122,7 +128,13 @@ export class FreeFlightControls {
         }
 
         // follow player marker
-        if (this.data.followingPlayer) {
+        // BlueMap Live: the camera-modes first-person and shoulder (followPose, see FollowCamera), otherwise as before
+        const pose = this.data.followingPlayer && this.followPose ? this.followPose(this.data.followingPlayer) : null;
+        if (pose) {
+            this.manager.position.set(pose.position.x, pose.position.y, pose.position.z);
+            this.manager.rotation = pose.rotation;
+            this.manager.angle = pose.angle;
+        } else if (this.data.followingPlayer) {
             this.manager.position.copy(this.data.followingPlayer.position);
             this.manager.rotation = (this.data.followingPlayer.rotation.yaw - 180) * DEG2RAD;
             this.manager.angle = -(this.data.followingPlayer.rotation.pitch - 90) * DEG2RAD;

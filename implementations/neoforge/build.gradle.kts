@@ -36,6 +36,12 @@ dependencies {
     jarJar ( libs.bluenbt.get().group, libs.bluenbt.get().name , "[${libs.bluenbt.get().version},)" )
 }
 
+// BlueMap Live: the live-code shared by forge and neoforge (mojang-names, see implementations/shared-live)
+sourceSets.main {
+    java.srcDir("../shared-live/src/main/java")
+    resources.srcDir("../shared-live/src/main/resources")
+}
+
 tasks.shadowJar {
     configurations = listOf(shadowInclude)
 

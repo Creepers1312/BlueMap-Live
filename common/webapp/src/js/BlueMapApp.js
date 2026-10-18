@@ -22,6 +22,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
+import {liveConnectionState} from "./markers/LiveConnection";
+import {qualityPreset} from "./QualityPresets";
+import {eyeHeight, followCameraPose} from "./controls/FollowCamera";
+import {WeatherView} from "./weather/WeatherView";
+import {currentDayTime} from "./markers/WorldTime";
+import {LIVE_DISPLAY, LIVE_DISPLAY_KEYS, liveDisplayValue, setLiveDisplayValue} from "./markers/LiveDisplay";
+import {LiveTileUpdater, TILE_UPDATE_INTERVAL} from "./map/LiveTileUpdater";
 import "./BlueMap";
 import {MapViewer} from "./MapViewer";
 import {MapControls} from "./controls/map/MapControls";
@@ -34,8 +41,11 @@ import {PopupMarker} from "./PopupMarker";
 import {MarkerSet} from "./markers/MarkerSet";
 import {getLocalStorage, round, setLocalStorage} from "./Utils";
 import {i18n, setLanguage} from "../i18n";
+import {LIVE_PLAYBACK} from "./markers/LivePlayback";
 import {PlayerMarkerManager} from "./markers/PlayerMarkerManager";
+import {EntityMarkerManager} from "./markers/EntityMarkerManager";
 import {NormalMarkerManager} from "./markers/NormalMarkerManager";
+import {WorldTimeLighting} from "./markers/WorldTimeLighting";
 import {reactive} from "vue";
 
 export class BlueMapApp {
@@ -50,11 +60,18 @@ export class BlueMapApp {
 
         this.mapControls = new MapControls(this.mapViewer.renderer.domElement, rootElement);
         this.freeFlightControls = new FreeFlightControls(this.mapViewer.renderer.domElement);
+        // BlueMap Live: first-person and shoulder camera while following a player (see FollowCamera)
+        this.freeFlightControls.followPose = player => this.followPose(player);
+        this.firstPersonMarker = null;
 
         /** @type {PlayerMarkerManager} */
         this.playerMarkerManager = null;
+        /** @type {EntityMarkerManager} */
+        this.entityMarkerManager = null;
         /** @type {NormalMarkerManager} */
         this.markerFileManager = null;
+        /** @type {LiveTileUpdater} */
+        this.liveTileUpdater = null;
 
         /** @type {{
          *      version: string,
@@ -103,8 +120,56 @@ export class BlueMapApp {
             screenshot: {
                 clipboard: true
             },
-            debug: false
+            debug: false,
+            // BlueMap Live: the settings-popup (SettingsModal) and its selected tab
+            settingsModal: {
+                open: false,
+                tab: "view",
+            },
+            // BlueMap Live: the map-lighting follows the day-night-cycle of the world
+            worldTime: {
+                enabled: false,
+                available: false,
+                // the world-clock of the control-bar (WorldTimeLighting.updateClock)
+                clock: null,
+                weather: "clear",
+                day: true,
+                moonPhase: 0,
+            },
+            // BlueMap Live: the playback-delay of the live-data and the frame-rate-limit
+            live: {
+                delay: LIVE_PLAYBACK.delay,
+                fpsLimit: 0,
+                // the display-settings of the live-data (LiveDisplay)
+                entityRadius: LIVE_DISPLAY.entityRadius,
+                entityDistance: LIVE_DISPLAY.entityDistance,
+                particles: LIVE_DISPLAY.particles,
+                blockPreview: LIVE_DISPLAY.blockPreview,
+                nameTags: LIVE_DISPLAY.nameTags,
+                followMode: LIVE_DISPLAY.followMode,
+                weather: LIVE_DISPLAY.weather,
+                healthBars: LIVE_DISPLAY.healthBars,
+                categories: {...LIVE_DISPLAY.categories},
+                // the radius around the players in which the server sends entities (live-entities-radius)
+                serverRadius: 30,
+                // the live-connection (LiveConnection): last successful players.json (client-time) and its state
+                lastData: null,
+                connection: "unknown",
+            }
         });
+
+        // BlueMap Live: the sky and weather of the world-time mode
+        this.weatherView = null;
+        this.events.addEventListener("bluemapRenderFrame", evt => this.updateWeather(evt.detail ? evt.detail.delta : 16));
+
+        // BlueMap Live: the hidden first-person model is shown again when the camera stops following
+        this.events.addEventListener("bluemapRenderFrame", () => {
+            if (this.firstPersonMarker && (this.mapViewer.controlsManager.controls !== this.freeFlightControls ||
+                !this.freeFlightControls.data.followingPlayer)) this.setFirstPersonMarker(null);
+        });
+
+        // BlueMap Live: the live-indicator follows the age of the live-data
+        this.liveConnectionInterval = setInterval(() => this.updateLiveConnection(), 1000);
 
         // init
         this.updateControlsSettings();
@@ -116,6 +181,8 @@ export class BlueMapApp {
         this.popupMarker = new PopupMarker("bm-popup", this.appState, this.events);
         this.popupMarkerSet.add(this.popupMarker);
         this.mapViewer.markers.add(this.popupMarkerSet);
+
+        this.worldTimeLighting = new WorldTimeLighting(this.mapViewer.data.uniforms, this.appState.worldTime, this.events, this.mapViewer.redraw);
 
         this.updateLoop = null;
 
@@ -252,6 +319,8 @@ export class BlueMapApp {
         if (!map) return Promise.reject(`There is no map with the id "${mapId}" loaded!`);
 
         if (this.playerMarkerManager) this.playerMarkerManager.dispose();
+        if (this.entityMarkerManager) this.entityMarkerManager.dispose();
+        if (this.liveTileUpdater) this.liveTileUpdater.dispose();
         if (this.markerFileManager) this.markerFileManager.dispose();
 
         await this.mapViewer.switchMap(map)
@@ -261,8 +330,12 @@ export class BlueMapApp {
 
         this.updatePageAddress();
 
+        this.initWeather();
+
         await Promise.all([
             this.initPlayerMarkerManager(),
+            this.initEntityMarkerManager(),
+            this.initLiveTileUpdater(),
             this.initMarkerFileManager()
         ]);
     }
@@ -395,6 +468,159 @@ export class BlueMapApp {
         });
     }
 
+    /**
+     * BlueMap Live: the map-lighting follows the day-night-cycle of the world (or BlueMaps own day/night-switch)
+     * @param enabled {boolean}
+     */
+    /** BlueMap Live: the playback-delay of the live-data in ms (0: off), see LivePlayback */
+    setLivePlaybackDelay(delay) {
+        LIVE_PLAYBACK.delay = Math.max(0, Math.min(2000, Number(delay) || 0));
+        this.appState.live.delay = LIVE_PLAYBACK.delay;
+    }
+
+    /**
+     * BlueMap Live: a display-setting of the live-data (see LiveDisplay.LIVE_DISPLAY_KEYS): entityRadius (blocks or
+     * null: all), entityDistance (blocks), particles, blockPreview, nameTags, healthBars, category.<name> (booleans)
+     */
+    setLiveDisplay(key, value) {
+        if (!setLiveDisplayValue(key, value)) return;
+        if (key.startsWith("category.")) this.appState.live.categories[key.substring(9)] = liveDisplayValue(key);
+        else this.appState.live[key] = liveDisplayValue(key);
+        this.mapViewer.redraw();
+    }
+
+    /**
+     * BlueMap Live: a quality-preset (see QualityPresets): resolution, render-distances, frame-rate-limit,
+     * entity-distance and particles together
+     * @param name {string}
+     */
+    applyQualityPreset(name) {
+        const preset = qualityPreset(name, this.settings);
+        if (!preset) return;
+        this.mapViewer.superSampling = preset.superSampling;
+        this.mapViewer.data.loadedHiresViewDistance = preset.hires;
+        this.mapViewer.data.loadedLowresViewDistance = preset.lowres;
+        this.mapViewer.updateLoadedMapArea();
+        this.setFpsLimit(preset.fpsLimit);
+        this.setLiveDisplay("entityDistance", preset.entityDistance);
+        this.setLiveDisplay("particles", preset.particles);
+        this.saveUserSettings();
+        this.mapViewer.redraw();
+    }
+
+    /**
+     * BlueMap Live: the camera-pose of the free-flight view while following a player in the modes first-person and
+     * shoulder (setting followMode), null: BlueMaps own following
+     * @param player {object} - the data of the followed player-marker
+     */
+    followPose(player) {
+        const mode = LIVE_DISPLAY.followMode;
+        const marker = mode !== "map" && this.playerMarkerManager && player.playerUuid ?
+            this.playerMarkerManager.getPlayerMarker(player.playerUuid) : null;
+        this.setFirstPersonMarker(marker && mode === "firstPerson" ? marker : null);
+        if (!marker) return null;
+        const feet = marker.anchor.position;
+        const state = marker.lastPlayerData ? marker.lastPlayerData.state : null;
+        const eye = {x: feet.x, y: feet.y + eyeHeight(state), z: feet.z};
+        // the followed player moves smoothly: every frame is drawn
+        this.mapViewer.redraw();
+        return followCameraPose(mode, eye, player.rotation.yaw, player.rotation.pitch);
+    }
+
+    /** @private the player whose model is hidden because the camera is in its head */
+    setFirstPersonMarker(marker) {
+        if (this.firstPersonMarker === marker) return;
+        if (this.firstPersonMarker) this.firstPersonMarker.firstPersonHidden = false;
+        this.firstPersonMarker = marker;
+        if (marker) marker.firstPersonHidden = true;
+    }
+
+    /**
+     * BlueMap Live: follows a player with the chosen camera (followMode): first-person and shoulder switch to the
+     * free-flight view, "map" follows with the current controls like before
+     * @param marker {object} - the player-marker or its data
+     */
+    async followPlayer(marker) {
+        const cm = this.mapViewer.controlsManager;
+        if (LIVE_DISPLAY.followMode !== "map" && this.mapViewer.map && this.mapViewer.map.data.freeFlightView &&
+            cm.controls !== this.freeFlightControls) {
+            this.setFreeFlight(0);
+            // the controls are set when the (instant) transition is finished
+            for (let i = 0; i < 60 && cm.controls !== this.freeFlightControls; i++) await new Promise(r => requestAnimationFrame(r));
+        }
+        if (cm.controls && cm.controls.followPlayerMarker) cm.controls.followPlayerMarker(marker);
+    }
+
+    /** BlueMap Live: the sky and weather of the live world-time mode (WeatherView), per map (its textures) */
+    initWeather() {
+        if (this.weatherView) this.weatherView.dispose();
+        this.weatherView = null;
+        this.mapViewer.skyExtras = null;
+        const map = this.mapViewer.map;
+        if (!map) return;
+        this.weatherView = new WeatherView(map.data.mapDataRoot + "/assets/textures/");
+        this.mapViewer.skyExtras = this.weatherView.skyScene;
+        this.mapViewer.markers.add(this.weatherView.group);
+    }
+
+    /** @private BlueMap Live: one frame of the weather, only in the world-time mode (and if switched on) */
+    updateWeather(delta) {
+        const view = this.weatherView;
+        if (!view) return;
+        const lighting = this.worldTimeLighting;
+        const shown = LIVE_DISPLAY.weather && this.appState.worldTime.enabled && lighting.world;
+        let world = null, ticks = 0;
+        if (shown) {
+            const seconds = (Date.now() - lighting.sampleTime) / 1000;
+            world = {...lighting.world, dayTime: currentDayTime(lighting.world, seconds)};
+            ticks = lighting.world.dayTime + Math.max(0, seconds) * 20;
+        }
+        const cm = this.mapViewer.controlsManager;
+        const players = [];
+        const playerSet = this.mapViewer.markers.markerSets.get("bm-players");
+        if (shown && playerSet) playerSet.markers.forEach(marker => {
+            const status = marker.lastPlayerData && marker.lastPlayerData.status;
+            if (status && marker.isPlayerMarker) players.push({x: marker.position.x, z: marker.position.z, precipitation: status.precipitation});
+        });
+        const flashBefore = view.flash;
+        const moving = view.update(Math.min(delta / 1000, 0.1), {world, ticks, camera: this.mapViewer.camera,
+            target: cm.position, distance: cm.distance, players});
+        // lightning lights the map (on top of the world-time lighting, back to it when the flash is over)
+        if (view.flash > 0 || flashBefore > 0) {
+            const base = lighting.worldSunlight ?? this.mapViewer.data.uniforms.sunlightStrength.value;
+            this.mapViewer.data.uniforms.sunlightStrength.value = base + (1 - base) * view.flash * 0.7;
+        }
+        if (moving) this.mapViewer.redraw();
+    }
+
+    /**
+     * BlueMap Live: opens the settings-popup (the side-menu is closed, the map stays visible behind it)
+     * @param tab {string | undefined} - see SettingsModal.SETTINGS_TABS
+     */
+    openSettings(tab = undefined) {
+        this.mainMenu.closeAll();
+        if (tab) this.appState.settingsModal.tab = tab;
+        this.appState.settingsModal.open = true;
+    }
+
+    /** BlueMap Live: the state of the live-indicator from the age of the last players.json (see LiveConnection) */
+    updateLiveConnection() {
+        const interval = this.playerMarkerManager ? this.playerMarkerManager.updateInterval : 1000;
+        const state = liveConnectionState(this.appState.live.lastData, Date.now(), interval);
+        if (this.appState.live.connection !== state) this.appState.live.connection = state;
+    }
+
+    /** BlueMap Live: the highest frame-rate while something moves (0: unlimited) */
+    setFpsLimit(limit) {
+        this.mapViewer.data.fpsLimit = Math.max(0, Number(limit) || 0);
+        this.appState.live.fpsLimit = this.mapViewer.data.fpsLimit;
+    }
+
+    setWorldTimeLighting(enabled) {
+        this.worldTimeLighting.setEnabled(enabled);
+        this.saveUserSettings();
+    }
+
     initPlayerMarkerManager() {
         if (this.playerMarkerManager)
             this.playerMarkerManager.dispose()
@@ -406,17 +632,73 @@ export class BlueMapApp {
             this.mapViewer.markers,
             map.data.liveDataRoot + "/live/players.json",
             map.data.mapDataRoot + "/assets/playerheads/",
-            this.events
+            this.events,
+            map.data.mapDataRoot + "/assets/playerskins/",
+            map.data.texturesUrl + "?" + this.mapViewer.tileCacheHash,
+            this.mapViewer.redraw,
+            map.data.mapDataRoot + "/assets/items/"
         );
+        // BlueMap Live: the live-indicator of the control-bar
+        this.appState.live.lastData = null;
+        this.playerMarkerManager.onLiveData = time => this.appState.live.lastData = time;
+        this.updateLiveConnection();
+        // BlueMap Live: dynamic lights of the players in the map-shader
+        this.playerMarkerManager.lightUniforms = this.mapViewer.data.uniforms;
+        this.playerMarkerManager.camera = this.mapViewer.camera;
         this.playerMarkerManager.setAutoUpdateInterval(0);
         return this.playerMarkerManager.update()
             .then(() => {
-                this.playerMarkerManager.setAutoUpdateInterval(1000);
+                this.playerMarkerManager.setAutoUpdateInterval(this.playerMarkerManager.updateInterval);
             })
             .catch(e => {
                 alert(this.events, e, "warning");
                 this.playerMarkerManager.dispose();
             });
+    }
+
+    /**
+     * BlueMap Live: the entities around the players (dropped items, thrown items, arrows)
+     */
+    initEntityMarkerManager() {
+        if (this.entityMarkerManager)
+            this.entityMarkerManager.dispose();
+
+        const map = this.mapViewer.map;
+        if (!map) return;
+
+        const manager = this.entityMarkerManager = new EntityMarkerManager(
+            this.mapViewer.markers,
+            map.data.liveDataRoot + "/live/entities.json",
+            this.events,
+            map.data.mapDataRoot + "/assets/items/",
+            this.mapViewer.camera,
+            this.mapViewer.redraw,
+            map.data.mapDataRoot + "/assets/entities/"
+        );
+        // BlueMap Live: the hidden lids of opened chests and the changed blocks in the map-shader
+        manager.mapUniforms = this.mapViewer.data.uniforms;
+        manager.initBlockPreviews(map.data.hires, map.data.mapDataRoot + "/assets/blocks/");
+        manager.onServerRadius = radius => this.appState.live.serverRadius = radius;
+        manager.setAutoUpdateInterval(0);
+        return manager.update()
+            .then(success => {
+                // older servers (or BlueMap) without entities: no requests every interval, only every 30 seconds
+                manager.setAutoUpdateInterval(success ? manager.updateInterval : 30000);
+            })
+            .catch(() => manager.dispose());
+    }
+
+    /**
+     * BlueMap Live: the tiles the server rendered again (block-changes) are loaded again
+     */
+    initLiveTileUpdater() {
+        if (this.liveTileUpdater) this.liveTileUpdater.dispose();
+        const map = this.mapViewer.map;
+        if (!map) return;
+        const updater = this.liveTileUpdater = new LiveTileUpdater(map, map.data.liveDataRoot + "/live/tiles.json", this.events);
+        // the block-previews of a tile are confirmed when it was rendered again
+        updater.onTileRendered = tile => this.entityMarkerManager && this.entityMarkerManager.confirmTile(tile);
+        return updater.update().then(() => updater.setAutoUpdateInterval(TILE_UPDATE_INTERVAL));
     }
 
     initMarkerFileManager() {
@@ -657,6 +939,12 @@ export class BlueMapApp {
         await setLanguage(this.loadUserSetting("lang", i18n.locale.value));
         this.setChunkBorders(this.loadUserSetting("chunkBorders", this.mapViewer.data.uniforms.chunkBorders.value))
         this.setDebug(this.loadUserSetting("debug", this.appState.debug));
+        this.worldTimeLighting.setEnabled(this.loadUserSetting("worldTime", this.appState.worldTime.enabled));
+        this.setLivePlaybackDelay(this.loadUserSetting("livePlaybackDelay", this.appState.live.delay));
+        this.setFpsLimit(this.loadUserSetting("fpsLimit", this.appState.live.fpsLimit));
+        for (const key of LIVE_DISPLAY_KEYS) {
+            this.setLiveDisplay(key, this.loadUserSetting("live." + key, liveDisplayValue(key)));
+        }
 
         alert(this.events, "Settings loaded!", "info");
     }
@@ -679,6 +967,12 @@ export class BlueMapApp {
         this.saveUserSetting("lang", i18n.locale.value);
         this.saveUserSetting("chunkBorders", this.mapViewer.data.uniforms.chunkBorders.value);
         this.saveUserSetting("debug", this.appState.debug);
+        this.saveUserSetting("worldTime", this.appState.worldTime.enabled);
+        this.saveUserSetting("livePlaybackDelay", this.appState.live.delay);
+        this.saveUserSetting("fpsLimit", this.appState.live.fpsLimit);
+        for (const key of LIVE_DISPLAY_KEYS) {
+            this.saveUserSetting("live." + key, liveDisplayValue(key));
+        }
 
         alert(this.events, "Settings saved!", "info");
     }

@@ -16,6 +16,13 @@ val yarnMappings = "${minecraftVersion}+build.1"
 val fabricLoaderVersion = "0.17.2"
 val fabricApiVersion = "0.100.1+${minecraftVersion}"
 
+// BlueMap Live: the mixin for the block-changes (see docs/bluemap-live/phase-11.md)
+loom {
+    mixin {
+        defaultRefmapName.set("bluemap_live-refmap.json")
+    }
+}
+
 val shadowInclude: Configuration by configurations.creating
 configurations.api.get().extendsFrom(shadowInclude)
 
@@ -116,5 +123,24 @@ curseforgeBlueMap {
     //addGameVersion("Server")
     supportedMinecraftVersions.forEach {
         addGameVersion(it)
+    }
+}
+
+// BlueMap Live: the mob-models of the webapp are verified against the model-definitions of minecraft
+dependencies {
+    testImplementation ( libs.junit.core )
+    testImplementation ( "org.ow2.asm:asm:9.7.1" )
+    testRuntimeOnly ( libs.junit.engine )
+}
+tasks.test {
+    systemProperty("bluemap.mobModels", rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json").absolutePath)
+    systemProperty("bluemap.modelCheckReport", layout.buildDirectory.file("vanilla-model-check.txt").get().asFile.absolutePath)
+    systemProperty("bluemap.animationDump", layout.buildDirectory.file("vanilla-animation-dump.txt").get().asFile.absolutePath)
+    inputs.file(rootProject.file("common/webapp/src/js/markers/mob/vanilla-mob-models.json"))
+    testLogging {
+        events("failed")
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
+        showCauses = true
+        showStackTraces = true
     }
 }

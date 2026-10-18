@@ -1,0 +1,224 @@
+/*
+ * This file is part of BlueMap, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) Blue (Lukas Rieger) <https://bluecolored.de>
+ * Copyright (c) contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package de.bluecolored.bluemap.fabric;
+
+import de.bluecolored.bluemap.common.live.Armor;
+import de.bluecolored.bluemap.common.live.HeldItem;
+import net.minecraft.item.trim.ArmorTrim;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.DyedColorComponent;
+import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.ArmorItem;
+import net.minecraft.item.ArmorMaterial;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.registry.tag.ItemTags;
+import net.minecraft.util.Identifier;
+import org.jetbrains.annotations.Nullable;
+
+import java.lang.reflect.Method;
+import java.lang.reflect.RecordComponent;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Samples the worn armor like vanilla ArmorFeatureRenderer (1.21) decides what to render: for each slot with an
+ * armor-item of that slot the layers of its armor-material, the second-layer textures for the leggings (inner model),
+ * dyeable layers with the dye-color (leather, default color 0xA06540). Trims and the glint are not sampled.
+ */
+final class FabricArmor {
+
+    /** vanilla ArmorFeatureRenderer: the default color of dyeable armor (-6265536) */
+    private static final int DEFAULT_DYE_COLOR = -6265536;
+
+    private FabricArmor() {}
+
+    static Armor sample(LivingEntity entity) {
+        return new Armor(
+                layers(entity, EquipmentSlot.HEAD),
+                layers(entity, EquipmentSlot.CHEST),
+                layers(entity, EquipmentSlot.LEGS),
+                layers(entity, EquipmentSlot.FEET)
+        );
+    }
+
+    /**
+     * vanilla HeadFeatureRenderer: an item on the head that is no helmet, rendered as item (display-mode "head", e.g. a
+     * carved pumpkin or a block) or as skull-model (mob- and player-heads, the webapp knows the skull-items).
+     */
+    static @Nullable HeldItem headItem(LivingEntity entity) {
+        ItemStack stack = entity.getEquippedStack(EquipmentSlot.HEAD);
+        if (stack.isEmpty()) return null;
+        if (stack.getItem() instanceof ArmorItem armorItem && armorItem.getSlotType() == EquipmentSlot.HEAD) return null;
+        return FabricPlayer.toHeldItem(stack);
+    }
+
+    private static @Nullable List<Armor.Layer> layers(LivingEntity entity, EquipmentSlot slot) {
+        ItemStack stack = entity.getEquippedStack(slot);
+        if (!(stack.getItem() instanceof ArmorItem armorItem) || armorItem.getSlotType() != slot) return null;
+        boolean innerModel = slot == EquipmentSlot.LEGS;
+        Integer color = stack.isIn(ItemTags.DYEABLE) ? DyedColorComponent.getColor(stack, DEFAULT_DYE_COLOR) & 0xFFFFFF : null;
+
+        List<Armor.Layer> layers = new ArrayList<>();
+        RegistryEntry<?> material;
+        try {
+            material = materialEntry(armorItem);
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            return null;
+        }
+        try {
+            for (Object layer : materialLayers(entryValue(material))) {
+                String key = textureKey((Identifier) layerTexture(layer).invoke(layer, innerModel));
+                boolean dyeable = (boolean) layerDyeable(layer).invoke(layer);
+                if (key != null) layers.add(new Armor.Layer(key, dyeable ? color : null));
+            }
+        } catch (ReflectiveOperationException | RuntimeException | LinkageError ex) {
+            // the vanilla layers of the material: <id>_layer_1/2, leather with a dyeable layer and an overlay
+            layers.clear();
+            String id = material.getKey()
+                    .filter(key -> key.getRegistry().getPath().equals("armor_material"))
+                    .map(key -> key.getValue().toString()).orElse(null);
+            if (id == null) return null;
+            int colon = id.indexOf(':');
+            String base = id.substring(0, colon) + ":models/armor/" + id.substring(colon + 1) + "_layer_" + (innerModel ? 2 : 1);
+            if (id.equals("minecraft:leather")) {
+                layers.add(new Armor.Layer(base, color));
+                layers.add(new Armor.Layer(base + "_overlay", null));
+            } else {
+                layers.add(new Armor.Layer(base, null));
+            }
+        }
+        // vanilla ArmorFeatureRenderer.renderTrim: the sprite of the trim-atlas over the layers (generated by the baker)
+        ArmorTrim trim = stack.get(DataComponentTypes.TRIM);
+        if (trim != null && !layers.isEmpty()) {
+            try {
+                @SuppressWarnings("unchecked") RegistryEntry<ArmorMaterial> armorMaterial = (RegistryEntry<ArmorMaterial>) material;
+                Identifier sprite = innerModel ? trim.getLeggingsModelId(armorMaterial) : trim.getGenericModelId(armorMaterial);
+                layers.add(new Armor.Layer(sprite.getNamespace() + ":" + sprite.getPath(), null));
+            } catch (RuntimeException | LinkageError ignored) {
+                // no trim
+            }
+        }
+        // vanilla ArmorFeatureRenderer.renderGlint: the enchantment-glint over the armor (the webapp knows the texture)
+        if (stack.hasGlint() && !layers.isEmpty()) layers.add(new Armor.Layer(Armor.GLINT_TEXTURE, null));
+        return layers.isEmpty() ? null : List.copyOf(layers);
+    }
+
+    // ArmorMaterial is a record whose components have no yarn-names in 1.21: they are found by their types
+
+    private static @Nullable Method materialMethod, layersAccessor, textureMethod, dyeableMethod;
+
+    /** ArmorItem.getMaterial(): the registry-entry of the armor-material */
+    private static RegistryEntry<?> materialEntry(ArmorItem item) throws ReflectiveOperationException {
+        if (materialMethod != null) return (RegistryEntry<?>) materialMethod.invoke(item);
+        // ArmorItem has a second public no-arg method that returns a RegistryEntry (getEquipSound), and in a
+        // production-environment the names are intermediary-names: by the generic return-type
+        // RegistryEntry<ArmorMaterial>, or else by the value of the returned entry
+        List<Method> candidates = new ArrayList<>();
+        for (Method method : ArmorItem.class.getDeclaredMethods()) {
+            if (method.getReturnType() != RegistryEntry.class || method.getParameterCount() != 0 ||
+                    !java.lang.reflect.Modifier.isPublic(method.getModifiers())) continue;
+            if (method.getGenericReturnType() instanceof java.lang.reflect.ParameterizedType type &&
+                    type.getActualTypeArguments().length == 1 && type.getActualTypeArguments()[0] == ArmorMaterial.class) {
+                materialMethod = method;
+                return (RegistryEntry<?>) method.invoke(item);
+            }
+            candidates.add(method);
+        }
+        for (Method method : candidates) {
+            RegistryEntry<?> entry = (RegistryEntry<?>) method.invoke(item);
+            try {
+                entryValue(entry);
+            } catch (NoSuchMethodException notArmor) {
+                continue;
+            }
+            materialMethod = method;
+            return entry;
+        }
+        throw new NoSuchMethodException("ArmorItem.getMaterial");
+    }
+
+    /** RegistryEntry.value(): found as the no-arg method that returns the ArmorMaterial */
+    private static Object entryValue(RegistryEntry<?> entry) throws ReflectiveOperationException {
+        for (Method method : RegistryEntry.class.getMethods()) {
+            if (method.getParameterCount() != 0 || method.getReturnType() != Object.class) continue;
+            Object value = method.invoke(entry);
+            if (value instanceof ArmorMaterial) return value;
+        }
+        throw new NoSuchMethodException("RegistryEntry.value");
+    }
+
+    private static List<?> materialLayers(Object material) throws ReflectiveOperationException {
+        if (layersAccessor == null) {
+            for (RecordComponent component : ArmorMaterial.class.getRecordComponents()) {
+                if (component.getType() == List.class) layersAccessor = component.getAccessor();
+            }
+            if (layersAccessor == null) throw new NoSuchMethodException("ArmorMaterial.layers");
+        }
+        return (List<?>) layersAccessor.invoke(material);
+    }
+
+    /**
+     * ArmorMaterial.Layer.getTexture(boolean secondLayer): the public method (boolean) -> Identifier whose result is a
+     * texture-path (textures/....png); the layer has a second one with this signature (getTextureId)
+     */
+    private static Method layerTexture(Object layer) throws ReflectiveOperationException {
+        if (textureMethod == null) {
+            for (Method method : layer.getClass().getMethods()) {
+                if (method.getReturnType() != Identifier.class || method.getParameterCount() != 1 ||
+                        method.getParameterTypes()[0] != boolean.class) continue;
+                Object result = method.invoke(layer, false);
+                if (result instanceof Identifier id && textureKey(id) != null) {
+                    textureMethod = method;
+                    break;
+                }
+            }
+            if (textureMethod == null) throw new NoSuchMethodException("ArmorMaterial.Layer.getTexture");
+        }
+        return textureMethod;
+    }
+
+    /** ArmorMaterial.Layer.isDyeable() */
+    private static Method layerDyeable(Object layer) throws NoSuchMethodException {
+        if (dyeableMethod == null) {
+            // the only public no-arg boolean method of the record ArmorMaterial.Layer (besides equals(Object))
+            for (Method method : layer.getClass().getDeclaredMethods()) {
+                if (method.getReturnType() == boolean.class && method.getParameterCount() == 0 &&
+                        java.lang.reflect.Modifier.isPublic(method.getModifiers())) dyeableMethod = method;
+            }
+            if (dyeableMethod == null) throw new NoSuchMethodException("ArmorMaterial.Layer.isDyeable");
+        }
+        return dyeableMethod;
+    }
+
+    /** "minecraft:textures/models/armor/iron_layer_1.png" -> "minecraft:models/armor/iron_layer_1" */
+    static @Nullable String textureKey(Identifier texture) {
+        String path = texture.getPath();
+        if (!path.startsWith("textures/") || !path.endsWith(".png")) return null;
+        return texture.getNamespace() + ":" + path.substring("textures/".length(), path.length() - ".png".length());
+    }
+
+}

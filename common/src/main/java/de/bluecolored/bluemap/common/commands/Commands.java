@@ -102,7 +102,8 @@ public class Commands {
                 new TasksCommand(plugin),
                 new TroubleshootCommand(plugin),
                 new UnfreezeCommand(plugin),
-                new VersionCommand(plugin)
+                new VersionCommand(plugin),
+                new LiveStatsCommand(plugin)
         )
                 .map(builder::createCommand)
                 .forEach(commands::addSubCommand);

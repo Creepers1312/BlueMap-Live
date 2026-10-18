@@ -166,7 +166,7 @@
       width: 32px;
       image-rendering: pixelated;
 
-      transition: width 0.3s;
+      transition: width 0.3s, opacity 0.3s;
     }
 
     .bm-player-name {
@@ -190,6 +190,84 @@
 
       .bm-player-name {
         opacity: 0;
+      }
+    }
+
+    // BlueMap Live: the name-tags are switched off in the settings
+    &[name-data="hidden"] .bm-player-name {
+      display: none;
+    }
+
+    // BlueMap Live: the health-bar between the head-icon and the name (setting healthBars)
+    &[health-data="shown"] .bm-player-name {
+      top: calc(-0.5em - 8px);
+    }
+
+    .bm-player-health {
+      position: absolute;
+      top: -0.4em;
+      left: 50%;
+      transform: translate(-50%, -100%);
+      width: 32px;
+      height: 4px;
+      background-color: #000a;
+
+      .bm-health-fill {
+        height: 100%;
+      }
+    }
+
+    &[distance-data="med"],
+    &[distance-data="far"] {
+      .bm-player-health {
+        opacity: 0;
+      }
+    }
+
+    // BlueMap Live: the 3d player-model is close and visible, the head-icon would only cover its face
+    &[model-data="near"] img {
+      opacity: 0;
+    }
+  }
+
+  // BlueMap Live: name-tag and health-bar over a mob (EntityLabel)
+  .bm-entity-label {
+    position: relative;
+    transform: translate(-50%, -100%);
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    filter: drop-shadow(1px 1px 2px #0008);
+
+    .bm-entity-name {
+      padding: 0.1em 0.3em;
+      background-color: #0006;
+      color: #fff;
+      font-size: 0.8em;
+      white-space: nowrap;
+    }
+
+    .bm-health {
+      position: relative;
+      width: 48px;
+      height: 6px;
+      background-color: #000a;
+
+      .bm-health-fill {
+        height: 100%;
+      }
+
+      .bm-health-text {
+        position: absolute;
+        left: 50%;
+        top: 100%;
+        transform: translateX(-50%);
+        font-size: 0.65em;
+        color: #fff;
+        white-space: nowrap;
+        text-shadow: 1px 1px 1px #000;
       }
     }
   }

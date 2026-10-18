@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "de.bluecolored.bluemap.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "bluemap_live-refmap.json",
+  "mixins": [
+    "WorldChunkMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

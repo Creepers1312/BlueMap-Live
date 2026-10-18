@@ -24,6 +24,7 @@
  */
 package de.bluecolored.bluemap.common.config;
 
+import org.jetbrains.annotations.Nullable;
 import org.spongepowered.configurate.objectmapping.ConfigSerializable;
 
 import java.net.InetAddress;
@@ -38,7 +39,8 @@ public class WebserverConfig {
     private boolean enabled = true;
     private Path webroot = Path.of("bluemap", "web");
 
-    private String ip = "0.0.0.0";
+    /** null if not configured, see {@link #resolveBindAddress(boolean)} */
+    private @Nullable String ip = null;
     private int port = 8100;
 
     private LogConfig log = new LogConfig();
@@ -52,10 +54,31 @@ public class WebserverConfig {
     }
 
     public String getIp() {
-        return ip;
+        return ip != null ? ip : "0.0.0.0";
+    }
+
+    /**
+     * @return true if an ip is explicitly set in the config
+     */
+    public boolean isIpConfigured() {
+        return ip != null;
+    }
+
+    /**
+     * The address the webserver should bind to.
+     * <p>If no ip is configured, the webserver binds to all interfaces (like before), except on an integrated
+     * (singleplayer) server, where it only binds to the loopback-address 127.0.0.1, so the map of a singleplayer
+     * world is not reachable from the network unless this is explicitly configured.</p>
+     *
+     * @param integratedServer if the server is an integrated (singleplayer) server
+     */
+    public InetAddress resolveBindAddress(boolean integratedServer) throws UnknownHostException {
+        if (ip == null && integratedServer) return InetAddress.getByName("127.0.0.1");
+        return resolveIp();
     }
 
     public InetAddress resolveIp() throws UnknownHostException {
+        String ip = getIp();
         if (ip.isEmpty() || ip.equals("0.0.0.0") || ip.equals("::0")) {
             return new InetSocketAddress(0).getAddress();
         } else if (ip.equals("#getLocalHost")) {

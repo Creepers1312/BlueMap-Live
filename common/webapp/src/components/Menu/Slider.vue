@@ -32,7 +32,7 @@ export default {
 </script>
 
 <style lang="scss">
-.side-menu .slider {
+.side-menu .slider, .bm-settings-modal .slider {
   line-height: 2em;
   padding: 0 0.5em;
 

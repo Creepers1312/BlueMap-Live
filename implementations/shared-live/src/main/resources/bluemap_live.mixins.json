@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "de.bluecolored.bluemap.live.mojang.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "LevelChunkMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
