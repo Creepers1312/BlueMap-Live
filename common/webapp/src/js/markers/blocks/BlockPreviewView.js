@@ -28,13 +28,17 @@ import {applyEntityShader} from "../EntityLighting.js";
 import {ASSET_VERSION, MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
 import {blockAssetName, blockTint, buildHiddenTable, DEFAULT_LIGHT, isAir, previewParts, TABLE_SIZE} from "./BlockPreviewData.js";
 import {MAX_DYNAMIC_LIGHTS} from "../DynamicLights.js";
+import {MAX_HIDDEN_BOXES} from "../ChestLidView.js";
 
 /**
  * Lights a preview-material like the hires-tiles (HiresFragmentShader): the sky-light of the vertex with the
  * sunlight-strength, the block-light raised by the dynamic lights, then mix(ambientLight, 1, light / 15).
  * @param material {import("three").Material}
+ * Like the tiles, it also hides the lids of opened chests (the hidden boxes, drawn by ChestLidView): a chest that
+ * was just placed is still a preview when it is opened.
  * @param uniforms {{sunlightStrength: {value: number}, ambientLight: {value: number},
- *     dynamicLights: {value: Array}, dynamicLightCount: {value: number}}} - the map-uniforms
+ *     dynamicLights: {value: Array}, dynamicLightCount: {value: number},
+ *     hiddenBoxesMin: {value: Array}, hiddenBoxesMax: {value: Array}, hiddenBoxCount: {value: number}}} - the map-uniforms
  * @returns {import("three").Material}
  */
 export function applyPreviewLighting(material, uniforms) {
@@ -43,6 +47,9 @@ export function applyPreviewLighting(material, uniforms) {
         shader.uniforms.bmAmbient = uniforms.ambientLight;
         shader.uniforms.bmLights = uniforms.dynamicLights;
         shader.uniforms.bmLightCount = uniforms.dynamicLightCount;
+        shader.uniforms.bmHiddenMin = uniforms.hiddenBoxesMin;
+        shader.uniforms.bmHiddenMax = uniforms.hiddenBoxesMax;
+        shader.uniforms.bmHiddenCount = uniforms.hiddenBoxCount;
         shader.vertexShader = "attribute vec2 bmLight;\nvarying vec2 vBmLight;\nvarying vec3 vBmWorld;\n" + shader.vertexShader.replace(
             "#include <project_vertex>",
             "#include <project_vertex>\n\tvBmLight = bmLight;\n\tvBmWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;"
@@ -51,9 +58,16 @@ export function applyPreviewLighting(material, uniforms) {
 uniform float bmAmbient;
 uniform vec4 bmLights[${MAX_DYNAMIC_LIGHTS}];
 uniform int bmLightCount;
+uniform vec3 bmHiddenMin[${MAX_HIDDEN_BOXES}];
+uniform vec3 bmHiddenMax[${MAX_HIDDEN_BOXES}];
+uniform int bmHiddenCount;
 varying vec2 vBmLight;
 varying vec3 vBmWorld;
-` + shader.fragmentShader.replace("#include <output_fragment>", `#include <output_fragment>
+` + shader.fragmentShader.replace("void main() {", `void main() {
+	for (int i = 0; i < ${MAX_HIDDEN_BOXES}; i++) {
+		if (i >= bmHiddenCount) break;
+		if (all(greaterThan(vBmWorld, bmHiddenMin[i])) && all(lessThan(vBmWorld, bmHiddenMax[i]))) discard;
+	}`).replace("#include <output_fragment>", `#include <output_fragment>
 	float bmBlock = vBmLight.y;
 	for (int i = 0; i < ${MAX_DYNAMIC_LIGHTS}; i++) {
 		if (i >= bmLightCount) break;

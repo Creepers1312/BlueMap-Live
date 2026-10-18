@@ -61,6 +61,12 @@ Fabric selbst bleibt bei Yarn. Die Fabric-Tests (`VanillaMobModelsTest`, Vanilla
 - `PlayerInteractEvent.LeftClickBlock` feuert auf Forge/NeoForge auch beim Abbrechen und Beenden des Abbauens. Das markiert den nächsten Schwung höchstens zusätzlich als „Abbauen“, ohne sichtbaren Unterschied.
 - Forge und NeoForge haben die Mod-ID `bluemap` wie das Original. Beide JARs zusammen ergeben deshalb einen Fehler wegen doppelter Mod-ID statt eines stillen Konflikts.
 
+## 3a. Fix: geöffnete Truhe, die noch Vorschau ist
+
+Meldung des Nutzers (Bild): Eine gerade gesetzte Truhe wird geöffnet, der aufgehende Deckel ist zu sehen und zusätzlich der geschlossene Deckel. Ursache: Die Truhe war noch eine Block-Vorschau. Den Kachel-Deckel blendet nur der Kachel-Shader aus (versteckte Boxen); der Shader der Vorschau kannte die Boxen nicht. Lösung: `applyPreviewLighting` verwirft die Fragmente in denselben Boxen (`hiddenBoxesMin/Max/Count` der Karten-Uniforms).
+
+Test: `blocks-e2e.mjs`, Schritt „a placed chest (still a preview) is opened“ (Test-Truhe mit magentafarbenem Deckel im Blockmodell). Ohne den Fix schlägt er fehl, mit dem Fix 18/18.
+
 ## 4. Test in Minecraft: Forge und NeoForge (Nutzer)
 
 Für jede Plattform einmal mit Minecraft 1.21.1 (Einzelspieler genügt, dedizierter Server besser):

@@ -327,6 +327,39 @@ await step("the rendered tile with the changes confirms the previews: removed af
     assert.deepEqual(await previews(), {count: 0, meshes: 0, hidden: 0});
 });
 
+/** pixels of the magenta lid of the test-chest (block-model) around a world-position */
+async function chestLidAt(name, x, y, z, radius = 20) {
+    const png = decodePng(await page.screenshot({path: `${OUT}/${name}.png`}));
+    const p = await screen(x, y, z);
+    let count = 0;
+    for (let py = p.y - radius; py < p.y + radius; py++) for (let px = p.x - radius; px < p.x + radius; px++) {
+        const [r, g, b] = png.pixel(px, py);
+        if (r > 120 && b > 120 && g < r * 0.5 && g < b * 0.5) count++;
+    }
+    return count;
+}
+
+await step("a placed chest (still a preview) is opened: the closed lid of the preview is hidden like in the tile", async () => {
+    await control({block: "13,64,6", state: "minecraft:chest", n: "minecraft:grass_block,-,-,-,-,-"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockView.meshes.length > 0, null, {timeout: 5000});
+    await sleep(200);
+    const closed = await chestLidAt("b26-chest-preview", 13.5, 64 + 13 / 16, 6.5);
+    assert.ok(closed > 100, "the closed lid of the preview: " + closed);
+    await control({container: "13,64,6", texture: "minecraft:entity/chest/normal", facing: "south"});
+    await page.waitForFunction(() => {
+        const lid = [...window.bluemap.entityMarkerManager.chestLids.lids.values()][0];
+        return lid && lid.mesh && lid.progress === 1;
+    }, null, {timeout: 8000});
+    await sleep(200);
+    const open = await chestLidAt("b27-chest-preview-open", 13.5, 64 + 13 / 16, 6.5);
+    assert.ok(open < closed * 0.2, `closed lid pixels: ${closed} -> ${open}`);
+    await control({closeContainer: "13,64,6"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.chestLids.lids.size === 0, null, {timeout: 8000});
+    assert.ok(await chestLidAt("b28-chest-preview-closed", 13.5, 64 + 13 / 16, 6.5) > closed * 0.8, "the closed lid is shown again");
+    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 91000));
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 3000});
+});
+
 await step("a preview that is not confirmed is discarded after 90 s", async () => {
     await control({block: "7,64,6", state: "minecraft:stone"});
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 1, null, {timeout: 5000});
