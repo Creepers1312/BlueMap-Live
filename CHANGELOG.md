@@ -12,6 +12,7 @@ The first stable version. It contains everything from 0.1 to 0.6. Only 0.1 and 0
 - **Chests**: a chest that was just placed and is opened no longer shows its closed lid as well.
 - **Placed blocks stay on the map**: a preview disappeared after 90 s even if BlueMap had not rendered the tile yet (e.g. while the game was paused). It now stays until the tile is rendered.
 - **Broken blocks**: the preview is shaded like the rendered map, and it no longer flickers when Minecraft saved the chunk in the same second.
+- **Caves**: block previews are one-sided like the map, so underground they no longer block the view of the player.
 - **Jar names** start with `bluemap-live-`, so they are not mixed up with the original BlueMap. The Fabric version refuses to start together with the original BlueMap instead of running both.
 - Minecraft versions: 1.21 and 1.21.1 (newer versions are not supported).
 - New README (English and German), a [configuration reference](docs/bluemap-live/configuration.md) and this changelog.

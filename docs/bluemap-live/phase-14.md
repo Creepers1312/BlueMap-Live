@@ -88,6 +88,14 @@ Meldung des Nutzers (Bilder): Abgebaute Blöcke sind anders schattiert als die K
 
 Tests: Node 189/189 (u. a. „a tile from a chunk saved in the same second …“, Farbe der Seitenflächen 1), `blocks-e2e.mjs` 18/18.
 
+## 3d. Fix: Vorschau-Blöcke verdecken die Sicht in Höhlen
+
+Meldung des Nutzers: Unter der Erde sieht man in BlueMap von außen durch die Blöcke in einen Hohlraum, die Live-Blöcke sind aber von beiden Seiten sichtbar und verdecken den Spieler.
+
+Ursache: BlueMap zeichnet die Kacheln einseitig (`FrontSide`, `Map.js`): Flächen, auf die die Kamera von hinten schaut, fehlen. Die Vorschau war beidseitig (`DoubleSide`). Jetzt ist sie einseitig wie die Kacheln.
+
+Test: `blocks-e2e.mjs`, „previews are one-sided like the tiles“ (Kamera im Freiflug mitten im Vorschau-Block). Mit `DoubleSide` schlägt er fehl (40000 von 40000 Pixeln verdeckt), mit dem Fix 19/19.
+
 ## 4. Test in Minecraft: Forge und NeoForge (Nutzer)
 
 Für jede Plattform einmal mit Minecraft 1.21.1 (Einzelspieler genügt, dedizierter Server besser):

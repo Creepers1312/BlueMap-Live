@@ -22,7 +22,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-import {BufferGeometry, DataTexture, DoubleSide, Float32BufferAttribute, FloatType, Group, Mesh, MeshBasicMaterial,
+import {BufferGeometry, DataTexture, Float32BufferAttribute, FloatType, FrontSide, Group, Mesh, MeshBasicMaterial,
     NearestFilter, RGBAFormat, Texture} from "three";
 import {applyEntityShader} from "../EntityLighting.js";
 import {ASSET_VERSION, MAX_ATTEMPTS, RETRY_INTERVAL} from "../player/ItemAssetCache.js";
@@ -413,10 +413,12 @@ export class BlockPreviewView {
     material(texture) {
         let material = this.materials.get(texture);
         if (!material) {
+            // one-sided like the tiles (FrontSide, see Map.js): from inside a block or behind a wall, the camera looks
+            // through it like through the tiles
             // drawn a bit in front of the tile (the same faces can be in the tile, e.g. the neighbor-faces): applyDepthBias,
             // polygonOffset only helps without the logarithmic depth-buffer
             material = new MeshBasicMaterial({map: texture, vertexColors: true, alphaTest: 0.1,
-                transparent: true, side: DoubleSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2});
+                transparent: true, side: FrontSide, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2});
             const uniforms = this.uniforms();
             // lit like the tiles (sky-, block- and dynamic light), without the map-uniforms like the entities
             if (uniforms && uniforms.dynamicLights) applyPreviewLighting(material, uniforms);

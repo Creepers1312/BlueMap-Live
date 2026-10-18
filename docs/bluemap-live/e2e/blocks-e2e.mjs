@@ -360,6 +360,28 @@ await step("a placed chest (still a preview) is opened: the closed lid of the pr
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 3000});
 });
 
+await step("previews are one-sided like the tiles: from inside a previewed block the camera looks through it", async () => {
+    await control({block: "8,64,9", state: "minecraft:stone"});
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.has("8,64,9"), null, {timeout: 5000});
+    await sleep(300);
+    const outside = await orangeAt("b29-preview-outside", 8.5, 64.5, 9.5, 40);
+    // the camera in the middle of the block (free flight)
+    await page.evaluate(() => { window.location.hash = "#world:8.5:64.5:9.5:0:0:1.2:0:0:free"; });
+    await sleep(800);
+    const png = decodePng(await page.screenshot({path: `${OUT}/b30-preview-inside.png`}));
+    let inside = 0;
+    for (let y = 300; y < 500; y++) for (let x = 540; x < 740; x++) {
+        const [r, g, b] = png.pixel(x, y);
+        if (r > 120 && g > 30 && g < r * 0.75 && b < 60) inside++;
+    }
+    await page.evaluate(() => { window.location.hash = "#world:8.5:64.5:9.5:6:0:1.2:0:0:perspective"; });
+    await sleep(800);
+    assert.ok(outside > 100, "seen from outside: " + outside);
+    assert.ok(inside < 2000, "the inside faces (back-faces) are not drawn: " + inside + " of 40000 pixels");
+    await page.evaluate(() => window.bluemap.entityMarkerManager.blockPreviews.previews.forEach(p => p.added -= 1801000));
+    await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 0, null, {timeout: 3000});
+});
+
 await step("a preview without a render of its tile stays after 90 s (e.g. the game is paused), it is discarded after 30 min", async () => {
     await control({block: "7,64,6", state: "minecraft:stone"});
     await page.waitForFunction(() => window.bluemap.entityMarkerManager.blockPreviews.previews.size === 1, null, {timeout: 5000});
