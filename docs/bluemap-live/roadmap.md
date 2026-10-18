@@ -161,7 +161,11 @@ Weitere Mobs folgen in späteren `0.3.x`-Versionen. Unbekannte Mobs erscheinen a
 
 ---
 
-## Danach: Stabilisierung und Veröffentlichung (1.0)
+## 1.0 – Hauptrelease
+
+**Plan:** `release-1.0.md`. 1.0 ist der aktuelle Stand (0.1–0.6) mit kleinen Fixes, einem Release-Kandidaten und Tests in Minecraft, auf einem dedizierten Server und mit dem Modpack des Nutzers. Mod-Support kommt in 1.1.
+
+## Danach: Stabilisierung und Veröffentlichung (ursprüngliche Liste)
 
 - Lasttests mit vielen Spielern und Entities, Optimierung (Instancing, Datenmenge).
 - Vollständige Dokumentation, Konfigurationsbeschreibung.
